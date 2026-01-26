@@ -58,6 +58,21 @@
                 </div>
             </div>
 
+            {% if request.service_type %}
+            <div class="content-block" style="margin-top: 1.5rem;">
+                <h4>Requested Service Type</h4>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    {% for type in request.service_type.split|slice:"::" %}
+                         {# Splitting by comma might be better if I knew the split tag behavior but custom split isn't default #}
+                         {# I'll just display the string for now or use a basic loop if I had a custom filter #}
+                    {% endfor %}
+                    <div style="background: #eff6ff; color: #1e40af; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem; font-weight: 500; border: 1px solid #bfdbfe;">
+                        {{ request.service_type }}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
             {% if request.request_details %}
             <div class="content-block" style="margin-top: 2rem;">
                 <h4>Additional Request Details</h4>

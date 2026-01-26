@@ -152,26 +152,26 @@
 
         <!-- Equipment Details Section -->
         <div class="card">
-            <div class="card-title">Equipment Details</div>
+            <div class="card-title">Asset Registry Details</div>
             {% for item in report.items.all %}
-            <div class="equipment-item-detail" {% if not forloop.last %}style="border-bottom: 1px solid #f1f5f9; margin-bottom: 0.5rem; padding-bottom: 0.5rem;"{% endif %}>
+            <div class="equipment-item-detail" {% if not forloop.last %}style="border-bottom: 1px solid #f1f5f9; margin-bottom: 1rem; padding-bottom: 1rem;"{% endif %}>
                 <div class="info-group">
                     <span class="info-label">Product Name</span>
-                    <div class="info-value" style="font-weight: 700; color: var(--primary-color);">{{ item.product.name }}</div>
+                    <div class="info-value" style="font-weight: 700; color: var(--primary-color);">{{ item.equipment.product.name }}</div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
                     <div class="info-group">
-                        <span class="info-label">Model</span>
-                        <div class="info-value">{{ item.product.model }}</div>
+                        <span class="info-label">Manufacturer | Model</span>
+                        <div class="info-value">{{ item.equipment.product.manufacturer }} | {{ item.equipment.product.model }}</div>
                     </div>
                     <div class="info-group">
                         <span class="info-label">S/N</span>
-                        <div class="info-value">{{ item.serial_number|default:item.product.serial_number|default:"N/A" }}</div>
+                        <div class="info-value" style="font-family: monospace; font-weight: 600;">{{ item.equipment.serial_number }}</div>
                     </div>
                 </div>
                 {% if item.equipment_note %}
-                <div class="info-group" style="background: #fdfce7; padding: 0.25rem; border-radius: 4px; margin-top: 0.25rem;">
-                    <span class="info-label" style="color: #854d0e;">Note</span>
+                <div class="info-group" style="background: #fdfce7; padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem;">
+                    <span class="info-label" style="color: #854d0e;">Service Note</span>
                     <div class="info-value" style="font-size: 0.85rem; color: #422006;">{{ item.equipment_note }}</div>
                 </div>
                 {% endif %}

@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 class Product(models.Model):
+    """Product Catalogue - Blueprints/Templates (Manufacturer + Model)"""
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=255)
     manufacturer = models.CharField(max_length=255)
@@ -14,7 +15,24 @@ class Product(models.Model):
         ordering = ['manufacturer', 'model']
 
     def __str__(self):
-        return f"{self.name} ({self.model})"
+        return f"{self.manufacturer} {self.model} ({self.name})"
+
+class Equipment(models.Model):
+    """Equipment Registry - Specific Physical Units (Linked to Catalogue + Serial Number)"""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='instances')
+    serial_number = models.CharField(max_length=255)
+    current_facility = models.CharField(max_length=255, blank=True, null=True)
+    current_location = models.CharField(max_length=255, blank=True, null=True)
+    installation_date = models.DateField(blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        unique_together = [['product', 'serial_number']]
+        verbose_name_plural = "Equipment Registry"
+        ordering = ['product', 'serial_number']
+
+    def __str__(self):
+        return f"{self.product.manufacturer} {self.product.model} | S/N: {self.serial_number}"
 
 class ServiceReport(models.Model):
     STATUS_CHOICES = [
@@ -31,7 +49,6 @@ class ServiceReport(models.Model):
     
     maintenance_request = models.ForeignKey('MaintenanceRequest', on_delete=models.SET_NULL, null=True, blank=True, related_name='service_reports')
     engineer = models.ForeignKey(User, on_delete=models.CASCADE)
-    # product = models.ForeignKey(Product, on_delete=models.CASCADE) # Removed for multi-equipment support
 
     issue_description = models.TextField(blank=True, null=True)
     work_performed = models.TextField(blank=True, null=True)
@@ -56,12 +73,11 @@ class ServiceReport(models.Model):
 
 class ReportItem(models.Model):
     report = models.ForeignKey(ServiceReport, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    serial_number = models.CharField(max_length=255, blank=True, null=True, help_text="Serial number for this specific item")
-    equipment_note = models.TextField(blank=True, null=True, help_text="Specific note for this equipment")
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='service_history')
+    equipment_note = models.TextField(blank=True, null=True, help_text="Specific note for this equipment during this service")
 
     def __str__(self):
-        return f"{self.product.name} (in SR-{self.report.id})"
+        return f"{self.equipment} (Report {self.report.id})"
 
 class ReportImage(models.Model):
     report = models.ForeignKey(ServiceReport, related_name='images', on_delete=models.CASCADE)
@@ -88,48 +104,20 @@ class MaintenanceRequest(models.Model):
     ]
 
     LEBANON_LOCATIONS = [
-        ('Beirut', (
-            ('Beirut', 'Beirut'),
-        )),
+        ('Beirut', (('Beirut', 'Beirut'),)),
         ('Mount Lebanon', (
-            ('Baabda', 'Baabda'),
-            ('Matn', 'Matn'),
-            ('Chouf', 'Chouf'),
-            ('Aley', 'Aley'),
-            ('Keserwan', 'Keserwan'),
-            ('Jbeil', 'Jbeil'),
+            ('Baabda', 'Baabda'), ('Matn', 'Matn'), ('Chouf', 'Chouf'),
+            ('Aley', 'Aley'), ('Keserwan', 'Keserwan'), ('Jbeil', 'Jbeil'),
         )),
         ('North Lebanon', (
-            ('Tripoli', 'Tripoli'),
-            ('Zgharta', 'Zgharta'),
-            ('Bsharri', 'Bsharri'),
-            ('Batroun', 'Batroun'),
-            ('Koura', 'Koura'),
-            ('Minieh-Danniyeh', 'Minieh-Danniyeh'),
+            ('Tripoli', 'Tripoli'), ('Zgharta', 'Zgharta'), ('Bsharri', 'Bsharri'),
+            ('Batroun', 'Batroun'), ('Koura', 'Koura'), ('Minieh-Danniyeh', 'Minieh-Danniyeh'),
         )),
-        ('Akkar', (
-            ('Akkar', 'Akkar'),
-        )),
-        ('Beqaa', (
-            ('Zahle', 'Zahle'),
-            ('Rashaya', 'Rashaya'),
-            ('West Beqaa', 'West Beqaa'),
-        )),
-        ('Baalbek-Hermel', (
-            ('Baalbek', 'Baalbek'),
-            ('Hermel', 'Hermel'),
-        )),
-        ('South Lebanon', (
-            ('Sidon', 'Sidon'),
-            ('Jezzine', 'Jezzine'),
-            ('Tyre', 'Tyre'),
-        )),
-        ('Nabatieh', (
-            ('Nabatieh', 'Nabatieh'),
-            ('Marjeyoun', 'Marjeyoun'),
-            ('Hasbaya', 'Hasbaya'),
-            ('Bint Jbeil', 'Bint Jbeil'),
-        )),
+        ('Akkar', (('Akkar', 'Akkar'),)),
+        ('Beqaa', (('Zahle', 'Zahle'), ('Rashaya', 'Rashaya'), ('West Beqaa', 'West Beqaa'),)),
+        ('Baalbek-Hermel', (('Baalbek', 'Baalbek'), ('Hermel', 'Hermel'),)),
+        ('South Lebanon', (('Sidon', 'Sidon'), ('Jezzine', 'Jezzine'), ('Tyre', 'Tyre'),)),
+        ('Nabatieh', (('Nabatieh', 'Nabatieh'), ('Marjeyoun', 'Marjeyoun'), ('Hasbaya', 'Hasbaya'), ('Bint Jbeil', 'Bint Jbeil'),)),
     ]
 
     BILLING_STATUS_CHOICES = [
@@ -140,22 +128,23 @@ class MaintenanceRequest(models.Model):
     ]
 
     customer_contact_date = models.DateField(default=timezone.now)
-    availability_start = models.DateField(blank=True, null=True, help_text="Start of window user is available")
-    availability_end = models.DateField(blank=True, null=True, help_text="End of window user is available")
+    availability_start = models.DateField(blank=True, null=True)
+    availability_end = models.DateField(blank=True, null=True)
     urgency = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='Medium')
     
     contact_name = models.CharField(max_length=255, blank=True, null=True)
     contact_number = models.CharField(max_length=50, blank=True, null=True)
-    contact_email = models.EmailField(max_length=255, blank=True, null=True, help_text="Optional contact email")
+    contact_email = models.EmailField(max_length=255, blank=True, null=True)
     facility_name = models.CharField(max_length=255, blank=True, null=True)
     location = models.CharField(max_length=100, choices=LEBANON_LOCATIONS, blank=True, null=True)
     donor = models.CharField(max_length=255, blank=True, null=True)
     
     equipment_list = models.TextField(blank=True, null=True, help_text="Legacy list of names for equipment")
-    request_details = models.TextField(blank=True, null=True, help_text="Additional relevant details")
+    request_details = models.TextField(blank=True, null=True)
+    service_type = models.CharField(max_length=255, blank=True, null=True)
     
     billing_status = models.CharField(max_length=20, choices=BILLING_STATUS_CHOICES, default='Billable')
-    estimated_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Engineer's estimated pricing")
+    estimated_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     
     status = models.CharField(max_length=20, choices=REQUEST_STATUS_CHOICES, default='Open')
     
@@ -168,11 +157,11 @@ class MaintenanceRequest(models.Model):
 
 class MaintenanceRequestEquipment(models.Model):
     request = models.ForeignKey(MaintenanceRequest, related_name='equipment_items', on_delete=models.CASCADE)
-    equipment_type = models.CharField(max_length=255, help_text="Type of instrument")
-    model_name = models.CharField(max_length=255, help_text="Model of instrument")
+    equipment = models.ForeignKey(Equipment, on_delete=models.SET_NULL, null=True, blank=True)
+    notes = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.equipment_type} - {self.model_name} (MR-{self.request.id})"
+        return f"{self.equipment} (MR-{self.request.id})"
 
 class SavedFilter(models.Model):
     FILTER_TYPE_CHOICES = [
@@ -183,7 +172,7 @@ class SavedFilter(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_filters')
     name = models.CharField(max_length=100)
     filter_type = models.CharField(max_length=20, choices=FILTER_TYPE_CHOICES)
-    filter_params = models.JSONField(help_text="Stored filter parameters as JSON")
+    filter_params = models.JSONField()
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     

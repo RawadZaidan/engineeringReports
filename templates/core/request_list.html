@@ -41,6 +41,7 @@
                 <tr>
                     <th>Facility</th>
                     <th>Ref</th>
+                    <th>Type</th>
                     <th>Urgency</th>
                     <th>Status</th>
                     <th>Equipment</th>
@@ -61,6 +62,7 @@
                         {% endif %}
                     </td>
                     <td><span style="font-family: monospace; color: #64748b;">#MR-{{ request_item.id }}</span></td>
+                    <td><div style="font-size: 0.85rem; color: #4b5563;">{{ request_item.service_type|default:"-" }}</div></td>
                     <td>
                         <span class="status-badge urgency-{{ request_item.urgency|lower }}">
                             {{ request_item.urgency }}

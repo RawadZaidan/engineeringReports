@@ -33,8 +33,9 @@
             <nav class="main-nav">
                 <a href="{% url 'dashboard' %}" class="nav-link">Dashboard</a>
                 <a href="{% url 'report_create' %}" class="nav-link">New Report</a>
-                <a href="{% url 'product_list' %}" class="nav-link">Products</a>
-                <a href="{% url 'request_list' %}" class="nav-link">Maintenance Requests</a>
+                <a href="{% url 'product_list' %}" class="nav-link">Catalogue</a>
+                <a href="{% url 'equipment_list' %}" class="nav-link">Asset Registry</a>
+                <a href="{% url 'request_list' %}" class="nav-link">Requests</a>
                 {% if user.is_authenticated %}
                     <span class="user-greeting">Hi, {{ user.username }}</span>
                 {% endif %}

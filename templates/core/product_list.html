@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
-{% block title %}Product Registry - Medilab{% endblock %}
+{% block title %}Product Catalogue - Medilab{% endblock %}
 
 {% block content %}
 <div class="page-header-actions">
     <div>
-        <h1 class="page-title">Product Registry</h1>
-        <p class="text-muted">Database of equipment and instruments</p>
+        <h1 class="page-title">Product Catalogue</h1>
+        <p class="text-muted">Master database of equipment types and models</p>
     </div>
-    <a href="{% url 'product_create' %}" class="btn btn-primary">+ Add New Product</a>
+    <a href="{% url 'product_create' %}" class="btn btn-primary">+ Add New Type</a>
 </div>
 
 <div class="card" style="padding: 0; overflow: hidden;">
@@ -19,8 +19,7 @@
                     <th>Product Name</th>
                     <th>Category</th>
                     <th>Manufacturer & Model</th>
-                    <th>Serial Number</th>
-                    <th>Status</th>
+                    <th class="text-center">Unified Assets</th>
                 </tr>
             </thead>
             <tbody>
@@ -34,18 +33,15 @@
                         <div style="font-weight: 500;">{{ product.manufacturer }}</div>
                         <div style="font-size: 0.8rem; color: #64748b;">{{ product.model }}</div>
                     </td>
-                    <td><span style="font-family: monospace; color: #64748b;">{{ product.serial_number|default:"-" }}</span></td>
-                    <td>
-                        {% if product.is_active %}
-                            <span class="status-badge status-completed">Active</span>
-                        {% else %}
-                            <span class="status-badge status-draft">Inactive</span>
-                        {% endif %}
+                    <td class="text-center">
+                        <span class="status-badge" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;">
+                            {{ product.instances.count }} in Registry
+                        </span>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center py-5">No products found.</td>
+                    <td colspan="4" class="text-center py-5">No product types found.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -58,11 +54,7 @@
         <div class="product-mobile-card" style="padding: 1.25rem; border-bottom: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
                 <div style="font-weight: 700; color: #0f172a; font-size: 1.1rem;">{{ product.name }}</div>
-                {% if product.is_active %}
-                    <span class="status-badge status-completed" style="font-size: 0.65rem;">Active</span>
-                {% else %}
-                    <span class="status-badge status-draft" style="font-size: 0.65rem;">Inactive</span>
-                {% endif %}
+                <span class="status-badge" style="background: #eff6ff; color: #1e40af; font-size: 0.65rem;">{{ product.instances.count }} Units</span>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem;">
                 <div>
@@ -73,13 +65,9 @@
                     <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">Model</div>
                     <div>{{ product.model }}</div>
                 </div>
-                <div>
+                <div style="grid-column: span 2;">
                     <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">Manufacturer</div>
                     <div>{{ product.manufacturer }}</div>
-                </div>
-                <div>
-                    <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">S/N</div>
-                    <div style="font-family: monospace;">{{ product.serial_number|default:"-" }}</div>
                 </div>
             </div>
         </div>
