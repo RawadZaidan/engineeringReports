@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Edit Request #MR-{{ form.instance.pk }}{% else %}New Maintenance Request{% endif %} - Medilab{% endblock %}
+
+{% block content %}
+<div class="page-header-actions">
+    <div>
+        <h1 class="page-title">
+            {% if form.instance.pk %}Edit Maintenance Request{% else %}Register New Request{% endif %}
+        </h1>
+        <p class="text-muted">Fill in the customer contact details and availability window.</p>
+    </div>
+    <a href="{% url 'request_list' %}" class="btn btn-secondary">Back to List</a>
+</div>
+
+<div class="form-container">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        
+        {% if form.errors %}
+        <div class="alert alert-danger">
+            Please correct the errors below.
+        </div>
+        {% endif %}
+
+        <div class="form-section">
+            <div class="section-header">
+                <span class="section-icon">❶</span>
+                <span>Customer & Facility</span>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Customer Contact Date</label>
+                    {{ form.customer_contact_date }}
+                    {{ form.customer_contact_date.errors }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Facility Name</label>
+                    {{ form.facility_name }}
+                    {{ form.facility_name.errors }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Location (District)</label>
+                    {{ form.location }}
+                    {{ form.location.errors }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Donor / Project (if any)</label>
+                    {{ form.donor }}
+                    {{ form.donor.errors }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Contact Person Name</label>
+                    {{ form.contact_name }}
+                    {{ form.contact_name.errors }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Contact Phone Number</label>
+                    {{ form.contact_number }}
+                    {{ form.contact_number.errors }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" style="grid-column: span 2;">
+                    <label class="form-label">Contact Email (Optional)</label>
+                    {{ form.contact_email }}
+                    {{ form.contact_email.errors }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="section-header">
+                <span class="section-icon">❷</span>
+                <span>Service Windows & Priority</span>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Availability Start Date</label>
+                    {{ form.availability_start }}
+                    {{ form.availability_start.errors }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Availability End Date</label>
+                    {{ form.availability_end }}
+                    {{ form.availability_end.errors }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" {% if not user.is_staff %}style="grid-column: span 2;"{% endif %}>
+                    <label class="form-label">Urgency Level</label>
+                    {{ form.urgency }}
+                    {{ form.urgency.errors }}
+                </div>
+                {% if user.is_staff %}
+                <div class="form-group">
+                    <label class="form-label">Request Status</label>
+                    {{ form.status }}
+                    {{ form.status.errors }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="section-header">
+                <span class="section-icon">❸</span>
+                <span>Equipment & Details</span>
+            </div>
+            
+            {{ equipment_formset.management_form }}
+            <div id="equipment-list-container">
+                {% for eq_form in equipment_formset %}
+                <div class="equipment-request-card card" style="background: #f8fafc; margin-bottom: 1rem; padding: 1rem; border-style: dashed;" data-index="{{ forloop.counter0 }}">
+                    {{ eq_form.id }}
+                    <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
+                        <div class="form-group">
+                            <label class="form-label">Instrument Type</label>
+                            {{ eq_form.equipment_type }}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Model Name</label>
+                            {{ eq_form.model_name }}
+                        </div>
+                        <div class="form-group">
+                            {% if equipment_formset.can_delete %}
+                                <div style="display:none;">{{ eq_form.DELETE }}</div>
+                                <button type="button" class="btn btn-outline-danger remove-eq-btn" style="padding: 0.55rem;">&times;</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" id="add-instrument-btn" class="btn btn-outline-primary" style="width: 100%; border-style: dashed; margin-bottom: 1.5rem;">
+                + Add Instrument
+            </button>
+
+            <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label">Additional Request Details</label>
+                {{ form.request_details }}
+                {{ form.request_details.errors }}
+            </div>
+        </div>
+
+        {% if user.is_staff %}
+        <div class="form-section" style="background: #fffbeb; border: 1px solid #fef3c7;">
+            <div class="section-header">
+                <span class="section-icon" style="background: #f59e0b;">❹</span>
+                <span style="color: #92400e;">Engineer Only: Billing & Pricing</span>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Billing Status</label>
+                    {{ form.billing_status }}
+                    {{ form.billing_status.errors }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Estimated Cost ($)</label>
+                    {{ form.estimated_cost }}
+                    {{ form.estimated_cost.errors }}
+                    <small class="text-muted">Enter the desired pricing for this request.</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Hidden Empty Form For Cloning -->
+        <div id="empty-eq-form" style="display: none;">
+            <div class="equipment-request-card card" style="background: #f8fafc; margin-bottom: 1rem; padding: 1rem; border-style: dashed;" data-index="__prefix__">
+                <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 1rem; align-items: end;">
+                    <div class="form-group">
+                        <label class="form-label">Instrument Type</label>
+                        {{ equipment_formset.empty_form.equipment_type }}
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Model Name</label>
+                        {{ equipment_formset.empty_form.model_name }}
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn btn-outline-danger remove-eq-btn" style="padding: 0.55rem;">&times;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">Save Request</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Universal form-control class
+        var inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(function(input) {
+            if (input.type !== 'submit' && input.type !== 'hidden') {
+                input.classList.add('form-control');
+            }
+        });
+
+        // Dynamic FormSet Logic for Equipment
+        const container = document.getElementById('equipment-list-container');
+        const addBtn = document.getElementById('add-instrument-btn');
+        const totalForms = document.getElementById('id_equipment_items-TOTAL_FORMS');
+        const emptyFormHtml = document.getElementById('empty-eq-form').innerHTML;
+
+        addBtn.addEventListener('click', function() {
+            const currentCount = parseInt(totalForms.value);
+            const newFormHtml = emptyFormHtml.replace(/__prefix__/g, currentCount);
+            
+            const div = document.createElement('div');
+            div.innerHTML = newFormHtml;
+            const newCard = div.firstElementChild;
+            
+            container.appendChild(newCard);
+            totalForms.value = currentCount + 1;
+            
+            // Apply form-control to new inputs
+            newCard.querySelectorAll('input, select, textarea').forEach(input => {
+                input.classList.add('form-control');
+            });
+        });
+
+        // Removal (Delegation)
+        container.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-eq-btn')) {
+                const card = e.target.closest('.equipment-request-card');
+                const deleteCheckbox = card.querySelector('input[type="checkbox"][name$="-DELETE"]');
+                
+                if (deleteCheckbox) {
+                    // Existing form: mark for deletion
+                    deleteCheckbox.checked = true;
+                    card.style.display = 'none';
+                } else {
+                    // New form: just remove from DOM
+                    card.remove();
+                    // Optional: decrement totalForms.value if you're feeling adventurous, 
+                    // but Django's FormSet usually handles gaps fine if the indices stay consistent.
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

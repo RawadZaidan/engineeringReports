@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Edit Product{% else %}Add New Product{% endif %} - Medilab{% endblock %}
+
+{% block content %}
+<div class="page-header-actions">
+    <div>
+        <h1 class="page-title">
+            {% if form.instance.pk %}Edit Product{% else %}New Product Registration{% endif %}
+        </h1>
+        <p class="text-muted">Enter product specifications and details</p>
+    </div>
+    <a href="{% url 'product_list' %}" class="btn btn-secondary">Back to Registry</a>
+</div>
+
+<div class="form-container">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        
+        {% if form.errors %}
+        <div class="alert alert-danger" style="margin-bottom: 2rem;">
+            Please correct the errors below.
+        </div>
+        {% endif %}
+
+        <div class="form-section">
+            <div class="section-header">
+                <span class="section-icon">❶</span>
+                <span>General Information</span>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Product Name</label>
+                    {{ form.name }}
+                    {{ form.name.errors }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    {{ form.category }}
+                    {{ form.category.errors }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="section-header">
+                <span class="section-icon">❷</span>
+                <span>Technical Specifications</span>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Manufacturer</label>
+                    {{ form.manufacturer }}
+                    {{ form.manufacturer.errors }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Model Number</label>
+                    {{ form.model }}
+                    {{ form.model.errors }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="section-header">
+                <span class="section-icon">❸</span>
+                <span>Additional Notes</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Internal Notes / Description</label>
+                {{ form.notes }}
+                {{ form.notes.errors }}
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">Save Product</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var inputs = document.querySelectorAll('input[type="text"], input[type="number"], select, textarea');
+        inputs.forEach(function(input) {
+            input.classList.add('form-control');
+        });
+    });
+</script>
+{% endblock %}

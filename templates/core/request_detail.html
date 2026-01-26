@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Maintenance Request #MR-{{ request.id }} - Medilab{% endblock %}
+
+{% block content %}
+<div class="document-letterhead print-only">
+    <img src="{% static 'img/medilab_logo.png' %}" alt="Medilab Logo" class="letterhead-logo">
+    <img src="{% static 'img/iso_logo.png' %}" alt="ISO Certification" class="letterhead-logo">
+</div>
+
+<div class="report-page-header">
+    <div class="report-title-section">
+        <h1 class="page-title">
+            Maintenance Request #MR-{{ request.id }}
+            <span class="status-badge status-{{ request.status|lower|cut:' ' }}">{{ request.status }}</span>
+        </h1>
+        <div class="report-meta">
+            <span><i class="icon-user"></i> Requested by: {{ request.created_by.get_full_name|default:request.created_by.username|default:"System" }}</span>
+            <span><i class="icon-calendar"></i> Contact Date: {{ request.customer_contact_date|date:"M d, Y" }}</span>
+        </div>
+    </div>
+    <div class="report-actions">
+        {% if user.is_staff or request.created_by == user %}
+        <a href="{% url 'request_update' request.pk %}" class="btn btn-primary">Edit Request</a>
+        {% endif %}
+        {% if user.is_staff %}
+        <a href="{% url 'report_create' %}?request_id={{ request.pk }}" class="btn btn-primary" style="background-color: var(--success-color); border-color: var(--success-color);">Create Service Report</a>
+        {% endif %}
+        <button class="btn btn-secondary" onclick="window.print()"><i class="icon-printer"></i> Print</button>
+        <a href="{% url 'request_list' %}" class="btn btn-secondary">Back to List</a>
+    </div>
+</div>
+
+<div class="report-grid-layout">
+    <!-- Main Info -->
+    <div class="report-main-col grid-col-8">
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-title">Service Details & Equipment</div>
+            
+            <div class="content-block">
+                <h4>Equipment to be Serviced</h4>
+                <div class="equipment-grid">
+                    {% for item in request.equipment_items.all %}
+                    <div class="equipment-item-badge">
+                        <div class="equipment-item-type">{{ item.equipment_type }}</div>
+                        <div class="equipment-item-model">{{ item.model_name }}</div>
+                    </div>
+                    {% empty %}
+                        {% if request.equipment_list %}
+                            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; font-style: italic; color: #64748b;">
+                                {{ request.equipment_list|linebreaksbr }}
+                            </div>
+                        {% else %}
+                            <div class="text-muted">No equipment specified.</div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if request.request_details %}
+            <div class="content-block" style="margin-top: 2rem;">
+                <h4>Additional Request Details</h4>
+                <p>{{ request.request_details|linebreaksbr }}</p>
+            </div>
+            {% endif %}
+            {% if request.service_reports.all %}
+            <div class="content-block" style="margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                <h4 style="margin-bottom: 1rem;">Linked Service Reports</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                    {% for report in request.service_reports.all %}
+                    <div class="card" style="padding: 1rem; margin-bottom: 0; background: #f8fafc; border: 1px solid #e2e8f0;">
+                        <div style="font-weight: 700; color: var(--primary-color);">SR-{{ report.id }}</div>
+                        <div style="font-size: 0.8rem; color: #64748b;">{{ report.service_date|date:"M d, Y" }}</div>
+                        <a href="{% url 'report_detail' report.pk %}" class="view-link" style="margin-top: 0.5rem; display: block; font-size: 0.85rem;">View Report &#8594;</a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Sidebar Info -->
+    <div class="report-sidebar-col grid-col-4">
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-title">Customer Information</div>
+            <div class="info-group">
+                <span class="info-label">Facility</span>
+                <div class="info-value" style="font-weight: 700;">{{ request.facility_name|default:"N/A" }}</div>
+            </div>
+            {% if request.location %}
+            <div class="info-group">
+                <span class="info-label">Location (District)</span>
+                <div class="info-value" style="color: #4b5563;">{{ request.get_location_display }}</div>
+            </div>
+            {% endif %}
+            {% if request.donor %}
+            <div class="info-group">
+                <span class="info-label">Donor / Project</span>
+                <div class="info-value">{{ request.donor }}</div>
+            </div>
+            {% endif %}
+            <div class="info-group">
+                <span class="info-label">Contact Person</span>
+                <div class="info-value">{{ request.contact_name|default:"N/A" }}</div>
+            </div>
+            <div class="info-group">
+                <span class="info-label">Contact Number</span>
+                <div class="info-value" style="color: var(--primary-color); font-weight: 600;">{{ request.contact_number|default:"N/A" }}</div>
+            </div>
+            {% if request.contact_email %}
+            <div class="info-group">
+                <span class="info-label">Contact Email</span>
+                <div class="info-value" style="font-size: 0.9rem;">{{ request.contact_email }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card" style="margin-bottom: 1.5rem; background: #fffbeb; border-color: #fef3c7;">
+            <div class="card-title" style="color: #92400e;">Billing & Warranty</div>
+            <div class="info-group">
+                <span class="info-label">Billing Status</span>
+                <div class="info-value">
+                    <span class="status-badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a;">
+                        {{ request.get_billing_status_display }}
+                    </span>
+                </div>
+            </div>
+            {% if request.estimated_cost %}
+            <div class="info-group">
+                <span class="info-label">Estimated Pricing</span>
+                <div class="info-value" style="font-size: 1.25rem; font-weight: 700; color: #b45309;">
+                    ${{ request.estimated_cost|floatformat:2 }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-title">Availability & Urgency</div>
+            <div class="info-group">
+                <span class="info-label">Urgency</span>
+                <div class="info-value">
+                    <span class="status-badge urgency-{{ request.urgency|lower }}">
+                        {{ request.urgency }}
+                    </span>
+                </div>
+            </div>
+            <div class="info-group">
+                <span class="info-label">Availability Window</span>
+                <div class="info-value">
+                    {% if request.availability_start and request.availability_end %}
+                        {{ request.availability_start|date:"M d" }} - {{ request.availability_end|date:"M d, Y" }}
+                    {% else %}
+                        Not specified
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

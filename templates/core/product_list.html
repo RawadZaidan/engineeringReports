@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Product Registry - Medilab{% endblock %}
+
+{% block content %}
+<div class="page-header-actions">
+    <div>
+        <h1 class="page-title">Product Registry</h1>
+        <p class="text-muted">Database of equipment and instruments</p>
+    </div>
+    <a href="{% url 'product_create' %}" class="btn btn-primary">+ Add New Product</a>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+    <!-- Desktop Table View -->
+    <div class="table-responsive desktop-only">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Manufacturer & Model</th>
+                    <th>Serial Number</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 700; color: #0f172a;">{{ product.name }}</div>
+                    </td>
+                    <td><span class="status-badge" style="background: #f1f5f9; color: #475569;">{{ product.category }}</span></td>
+                    <td>
+                        <div style="font-weight: 500;">{{ product.manufacturer }}</div>
+                        <div style="font-size: 0.8rem; color: #64748b;">{{ product.model }}</div>
+                    </td>
+                    <td><span style="font-family: monospace; color: #64748b;">{{ product.serial_number|default:"-" }}</span></td>
+                    <td>
+                        {% if product.is_active %}
+                            <span class="status-badge status-completed">Active</span>
+                        {% else %}
+                            <span class="status-badge status-draft">Inactive</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-5">No products found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="mobile-only">
+        {% for product in products %}
+        <div class="product-mobile-card" style="padding: 1.25rem; border-bottom: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                <div style="font-weight: 700; color: #0f172a; font-size: 1.1rem;">{{ product.name }}</div>
+                {% if product.is_active %}
+                    <span class="status-badge status-completed" style="font-size: 0.65rem;">Active</span>
+                {% else %}
+                    <span class="status-badge status-draft" style="font-size: 0.65rem;">Inactive</span>
+                {% endif %}
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem;">
+                <div>
+                    <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">Category</div>
+                    <div>{{ product.category }}</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">Model</div>
+                    <div>{{ product.model }}</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">Manufacturer</div>
+                    <div>{{ product.manufacturer }}</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">S/N</div>
+                    <div style="font-family: monospace;">{{ product.serial_number|default:"-" }}</div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div style="padding: 3rem; text-align: center; color: var(--text-muted);">No products found.</div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

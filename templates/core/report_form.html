@@ -1,0 +1,607 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .equipment-summary-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .equipment-summary-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+    }
+    .equipment-card-wrapper {
+        margin-bottom: 1rem;
+    }
+
+    /* --- Standard Signature Pad --- */
+    .signature-pad-container {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+        margin-bottom: 0.5rem;
+    }
+    #signature-pad {
+        width: 100% !important;
+        height: 200px !important;
+        display: block;
+        cursor: crosshair;
+        touch-action: none;
+    }
+</style>
+<div class="page-header-actions">
+    <div class="report-title-section">
+        <h1 class="page-title">
+            {% if form.instance.pk %}Edit Service Report{% else %}Create Service Report{% endif %}
+        </h1>
+        <div class="auto-save-status">
+            <i class="icon-cloud-upload"></i> Last auto-saved: Just now
+        </div>
+    </div>
+    {% if form.instance.pk %}
+    <div class="report-badge">
+        <i class="icon-file-text"></i> Service Report #SR-{{ form.instance.pk }}
+    </div>
+    {% else %}
+    <div class="report-badge">
+        <i class="icon-file-text"></i> New Service Report
+    </div>
+    {% endif %}
+</div>
+
+<form method="post" enctype="multipart/form-data" id="reportForm" style="padding-bottom: 80px;" novalidate>
+    {% csrf_token %}
+
+    {% if form.errors or items.errors %}
+    <div class="alert alert-danger" style="background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+        <strong>Please correct the following errors:</strong>
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            {% if field.errors %}
+                <div style="margin-top: 0.5rem;">{{ field.label }}: {{ field.errors|striptags }}</div>
+            {% endif %}
+        {% endfor %}
+        {% for item_form in items %}
+            {% if item_form.errors %}
+                <div style="margin-top: 0.5rem;">Equipment {{ forloop.counter }}: {{ item_form.errors|striptags }}</div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Section 1: General Information -->
+    <div class="form-section">
+        <div class="section-header">
+            <span class="section-icon">❶</span>
+            <span>Section 1: General Information</span>
+        </div>
+        
+        <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+            <div>
+                <label class="form-label">Linked Request</label>
+                {{ form.maintenance_request }}
+            </div>
+            <div>
+                <label class="form-label">Client Name</label>
+                {{ form.client_name }}
+            </div>
+            <div>
+                <label class="form-label">Project Reference</label>
+                {{ form.project_reference }}
+            </div>
+            <div>
+                <label class="form-label">Location / Department</label>
+                {{ form.location }}
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div>
+                <label class="form-label">Donor (if applicable)</label>
+                {{ form.donor }}
+            </div>
+            <div>
+                <label class="form-label">Date of Service</label>
+                {{ form.service_date }}
+            </div>
+        </div>
+
+         <div class="form-row">
+            <div>
+                <label class="form-label">Client Representative</label>
+                {{ form.client_representative_name }}
+            </div>
+            <div>
+                <label class="form-label">Representative Phone Number</label>
+                {{ form.client_phone_number }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 2: Equipment Selection -->
+    <div class="form-section">
+        <div class="section-header">
+            <span class="section-icon">❷</span>
+            <span>Section 2: Equipment Selection</span>
+        </div>
+
+        {{ items.management_form }}
+        <div id="equipment-list">
+            {% for item_form in items %}
+            <div class="equipment-card-wrapper" data-index="{{ forloop.counter0 }}">
+                <!-- Hidden Django Form Fields -->
+                <div class="equipment-item-form" style="display: none;">
+                    {{ item_form.id }}
+                    <div class="delete-checkbox-wrapper">{{ item_form.DELETE }}</div>
+                    {{ item_form.product }}
+                    {{ item_form.serial_number }}
+                    {{ item_form.equipment_note }}
+                </div>
+
+                <!-- Visual Summary Card -->
+                {% if item_form.instance.pk or item_form.product.value %}
+                <div class="equipment-summary-card" style="background: #f0f9ff; border: 1px solid #bae6fd; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div class="card-content">
+                        <div style="font-weight: 700; color: #0369a1; font-size: 1rem;">
+                            <span class="card-product-name">
+                                {% for val, label in item_form.fields.product.choices %}
+                                    {% if val|stringformat:"s" == item_form.product.value|stringformat:"s" %}{{ label }}{% endif %}
+                                {% endfor %}
+                            </span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: #64748b; margin-top: 2px;">
+                            <strong>S/N:</strong> <span class="card-serial">{{ item_form.serial_number.value|default:"N/A" }}</span>
+                        </div>
+                        {% if item_form.equipment_note.value %}
+                        <div style="font-size: 0.85rem; color: #64748b; font-style: italic; margin-top: 4px;">
+                            {{ item_form.equipment_note.value }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" style="padding: 0.25rem 0.6rem; border-radius: 6px;">&times; Remove</button>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <button type="button" class="btn btn-secondary" id="add-equipment" style="width: 100%; border-style: dashed;">+ Add Equipment Item</button>
+        
+        <div style="margin-top: 1rem; text-align: right;">
+            <small style="color: #64748b;">Not found?</small>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="openProductModal" style="font-size: 0.8rem; padding: 0.2rem 0.6rem;">Create New Product</button>
+        </div>
+    </div>
+
+    <!-- Empty Form Template (Hidden) -->
+    <div id="empty-form" style="display:none;">
+        <div class="equipment-card-wrapper" data-index="__prefix__">
+            <div class="equipment-item-form" style="display: none;">
+                <div style="display:none;">{{ items.empty_form.DELETE }}</div>
+                {{ items.empty_form.product }}
+                {{ items.empty_form.serial_number }}
+                {{ items.empty_form.equipment_note }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 3: Service Details -->
+    <div class="form-section">
+        <div class="section-header">
+            <span class="section-icon">❸</span>
+            <span>Section 3: Service Details</span>
+        </div>
+
+        <div class="form-row" style="grid-template-columns: 1fr;">
+            <div>
+                <label class="form-label">Issue Description</label>
+                {{ form.issue_description }}
+            </div>
+            <div>
+                <label class="form-label">Work Performed</label>
+                {{ form.work_performed }}
+            </div>
+            <div>
+                 <label class="form-label">Parts Used</label>
+                 {{ form.parts_used }}
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div>
+                <label class="form-label">Status</label>
+                {{ form.status }}
+            </div>
+            <div>
+                <label class="form-label">Follow-up Required?</label>
+                {{ form.follow_up_required }}
+            </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 1.5rem; grid-template-columns: 1fr 1fr; border-top: 1px solid #f1f5f9; padding-top: 1.5rem;">
+            <div>
+                <label class="form-label" style="font-weight: 700; color: #1e293b;">Service Type</label>
+                <div class="checkbox-list-container">
+                    {{ form.service_type }}
+                </div>
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 700; color: #1e293b;">Billing/Contract Category</label>
+                <div class="checkbox-list-container">
+                    {{ form.billing_category }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 1rem; grid-template-columns: 1fr;">
+            <div>
+                <label class="form-label" style="font-weight: 700; color: #0f172a;">Final Equipment Status After Service</label>
+                <div class="checkbox-list-container" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    {{ form.final_status }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section 4: Validation -->
+    <div class="form-section">
+        <div class="section-header">
+            <span class="section-icon">❹</span>
+            <span>Section 4: Validation & Attachments</span>
+        </div>
+
+        <div class="form-row">
+            <div>
+                <label class="form-label">Client Signature</label>
+                
+                <!-- Editor Mode -->
+                <div id="signature-editor">
+                    <div class="signature-pad-container" id="sig-pad-wrapper">
+                         <canvas id="signature-pad"></canvas>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-secondary" style="font-size: 0.8rem;" onclick="clearSignature()">Clear</button>
+                        <button type="button" class="btn btn-primary" style="font-size: 0.8rem;" onclick="confirmSignature()">Confirm Signature</button>
+                    </div>
+                </div>
+
+                <!-- Preview Mode -->
+                <div id="signature-preview-container" style="display: none;">
+                    <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #f8fafc; text-align: center; aspect-ratio: 3/1; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <img id="signature-preview-img" src="{% if form.instance.client_signature %}{{ form.instance.client_signature.url }}{% endif %}" alt="Signature Preview" style="max-width: 100%; max-height: 100%; object-fit: cover; display: block; background: white;">
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary" style="margin-top: 10px; font-size: 0.8rem;" onclick="replaceSignature()">Replace Signature</button>
+                </div>
+
+                {{ form.client_signature }}
+            </div>
+            <div>
+                 <label class="form-label">Photo Attachments</label>
+                 <div style="border: 2px dashed #cbd5e1; padding: 2rem; text-align: center; border-radius: 8px;">
+                     <input type="file" name="images" multiple accept="image/*" style="width: 100%;">
+                     <p style="margin-top: 0.5rem; color: #64748b; font-size: 0.9rem;">Drag & drop or click to upload</p>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sticky Footer -->
+    <div class="sticky-footer">
+        <div class="footer-content">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="height: 8px; width: 8px; background-color: var(--success-color); border-radius: 50%; display: inline-block;"></span>
+                <span style="font-size: 0.85rem; color: #64748b;">Online Mode</span>
+                <span style="border-left: 1px solid #cbd5e1; height: 12px; margin: 0 0.5rem;"></span>
+                <span style="font-size: 0.85rem; color: #64748b;">Version 1.0.0</span>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary" id="submitReportBtn">Save Report &nbsp; &#10148;</button>
+            </div>
+        </div>
+    </div>
+
+</form>
+
+    <!-- Equipment Entry Modal -->
+    <div id="equipmentModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+        <div class="modal-content" style="background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 90%; max-width: 500px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">Add Equipment</h3>
+                <span class="close-equipment" style="color: #aaa; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Product</label>
+                <select id="modal_product" class="form-control product-select">
+                    <option value="">---------</option>
+                    {% for product in products %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Serial Number</label>
+                <input type="text" id="modal_serial" class="form-control" placeholder="Enter Serial Number">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Note</label>
+                <input type="text" id="modal_note" class="form-control" placeholder="Specific note">
+            </div>
+
+            <div style="text-align: right; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-secondary close-equipment-btn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveEquipmentBtn">Add to List</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Create Modal -->
+    {% include 'core/product_create_modal.html' %}
+
+<script>
+    // Apply form-control class to all inputs for consistent styling
+    document.addEventListener('DOMContentLoaded', function() {
+        var inputs = document.querySelectorAll('input[type="text"], input[type="datetime-local"], select, textarea');
+        inputs.forEach(function(input) {
+            input.classList.add('form-control');
+        });
+        
+        // Ensure checkbox containers look good
+        var checkboxLists = document.querySelectorAll('.checkbox-list-container ul');
+        checkboxLists.forEach(function(ul) {
+            ul.style.listStyle = 'none';
+            ul.style.padding = '0';
+            ul.style.margin = '0';
+            ul.style.display = 'grid';
+            ul.style.gridTemplateColumns = '1fr';
+            ul.style.gap = '8px';
+        });
+
+        var checkboxItems = document.querySelectorAll('.checkbox-list-container li');
+        checkboxItems.forEach(function(li) {
+            li.style.display = 'flex';
+            li.style.alignItems = 'center';
+            li.style.gap = '10px';
+            li.style.background = '#fff';
+            li.style.padding = '8px 12px';
+            li.style.borderRadius = '6px';
+            li.style.border = '1px solid #e2e8f0';
+        });
+        
+        // Specific fix for checkbox
+        var checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(function(box) {
+             box.style.width = "auto";
+             box.style.transform = "scale(1.5)";
+             box.style.margin = "10px";
+        });
+
+        // Handle deletion of equipment cards (delegated)
+        document.getElementById('equipment-list').addEventListener('click', function(e) {
+            if (e.target && e.target.closest('.remove-item-btn')) {
+                var btn = e.target.closest('.remove-item-btn');
+                var wrapper = btn.closest('.equipment-card-wrapper');
+                if (wrapper) {
+                    var deleteCheckbox = wrapper.querySelector('input[type="checkbox"][name$="-DELETE"]');
+                    if (deleteCheckbox) {
+                        deleteCheckbox.checked = true;
+                        wrapper.style.display = 'none';
+                    } else {
+                        wrapper.remove();
+                    }
+                }
+            }
+        });
+    });
+
+    // --- CLEAN SIGNATURE & FORM LOGIC ---
+    var canvas = document.getElementById('signature-pad');
+    var ctx = canvas.getContext('2d');
+    var signatureInput = document.getElementById('id_client_signature');
+    var isDrawing = false;
+    var lastX = 0, lastY = 0;
+    var hasSigned = false;
+
+
+    function resizeCanvas() {
+        var ratio = window.devicePixelRatio || 1;
+        var wrapper = document.getElementById('sig-pad-wrapper');
+        
+        var w = wrapper.clientWidth;
+        var h = 200;
+
+        canvas.width = w * ratio;
+        canvas.height = h * ratio;
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+        
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.scale(ratio, ratio);
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 2.5; ctx.strokeStyle = '#0f172a';
+        
+        clearSignature();
+    }
+
+    function clearSignature() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        hasSigned = false;
+        signatureInput.value = '';
+    }
+
+    function getMousePos(e) {
+        var rect = canvas.getBoundingClientRect();
+        var clientX = (e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0));
+        var clientY = (e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0));
+        
+        var ratio = window.devicePixelRatio || 1;
+        var scaleX = canvas.width / (rect.width * ratio);
+        var scaleY = canvas.height / (rect.height * ratio);
+
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+
+    function startDraw(e) {
+        isDrawing = true;
+        var p = getMousePos(e);
+        lastX = p.x; lastY = p.y;
+        ctx.beginPath(); ctx.moveTo(lastX, lastY);
+        hasSigned = true;
+        if (e.cancelable) e.preventDefault();
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        var p = getMousePos(e);
+        ctx.lineTo(p.x, p.y); ctx.stroke();
+        lastX = p.x; lastY = p.y;
+        if (e.cancelable) e.preventDefault();
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', () => isDrawing = false);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', () => isDrawing = false);
+
+    function confirmSignature() {
+        if (!hasSigned) { alert("Please sign first."); return; }
+        
+        signatureInput.value = canvas.toDataURL('image/png');
+        
+        document.getElementById('signature-preview-img').src = signatureInput.value;
+        document.getElementById('signature-editor').style.display = 'none';
+        document.getElementById('signature-preview-container').style.display = 'block';
+    }
+
+    function replaceSignature() {
+        clearSignature();
+        document.getElementById('signature-editor').style.display = 'block';
+        document.getElementById('signature-preview-container').style.display = 'none';
+        resizeCanvas();
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Handle existing signature on load
+    window.addEventListener('DOMContentLoaded', function() {
+        var existingSig = "{% if form.instance.client_signature %}{{ form.instance.client_signature.url }}{% endif %}";
+        if (existingSig) {
+            document.getElementById('signature-editor').style.display = 'none';
+            document.getElementById('signature-preview-container').style.display = 'block';
+        }
+    });
+
+    document.getElementById('reportForm').addEventListener('submit', function(e) {
+         // Form submission handled by Django
+    });
+
+    // --- RESTORED EQUIPMENT & PRODUCT AJAX LOGIC ---
+    var eqModal = document.getElementById("equipmentModal");
+    var addEqBtn = document.getElementById("add-equipment");
+    var saveEqBtn = document.getElementById("saveEquipmentBtn");
+
+    addEqBtn.onclick = () => {
+        var mSel = document.getElementById("modal_product");
+        if (mSel.options.length <= 1) {
+            document.querySelectorAll('#empty-form select option').forEach(o => {
+                if(o.value) mSel.add(new Option(o.text, o.value));
+            });
+        }
+        eqModal.style.display = "block";
+    };
+
+    function closeEqModal() {
+        eqModal.style.display = "none";
+        document.getElementById("modal_product").value = "";
+        document.getElementById("modal_serial").value = "";
+        document.getElementById("modal_note").value = "";
+    }
+
+    window.onclick = (e) => {
+        if (e.target == eqModal) closeEqModal();
+        if (e.target == document.getElementById("productModal")) {
+            document.getElementById("productModal").style.display = "none";
+        }
+    };
+
+    // Close buttons for Equipment Modal
+    document.querySelectorAll('.close-equipment, .close-equipment-btn').forEach(btn => {
+        btn.onclick = closeEqModal;
+    });
+
+    // Open/Close for Product Modal
+    document.getElementById('openProductModal').onclick = () => {
+        document.getElementById("productModal").style.display = "block";
+    };
+    
+    document.querySelector('#productModal .close').onclick = () => {
+        document.getElementById("productModal").style.display = "none";
+    };
+
+    saveEqBtn.onclick = () => {
+        var pId = document.getElementById("modal_product").value;
+        var pText = document.getElementById("modal_product").options[document.getElementById("modal_product").selectedIndex].text;
+        var sn = document.getElementById("modal_serial").value, nt = document.getElementById("modal_note").value;
+
+        if (!pId) { alert("Select product"); return; }
+
+        var idx = document.getElementById('id_items-TOTAL_FORMS').value;
+        var html = document.getElementById('empty-form').innerHTML.replace(/__prefix__/g, idx);
+        var div = document.createElement('div'); div.innerHTML = html;
+        var wrap = div.querySelector('.equipment-card-wrapper');
+
+        wrap.querySelectorAll('select')[0].value = pId;
+        wrap.querySelectorAll('input[type="text"]')[0].value = sn;
+        wrap.querySelectorAll('input[type="text"]')[1].value = nt;
+
+        var card = document.createElement('div');
+        card.className = 'equipment-summary-card';
+        card.style.cssText = "background:#f0f9ff; border:1px solid #bae6fd; padding:1rem; border-radius:8px; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center;";
+        card.innerHTML = `<div><div style="font-weight:700;">${pText}</div><div style="font-size:0.85rem;">S/N: ${sn||'N/A'}</div></div><button type="button" class="btn btn-sm btn-outline-danger remove-item-btn">&times; Remove</button>`;
+
+        wrap.appendChild(card);
+        document.getElementById('equipment-list').appendChild(wrap);
+        document.getElementById('id_items-TOTAL_FORMS').value = parseInt(idx) + 1;
+        closeEqModal();
+    };
+
+    document.getElementById('quickProductForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const errorDiv = document.getElementById('productError');
+        errorDiv.textContent = ''; // Clear previous errors
+        
+        fetch('{% url "product_create_ajax" %}', {
+            method: 'POST', 
+            body: new FormData(this), 
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                document.querySelectorAll('.product-select').forEach(s => s.add(new Option(d.name, d.id)));
+                document.getElementById('modal_product').value = d.id;
+                document.getElementById("productModal").style.display = "none";
+                // Clear form
+                this.reset();
+            } else {
+                // Display error message
+                if (d.message) {
+                    errorDiv.textContent = d.message;
+                } else if (d.errors && d.errors.__all__) {
+                    errorDiv.textContent = d.errors.__all__.join(' ');
+                } else {
+                    errorDiv.textContent = 'Please correct the errors and try again.';
+                }
+            }
+        })
+        .catch(err => {
+            errorDiv.textContent = 'An error occurred. Please try again.';
+            console.error('Error:', err);
+        });
+    });
+</script>
+{% endblock %}
