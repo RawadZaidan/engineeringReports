@@ -71,6 +71,12 @@
     {% else %}
     <div class="error-state card">
         <p>Analysis failed. Please try again with a different file or check your API key.</p>
+        {% if summary.failure_reason %}
+        <div class="error-detail" style="margin: 1rem 0; padding: 1rem; background: #fff1f2; border-radius: 8px; color: #991b1b; font-family: monospace; font-size: 0.9rem; text-align: left;">
+            <strong>Error details:</strong><br>
+            {{ summary.failure_reason }}
+        </div>
+        {% endif %}
         <a href="{% url 'docai:home' %}" class="btn btn-primary">Try Again</a>
     </div>
     {% endif %}

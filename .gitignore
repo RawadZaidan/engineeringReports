@@ -1,0 +1,19 @@
+# Django
+*.log
+*.pot
+*.pyc
+__pycache__/
+
+
+# Environment variables
+.env
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
+
+# Temporary files
+
+*.tmp
+*.bak

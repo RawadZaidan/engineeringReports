@@ -14,6 +14,7 @@ class TenderSummary(models.Model):
     important_notes = models.TextField(blank=True, null=True)
     quality_certificates = models.TextField(blank=True, null=True)
     raw_summary = models.TextField(blank=True, null=True)
+    failure_reason = models.TextField(blank=True, null=True)
     
     status = models.CharField(max_length=20, choices=[
         ('pending', 'Pending'),
