@@ -1,5 +1,9 @@
 from django.contrib import admin
-from .models import Product, ServiceReport, ReportItem, ReportImage, SavedFilter
+from .models import (
+    Product, Equipment, ServiceReport, ReportItem,
+    ReportImage, SavedFilter, MaintenanceRequest,
+    MaintenanceRequestEquipment
+)
 
 class ReportItemInline(admin.TabularInline):
     model = ReportItem
@@ -9,11 +13,21 @@ class ReportImageInline(admin.TabularInline):
     model = ReportImage
     extra = 0
 
+class MaintenanceRequestEquipmentInline(admin.TabularInline):
+    model = MaintenanceRequestEquipment
+    extra = 0
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'manufacturer', 'model', 'category')
     search_fields = ('name', 'model', 'manufacturer')
     list_filter = ('category',)
+
+@admin.register(Equipment)
+class EquipmentAdmin(admin.ModelAdmin):
+    list_display = ('product', 'serial_number', 'current_facility', 'current_location', 'installation_date')
+    search_fields = ('serial_number', 'product__name', 'current_facility')
+    list_filter = ('product__category', 'installation_date')
 
 @admin.register(ServiceReport)
 class ServiceReportAdmin(admin.ModelAdmin):
