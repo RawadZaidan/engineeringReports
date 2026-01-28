@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Summary: {{ summary.title|default:summary.document.name }}{% endblock %}
+
+{% block content %}
+<div class="docai-detail-container">
+    <div class="breadcrumb">
+        <a href="{% url 'docai:home' %}">← Back to DocAi</a>
+    </div>
+
+    <div class="summary-header">
+        <div class="title-section">
+            <h1>{{ summary.title|default:"Tender Document" }}</h1>
+            <span class="badge badge-{{ summary.status }}">{{ summary.status|title }}</span>
+        </div>
+        <div class="meta-section">
+            <span><strong>Date Analyzed:</strong> {{ summary.created_at|date:"M d, Y H:i" }}</span>
+            <a href="{{ summary.document.url }}" target="_blank" class="btn btn-outline btn-sm">Original File ↗</a>
+        </div>
+    </div>
+
+    {% if summary.status == 'processing' %}
+    <div class="processing-state card">
+        <div class="loader"></div>
+        <p>Gemini is currently analyzing your document. This usually takes 5-15 seconds.</p>
+        <script>setTimeout(() => window.location.reload(), 5000);</script>
+    </div>
+    {% elif summary.status == 'completed' %}
+    <div class="summary-content">
+        <div class="data-grid">
+            <div class="card data-card">
+                <div class="data-icon">📅</div>
+                <div class="data-label">Submission Deadline</div>
+                <div class="data-value">{{ summary.deadline }}</div>
+            </div>
+            <div class="card data-card">
+                <div class="data-icon">📍</div>
+                <div class="data-label">Location / Area</div>
+                <div class="data-value">{{ summary.location }}</div>
+            </div>
+            <div class="card data-card">
+                <div class="data-icon">🏢</div>
+                <div class="data-label">Procuring Entity / Tenderer</div>
+                <div class="data-value">{{ summary.tenderer }}</div>
+            </div>
+            <div class="card data-card">
+                <div class="data-icon">📦</div>
+                <div class="data-label">Lots / Packages</div>
+                <div class="data-value">{{ summary.lots }}</div>
+            </div>
+        </div>
+
+        <div class="detail-sections">
+            <div class="card detail-card">
+                <h2><span class="icon">📜</span> Overall Summary</h2>
+                <div class="content-text">{{ summary.raw_summary|linebreaks }}</div>
+            </div>
+
+            <div class="card detail-card">
+                <h2><span class="icon">⚠️</span> Things to Keep in Mind</h2>
+                <div class="content-text">{{ summary.important_notes|linebreaks }}</div>
+            </div>
+
+            <div class="card detail-card">
+                <h2><span class="icon">🏆</span> Quality Certificates Required</h2>
+                <div class="content-text">{{ summary.quality_certificates|linebreaks }}</div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="error-state card">
+        <p>Analysis failed. Please try again with a different file or check your API key.</p>
+        <a href="{% url 'docai:home' %}" class="btn btn-primary">Try Again</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .docai-detail-container {
+        padding: 2rem 0;
+    }
+    .breadcrumb {
+        margin-bottom: 2rem;
+    }
+    .breadcrumb a {
+        color: #0891b2;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .summary-header {
+        margin-bottom: 3rem;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 1.5rem;
+    }
+    .title-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+    .title-section h1 {
+        margin: 0;
+        font-size: 2rem;
+        color: #1e293b;
+    }
+    .meta-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #64748b;
+    }
+    .data-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    .data-card {
+        padding: 1.5rem;
+        text-align: center;
+        border-top: 4px solid #0891b2;
+    }
+    .data-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .data-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #94a3b8;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+    .data-value {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #334155;
+    }
+    .detail-sections {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+    .detail-card {
+        padding: 2rem;
+    }
+    .detail-card h2 {
+        font-size: 1.25rem;
+        margin: 0 0 1.5rem 0;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .content-text {
+        color: #475569;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+    .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #0891b2;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 2s linear infinite;
+        margin: 0 auto 1.5rem;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .processing-state {
+        text-align: center;
+        padding: 4rem;
+    }
+    .badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-completed { background: #dcfce7; color: #166534; }
+    .badge-processing { background: #fef9c3; color: #854d0e; }
+    .badge-failed { background: #fee2e2; color: #991b1b; }
+</style>
+{% endblock %}

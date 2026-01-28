@@ -5,3 +5,4 @@ sqlparse
 python-dotenv
 gunicorn
 whitenoise
+google-generativeai

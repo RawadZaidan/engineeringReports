@@ -73,7 +73,7 @@ class ServiceReport(models.Model):
 
 class ReportItem(models.Model):
     report = models.ForeignKey(ServiceReport, on_delete=models.CASCADE, related_name='items')
-    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='service_history')
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='service_history', null=True, blank=True)
     equipment_note = models.TextField(blank=True, null=True, help_text="Specific note for this equipment during this service")
 
     def __str__(self):

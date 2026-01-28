@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}DocAi - Tender Analyzer{% endblock %}
+
+{% block content %}
+<div class="docai-container">
+    <div class="page-header">
+        <h1>DocAi: Tender Analyzer</h1>
+        <p class="subtitle">Upload your tender documents (PDF/Images) and let Gemini summarize the key details for you.</p>
+    </div>
+
+    <div class="card upload-card">
+        <form action="{% url 'docai:summarize' %}" method="post" enctype="multipart/form-data" class="upload-form">
+            {% csrf_token %}
+            <div class="file-drop-zone" id="drop-zone">
+                <span class="icon">📄</span>
+                <p>Drag & drop your document here or click to browse</p>
+                <input type="file" name="document" id="file-input" required accept=".pdf,image/*">
+            </div>
+            <button type="submit" class="btn btn-primary btn-large">Analyze Document</button>
+        </form>
+    </div>
+
+    <div class="section-divider">
+        <h2>Recent Summaries</h2>
+    </div>
+
+    <div class="summaries-grid">
+        {% for summary in summaries %}
+        <div class="card summary-card status-{{ summary.status }}">
+            <div class="summary-card-header">
+                <h3>{{ summary.title|default:summary.document.name }}</h3>
+                <span class="badge badge-{{ summary.status }}">{{ summary.status|title }}</span>
+            </div>
+            <div class="summary-card-body">
+                <p><strong>Deadline:</strong> {{ summary.deadline|default:"Processing..." }}</p>
+                <p><strong>Location:</strong> {{ summary.location|default:"Processing..." }}</p>
+                <div class="card-footer">
+                    <span class="date">{{ summary.created_at|date:"M d, Y" }}</span>
+                    <a href="{% url 'docai:detail' summary.id %}" class="btn btn-outline btn-sm">View Full Summary</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="empty-state">
+            <p>No documents analyzed yet. Upload your first tender document above!</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .docai-container {
+        padding: 2rem 0;
+    }
+    .page-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    .subtitle {
+        color: #64748b;
+        font-size: 1.1rem;
+    }
+    .upload-card {
+        max-width: 600px;
+        margin: 0 auto 3rem;
+        padding: 2rem;
+        border: 2px dashed #cbd5e1;
+        transition: border-color 0.3s;
+    }
+    .upload-card:hover {
+        border-color: #0891b2;
+    }
+    .file-drop-zone {
+        text-align: center;
+        padding: 2rem;
+        cursor: pointer;
+        position: relative;
+    }
+    .file-drop-zone .icon {
+        font-size: 3rem;
+        display: block;
+        margin-bottom: 1rem;
+    }
+    #file-input {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+    }
+    .btn-large {
+        width: 100%;
+        padding: 1rem;
+        font-size: 1.1rem;
+        margin-top: 1rem;
+    }
+    .section-divider {
+        margin: 4rem 0 2rem;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 1rem;
+    }
+    .summaries-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+    .summary-card {
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.2s;
+    }
+    .summary-card:hover {
+        transform: translateY(-5px);
+    }
+    .summary-card-header {
+        padding: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .summary-card-header h3 {
+        font-size: 1.1rem;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 70%;
+    }
+    .summary-card-body {
+        padding: 1rem;
+        flex-grow: 1;
+    }
+    .card-footer {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .date {
+        font-size: 0.85rem;
+        color: #94a3b8;
+    }
+    .badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-completed { background: #dcfce7; color: #166534; }
+    .badge-processing { background: #fef9c3; color: #854d0e; }
+    .badge-failed { background: #fee2e2; color: #991b1b; }
+    .badge-pending { background: #f1f5f9; color: #475569; }
+</style>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            dropZone.querySelector('p').textContent = this.files[0].name;
+            dropZone.style.borderColor = '#0891b2';
+            dropZone.style.backgroundColor = '#f0f9ff';
+        }
+    });
+
+    ['dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, e => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+    });
+
+    dropZone.addEventListener('dragover', () => {
+        dropZone.style.borderColor = '#0891b2';
+        dropZone.style.backgroundColor = '#f0f9ff';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = '#cbd5e1';
+        dropZone.style.backgroundColor = 'transparent';
+    });
+</script>
+{% endblock %}
