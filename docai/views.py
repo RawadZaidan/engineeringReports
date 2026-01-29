@@ -50,11 +50,28 @@ def summarize_document(request):
             {
                 "title": "Tender Title",
                 "deadline": "Submission Deadline",
-                "lots": "Description of lots or batches",
+                "lots": [
+                    {
+                        "lot_number": "1",
+                        "items": [
+                            {"name": "Item Description", "quantity": "5 units"}
+                        ]
+                    }
+                ],
                 "location": "Project Location",
                 "tenderer": "Name of the procuring entity / tenderer",
                 "important_notes": "Key things to keep in mind (short list)",
                 "quality_certificates": "Required quality certificates (ISO, etc.)",
+                "financial_thresholds": "Minimum annual turnover or other financial requirements",
+                "maintenance_warranty": "Post-delivery obligations, warranty periods, and associated costs",
+                "technical_financial_split": "Evaluation weighting (e.g., 60/40 or LPTA)",
+                "key_experts": "Required roles, years of experience, and certifications",
+                "past_performance": "Number of similar projects required in the last X years",
+                "clarification_deadline": "Deadline for submitting questions or requesting clarifications",
+                "bid_security": "Exact amount/percentage and format (Bank Guarantee/Bond)",
+                "site_visit": "Details on site visits or pre-bid meetings and if they are mandatory",
+                "killer_clauses": "Flag high-risk clauses (Liquidated damages, payment terms, unusual liabilities)",
+                "document_checklist": "List of all required files (Annexes, CVs, Certificates, etc.)",
                 "summary": "A concise overall summary of the tender"
             }
             Focus strictly on the important data. If a field is not found, use "Not specified".
@@ -101,11 +118,31 @@ def summarize_document(request):
             # Update summary object
             summary_obj.title = data.get('title', 'Unknown')
             summary_obj.deadline = data.get('deadline', 'Not specified')
-            summary_obj.lots = data.get('lots', 'Not specified')
+            
+            # Save lots as JSON string
+            lots_data = data.get('lots', [])
+            if isinstance(lots_data, (list, dict)):
+                summary_obj.lots = json.dumps(lots_data)
+            else:
+                summary_obj.lots = str(lots_data)
+
             summary_obj.location = data.get('location', 'Not specified')
             summary_obj.tenderer = data.get('tenderer', 'Not specified')
             summary_obj.important_notes = data.get('important_notes', 'None')
             summary_obj.quality_certificates = data.get('quality_certificates', 'None')
+            
+            # New fields
+            summary_obj.financial_thresholds = data.get('financial_thresholds', 'Not specified')
+            summary_obj.maintenance_warranty = data.get('maintenance_warranty', 'Not specified')
+            summary_obj.technical_financial_split = data.get('technical_financial_split', 'Not specified')
+            summary_obj.key_experts = data.get('key_experts', 'Not specified')
+            summary_obj.past_performance = data.get('past_performance', 'Not specified')
+            summary_obj.clarification_deadline = data.get('clarification_deadline', 'Not specified')
+            summary_obj.bid_security = data.get('bid_security', 'Not specified')
+            summary_obj.site_visit = data.get('site_visit', 'Not specified')
+            summary_obj.killer_clauses = data.get('killer_clauses', 'None detected')
+            summary_obj.document_checklist = data.get('document_checklist', 'Not specified')
+            
             summary_obj.raw_summary = data.get('summary', 'No summary generated')
             summary_obj.status = 'completed'
             summary_obj.save()

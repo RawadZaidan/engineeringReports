@@ -30,8 +30,7 @@ SECRET_KEY = 'django-insecure-u#2)j_l*#j40@7%v8tyszqskswj%=#6w2^9z$%*80m0yfno-lp
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['medilabengineering.onrender.com', 'www.medilabengineering.onrender.com']
-
+ALLOWED_HOSTS = ['medilabengineering.onrender.com', 'www.medilabengineering.onrender.com', '127.0.0.1']
 
 # Application definition
 
