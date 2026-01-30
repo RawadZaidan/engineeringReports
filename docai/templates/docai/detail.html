@@ -35,15 +35,20 @@
                 <div class="data-label">Submission Deadline</div>
                 <div class="data-value">{{ summary.deadline }}</div>
             </div>
+            <div class="card data-card {% if summary.local_presence_required %}risk-high{% endif %}">
+                <div class="data-icon">📍</div>
+                <div class="data-label">Local Presence</div>
+                <div class="data-value">{{ summary.local_presence_required|yesno:"REQUIRED,Optional/Not specified" }}</div>
+            </div>
             <div class="card data-card">
                 <div class="data-icon">❓</div>
-                <div class="data-label">Clarification Deadline</div>
+                <div class="data-label">Clarif. Deadline</div>
                 <div class="data-value">{{ summary.clarification_deadline }}</div>
             </div>
             <div class="card data-card">
-                <div class="data-icon">⚖️</div>
-                <div class="data-label">Tech/Financial Split</div>
-                <div class="data-value">{{ summary.technical_financial_split }}</div>
+                <div class="data-icon">💵</div>
+                <div class="data-label">Currency</div>
+                <div class="data-value">{{ summary.currency_code }}</div>
             </div>
             <div class="card data-card">
                 <div class="data-icon">🛡️</div>
@@ -126,7 +131,17 @@
                 <div class="card detail-card checklist-card">
                     <h2><span class="icon">✅</span> Document Checklist</h2>
                     <div class="checklist-content">
-                        {{ summary.document_checklist|linebreaks }}
+                        {% if summary.document_checklist %}
+                            <ul class="checklist-items">
+                            {% for item in summary.document_checklist.splitlines %}
+                                {% if item.strip %}
+                                <li>{{ item }}</li>
+                                {% endif %}
+                            {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>No document checklist specified</p>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -223,6 +238,16 @@
         font-weight: 600;
         color: #334155;
     }
+    .risk-high {
+        border-top: 4px solid #ef4444 !important;
+        background: #fef2f2 !important;
+    }
+    .risk-high .data-label {
+        color: #991b1b !important;
+    }
+    .risk-high .data-value {
+        color: #b91c1c !important;
+    }
     .detail-sections {
         display: grid;
         grid-template-columns: 2fr 1fr;
@@ -279,6 +304,18 @@
         color: #065f46;
         font-size: 0.95rem;
         line-height: 1.5;
+    }
+    .checklist-items {
+        list-style-type: disc;
+        padding-left: 1.5rem;
+        margin: 0;
+    }
+    .checklist-items li {
+        margin-bottom: 0.5rem;
+        color: #065f46;
+    }
+    .checklist-items li:last-child {
+        margin-bottom: 0;
     }
     @media (max-width: 992px) {
         .detail-sections {

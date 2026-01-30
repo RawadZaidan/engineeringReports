@@ -3,6 +3,7 @@ import docx
 import pandas as pd
 import io
 import logging
+from striprtf.striprtf import rtf_to_text
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,18 @@ def extract_text_from_excel(file_obj):
         logger.error(f"Error extracting Excel: {e}")
         return f"[Error extracting Excel: {str(e)}]"
 
+def extract_text_from_rtf(file_obj):
+    """Extracts text from an RTF file."""
+    try:
+        file_obj.seek(0)
+        content = file_obj.read()
+        if isinstance(content, bytes):
+            content = content.decode('utf-8', errors='ignore')
+        return rtf_to_text(content)
+    except Exception as e:
+        logger.error(f"Error extracting RTF: {e}")
+        return f"[Error extracting RTF: {str(e)}]"
+
 def extract_text_from_file(file_obj):
     """
     Dispatcher to extract text based on file extension.
@@ -61,6 +74,8 @@ def extract_text_from_file(file_obj):
         return extract_text_from_docx(file_obj)
     elif filename.endswith(('.xlsx', '.xls')):
         return extract_text_from_excel(file_obj)
+    elif filename.endswith('.rtf'):
+        return extract_text_from_rtf(file_obj)
     elif filename.endswith(('.png', '.jpg', '.jpeg', '.webp')):
         # Gemini handles these directly with its vision model
         return None

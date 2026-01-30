@@ -23,8 +23,10 @@
 </head>
 <body>
     <header class="app-header">
-        <div class="container">
-            <h1 class="logo"><a href="{% url 'dashboard' %}">Medilab</a></h1>
+        <div class="container header-container">
+            <div class="logo-section">
+                <h1 class="logo"><a href="{% url 'dashboard' %}">Medilab</a></h1>
+            </div>
             <button class="menu-toggle" aria-label="Toggle Menu">
                 <span class="bar"></span>
                 <span class="bar"></span>
@@ -38,7 +40,12 @@
                 <a href="{% url 'request_list' %}" class="nav-link">Requests</a>
                 <a href="{% url 'docai:home' %}" class="nav-link">DocAi</a>
                 {% if user.is_authenticated %}
-                    <span class="user-greeting">Hi, {{ user.username }}</span>
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <span class="avatar-text">{{ user.username|slice:":1"|upper }}</span>
+                        </div>
+                        <span class="user-name">{{ user.username }}</span>
+                    </div>
                 {% endif %}
             </nav>
         </div>

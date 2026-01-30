@@ -26,6 +26,10 @@ class TenderSummary(models.Model):
     killer_clauses = models.TextField(blank=True, null=True, help_text="Unusual or high-risk clauses")
     document_checklist = models.TextField(blank=True, null=True, help_text="List of all required submission files")
     
+    # Smart Agent Enhancements
+    local_presence_required = models.BooleanField(default=False, help_text="Is a local partner or office mandatory?")
+    currency_code = models.CharField(max_length=10, blank=True, null=True, help_text="Currency code (e.g., USD, EUR, LBP)")
+    
     raw_summary = models.TextField(blank=True, null=True)
     failure_reason = models.TextField(blank=True, null=True)
     

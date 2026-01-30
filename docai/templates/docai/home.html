@@ -15,10 +15,12 @@
             {% csrf_token %}
             <div class="file-drop-zone" id="drop-zone">
                 <span class="icon">📄</span>
-                <p>Drag & drop your document here or click to browse</p>
-                <input type="file" name="document" id="file-input" required accept=".pdf,image/*">
+                <p>Drag & drop your documents here or click to browse</p>
+                <p class="hint">You can select multiple files to analyze together</p>
+                <input type="file" name="documents" id="file-input" required accept=".pdf,.docx,.doc,.rtf,.xlsx,.xls,image/*" multiple>
             </div>
-            <button type="submit" class="btn btn-primary btn-large">Analyze Document</button>
+            <div id="file-list" class="file-list"></div>
+            <button type="submit" class="btn btn-primary btn-large">Analyze Document(s)</button>
         </form>
     </div>
 
@@ -98,6 +100,57 @@
         font-size: 1.1rem;
         margin-top: 1rem;
     }
+    .hint {
+        font-size: 0.85rem;
+        color: #94a3b8;
+        margin-top: 0.25rem;
+    }
+    .file-list {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: #f1f5f9;
+        border-radius: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+    }
+    .file-list.active {
+        display: block;
+    }
+    .file-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: white;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .file-item:last-child {
+        margin-bottom: 0;
+    }
+    .file-icon {
+        font-size: 1.5rem;
+        margin-right: 0.75rem;
+        flex-shrink: 0;
+    }
+    .file-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .file-name {
+        color: #334155;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .file-size {
+        color: #94a3b8;
+        font-size: 0.8rem;
+    }
     .section-divider {
         margin: 4rem 0 2rem;
         border-bottom: 1px solid #e2e8f0;
@@ -162,10 +215,69 @@
     const fileInput = document.getElementById('file-input');
 
     fileInput.addEventListener('change', function() {
+        const fileList = document.getElementById('file-list');
+        fileList.innerHTML = '';
+        
         if (this.files.length > 0) {
-            dropZone.querySelector('p').textContent = this.files[0].name;
+            const dropZoneText = dropZone.querySelector('p:first-of-type');
+            if (this.files.length === 1) {
+                dropZoneText.textContent = `Selected: ${this.files[0].name}`;
+            } else {
+                dropZoneText.textContent = `${this.files.length} files selected`;
+            }
             dropZone.style.borderColor = '#0891b2';
             dropZone.style.backgroundColor = '#f0f9ff';
+            
+            // Function to get file icon based on extension
+            function getFileIcon(filename) {
+                const ext = filename.split('.').pop().toLowerCase();
+                const icons = {
+                    'pdf': '📕',
+                    'doc': '📘',
+                    'docx': '📘',
+                    'rtf': '📄',
+                    'xls': '📊',
+                    'xlsx': '📊',
+                    'png': '🖼️',
+                    'jpg': '🖼️',
+                    'jpeg': '🖼️',
+                    'webp': '🖼️'
+                };
+                return icons[ext] || '📎';
+            }
+            
+            // Show file list with icons
+            fileList.classList.add('active');
+            Array.from(this.files).forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                
+                const fileIcon = document.createElement('div');
+                fileIcon.className = 'file-icon';
+                fileIcon.textContent = getFileIcon(file.name);
+                
+                const fileInfo = document.createElement('div');
+                fileInfo.className = 'file-info';
+                
+                const fileName = document.createElement('div');
+                fileName.className = 'file-name';
+                fileName.textContent = file.name;
+                fileName.title = file.name; // Tooltip for long names
+                
+                const fileSize = document.createElement('div');
+                fileSize.className = 'file-size';
+                const sizeInKB = (file.size / 1024).toFixed(1);
+                const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+                fileSize.textContent = file.size > 1024 * 1024 ? `${sizeInMB} MB` : `${sizeInKB} KB`;
+                
+                fileInfo.appendChild(fileName);
+                fileInfo.appendChild(fileSize);
+                fileItem.appendChild(fileIcon);
+                fileItem.appendChild(fileInfo);
+                fileList.appendChild(fileItem);
+            });
+        } else {
+            fileList.classList.remove('active');
         }
     });
 
