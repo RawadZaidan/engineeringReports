@@ -233,6 +233,30 @@
         </div>
     </div>
 
+    <!-- Section: Warranty Options -->
+    <div class="form-section" style="background: #fffbeb; border: 1px solid #fef3c7;">
+        <div class="section-header" style="color: #92400e;">
+            <span class="section-icon" style="background: #f59e0b; color: white;">W</span>
+            <span>Warranty Management</span>
+        </div>
+        <div class="form-row" style="grid-template-columns: 1fr 1fr; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #fde68a;">
+                {{ form.warranty_start_on_submission }}
+                <label class="form-label" style="margin-bottom: 0; font-weight: 600; cursor: pointer;" for="{{ form.warranty_start_on_submission.id_for_label }}">
+                    Warranty starts today
+                </label>
+            </div>
+            <div>
+                <label class="form-label" style="font-weight: 600; color: #92400e;">Warranty Duration</label>
+                {{ form.warranty_duration_years }}
+            </div>
+        </div>
+        <div style="margin-top: 10px; font-size: 0.85rem; color: #b45309; display: flex; gap: 5px; align-items: flex-start;">
+            <i class="icon-info"></i>
+            <span>Checking "Warranty starts today" will automatically calculate and set the warranty expiration date for all items listed above based on the selected duration.</span>
+        </div>
+    </div>
+
     <!-- Section 4: Validation -->
     <div class="form-section">
         <div class="section-header">

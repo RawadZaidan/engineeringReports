@@ -90,6 +90,16 @@ class EquipmentListView(LoginRequiredMixin, ListView):
     template_name = 'core/equipment_list.html'
     context_object_name = 'equipments'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        today = timezone.now().date()
+        context['today'] = today
+        # Under Warranty items
+        context['under_warranty'] = Equipment.objects.filter(
+            warranty_expiration_date__gte=today
+        ).order_by('warranty_expiration_date')
+        return context
+
 @require_POST
 def equipment_create_ajax(request):
     form = EquipmentForm(request.POST)
@@ -169,6 +179,19 @@ class ServiceReportCreateView(LoginRequiredMixin, CreateView):
                 
                 for image in self.request.FILES.getlist('images'):
                     ReportImage.objects.create(report=self.object, image=image)
+
+                # Update Equipment Warranty if requested
+                if self.object.warranty_start_on_submission and self.object.warranty_duration_years:
+                    start_date = self.object.service_date or timezone.now()
+                    try:
+                        expiration_date = start_date.replace(year=start_date.year + self.object.warranty_duration_years)
+                    except ValueError:
+                        expiration_date = start_date + timedelta(days=self.object.warranty_duration_years * 365 + (self.object.warranty_duration_years // 4))
+                    
+                    for item in self.object.items.all():
+                        if item.equipment:
+                            item.equipment.warranty_expiration_date = expiration_date.date()
+                            item.equipment.save()
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form))
 
@@ -208,6 +231,19 @@ class ServiceReportUpdateView(LoginRequiredMixin, UpdateView):
                 items.save()
                 for image in self.request.FILES.getlist('images'):
                     ReportImage.objects.create(report=self.object, image=image)
+
+                # Update Equipment Warranty if requested
+                if self.object.warranty_start_on_submission and self.object.warranty_duration_years:
+                    start_date = self.object.service_date or timezone.now()
+                    try:
+                        expiration_date = start_date.replace(year=start_date.year + self.object.warranty_duration_years)
+                    except ValueError:
+                        expiration_date = start_date + timedelta(days=self.object.warranty_duration_years * 365 + (self.object.warranty_duration_years // 4))
+                    
+                    for item in self.object.items.all():
+                        if item.equipment:
+                            item.equipment.warranty_expiration_date = expiration_date.date()
+                            item.equipment.save()
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form))
 

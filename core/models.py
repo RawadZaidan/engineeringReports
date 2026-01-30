@@ -24,6 +24,7 @@ class Equipment(models.Model):
     current_facility = models.CharField(max_length=255, blank=True, null=True)
     current_location = models.CharField(max_length=255, blank=True, null=True)
     installation_date = models.DateField(blank=True, null=True)
+    warranty_expiration_date = models.DateField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
 
     class Meta:
@@ -60,6 +61,18 @@ class ServiceReport(models.Model):
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft')
     follow_up_required = models.BooleanField(default=False)
+
+    warranty_start_on_submission = models.BooleanField(
+        default=False, 
+        verbose_name="Warranty starts the day the report is submitted",
+        help_text="If checked, linked equipment warranty will be updated."
+    )
+    warranty_duration_years = models.PositiveIntegerField(
+        choices=[(i, f"{i} Year{'s' if i > 1 else ''}") for i in range(1, 6)],
+        null=True,
+        blank=True,
+        verbose_name="Warranty Duration"
+    )
 
     client_representative_name = models.CharField(max_length=200, blank=True, null=True)
     client_phone_number = models.CharField(max_length=20, blank=True, null=True, help_text="Contact number for the client")

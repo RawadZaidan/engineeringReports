@@ -104,7 +104,8 @@ class ServiceReportForm(forms.ModelForm):
             'maintenance_request', 'client_name', 'project_reference', 'location', 'donor', 'service_date',
             'client_representative_name', 'client_phone_number',
             'issue_description', 'work_performed', 'parts_used', 'status',
-            'follow_up_required', 'service_type', 'billing_category', 'final_status'
+            'follow_up_required', 'service_type', 'billing_category', 'final_status',
+            'warranty_start_on_submission', 'warranty_duration_years'
         ]
         widgets = {
             'maintenance_request': forms.Select(attrs={'class': 'form-control'}),
@@ -203,5 +204,6 @@ class EquipmentForm(forms.ModelForm):
         widgets = {
             'product': forms.Select(attrs={'class': 'form-control'}),
             'installation_date': forms.DateInput(attrs={'type': 'date'}),
+            'warranty_expiration_date': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 3}),
         }
