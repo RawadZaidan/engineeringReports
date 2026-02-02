@@ -24,13 +24,16 @@ load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-u#2)j_l*#j40@7%v8tyszqskswj%=#6w2^9z$%*80m0yfno-lp'
+# SECURITY: Secret key from environment variable (never commit this!)
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# SECURITY: Debug mode from environment (default False for production)
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['medilabengineering.onrender.com', 'www.medilabengineering.onrender.com', '127.0.0.1']
+ALLOWED_HOSTS = ['medilabengineering.onrender.com', 'www.medilabengineering.onrender.com', '127.0.0.1', 'localhost']
+
+# SECURITY: CSRF trusted origins for production
+CSRF_TRUSTED_ORIGINS = ['https://medilabengineering.onrender.com']
 
 # Application definition
 
@@ -146,8 +149,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
-# Gemini API Settings
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+# OpenAI API Settings
 OPENAI_API_KEY = os.getenv('OPENAI_API')
 
 # Cloudflare R2 Storage Configuration
@@ -184,3 +186,32 @@ STORAGES = {
         'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
 }
+
+# =============================================================================
+# SECURITY SETTINGS
+# =============================================================================
+
+# XSS Protection
+SECURE_BROWSER_XSS_FILTER = True
+
+# Prevent MIME type sniffing
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Clickjacking protection (stricter than default)
+X_FRAME_OPTIONS = 'DENY'
+
+# Session security (only enforce HTTPS cookies in production)
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+
+# HTTPS redirect (only in production)
+SECURE_SSL_REDIRECT = not DEBUG
+
+# HSTS (HTTP Strict Transport Security) - be careful, this is cached by browsers
+if not DEBUG:
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+

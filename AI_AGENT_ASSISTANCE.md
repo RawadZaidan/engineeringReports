@@ -88,19 +88,21 @@ This document is designed to help AI agents (like Antigravity) navigate, underst
     - `TenderDocument.document` → `tender_docs/`
 
 ### 6. Supabase PostgreSQL Database
-- **Purpose:** Primary database for the application, replacing SQLite.
+- **Purpose:** Primary database for the application.
 - **Configuration:** Located in `config/settings.py` using `dj_database_url`.
 - **Environment Variables:**
     - `DATABASE_URL`: Connection string for Supabase PostgreSQL.
-    - `SUPABASE_URL`: Project URL.
-    - `SUPABASE_ANON_KEY`: Public anonymous key.
-    - `SUPABASE_SERVICE_ROLE_KEY`: Secret service role key.
-- **Connection Details:**
-    - **Render/Production:** Uses **Direct Connection** (`db.rfgaq...`) on port 5432 because it handles DNS resolution correctly.
-    - **Local Development:** Direct connection requires correct DNS resolution.
 - **Notes:** 
     - Migrations must be run against this database (`python manage.py migrate`).
     - The project uses `psycopg2-binary` as the adapter.
+
+### 7. Security Configuration
+- **SECRET_KEY**: Loaded from `.env` file (never hardcoded).
+- **DEBUG**: Controlled via `DEBUG` environment variable (default: `False` in production).
+- **Security Headers**: XSS filter, content-type sniffing protection, clickjacking protection.
+- **Session Security**: Secure cookies enabled in production.
+- **HTTPS**: SSL redirect and HSTS enabled in production.
+- **Authentication**: AJAX endpoints protected with `@login_required`.
 
 ---
 

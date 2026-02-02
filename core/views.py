@@ -1,6 +1,6 @@
 import base64
 from django.core.files.base import ContentFile
-from django.shortcuts import render, redirect
+from django.shortcuts import redirect
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
@@ -8,7 +8,8 @@ from django.db.models import Q, Count
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from datetime import datetime, timedelta
+from django.contrib.auth.decorators import login_required
+from datetime import timedelta
 from django.utils import timezone
 
 from .models import ServiceReport, Product, Equipment, ReportItem, ReportImage, MaintenanceRequest, MaintenanceRequestEquipment
@@ -77,6 +78,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     template_name = 'core/product_form.html'
     success_url = reverse_lazy('product_list')
 
+@login_required
 @require_POST
 def product_create_ajax(request):
     form = ProductForm(request.POST)
@@ -100,6 +102,7 @@ class EquipmentListView(LoginRequiredMixin, ListView):
         ).order_by('warranty_expiration_date')
         return context
 
+@login_required
 @require_POST
 def equipment_create_ajax(request):
     form = EquipmentForm(request.POST)
@@ -319,8 +322,6 @@ class MaintenanceRequestCreateView(LoginRequiredMixin, CreateView):
 class MaintenanceRequestDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     model = MaintenanceRequest
     template_name = 'core/request_detail.html'
-    model = MaintenanceRequest
-    template_name = 'core/request_detail.html'
     context_object_name = 'request'
 
     def get_context_data(self, **kwargs):
@@ -367,7 +368,6 @@ class MaintenanceRequestUpdateView(LoginRequiredMixin, UserPassesTestMixin, Upda
                 equipment_formset.instance = self.object
                 equipment_formset.save()
             return redirect(self.success_url)
-        return self.render_to_response(self.get_context_data(form=form))
         return self.render_to_response(self.get_context_data(form=form))
 
 @require_POST
