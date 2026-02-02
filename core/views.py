@@ -140,7 +140,7 @@ class ServiceReportCreateView(LoginRequiredMixin, CreateView):
         data['equipments'] = Equipment.objects.all()
         data['products'] = Product.objects.all()
         if self.request.POST:
-            data['items'] = ReportItemFormSet(self.request.POST)
+            data['items'] = ReportItemFormSet(self.request.POST, prefix='items')
         else:
             request_id = self.request.GET.get('request_id')
             initial_items = []
@@ -152,8 +152,8 @@ class ServiceReportCreateView(LoginRequiredMixin, CreateView):
                             initial_items.append({'equipment': eq.equipment})
                 except MaintenanceRequest.DoesNotExist: pass
             
-            data['items'] = ReportItemFormSet(initial=initial_items)
-            data['items'].extra = max(1, len(initial_items))
+            data['items'] = ReportItemFormSet(initial=initial_items, prefix='items')
+            data['items'].extra = len(initial_items)
         return data
 
     def form_valid(self, form):
@@ -206,9 +206,10 @@ class ServiceReportUpdateView(LoginRequiredMixin, UpdateView):
         data['equipments'] = Equipment.objects.all()
         data['products'] = Product.objects.all()
         if self.request.POST:
-            data['items'] = ReportItemFormSet(self.request.POST, instance=self.object)
+            data['items'] = ReportItemFormSet(self.request.POST, instance=self.object, prefix='items')
         else:
-            data['items'] = ReportItemFormSet(instance=self.object)
+            data['items'] = ReportItemFormSet(instance=self.object, prefix='items')
+            data['items'].extra = 0
         return data
 
     def form_valid(self, form):
