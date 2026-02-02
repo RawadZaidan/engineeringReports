@@ -25,7 +25,14 @@ class DashboardView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = super().get_queryset().order_by('-created_at')
+        # Optimize: prefetch related data to avoid N+1 queries in template
+        queryset = super().get_queryset().select_related(
+            'engineer'
+        ).prefetch_related(
+            'items__equipment__product',
+            'images'
+        ).order_by('-created_at')
+        
         search_query = self.request.GET.get('q')
         status_filter = self.request.GET.get('status')
         
@@ -48,16 +55,33 @@ class DashboardView(LoginRequiredMixin, ListView):
         week_ago = now - timedelta(days=7)
         month_ago = now - timedelta(days=30)
         
+        # Optimize: Use aggregation to get all stats in ONE query instead of 7
+        report_stats = ServiceReport.objects.aggregate(
+            total=Count('id'),
+            this_week=Count('id', filter=Q(created_at__gte=week_ago)),
+            this_month=Count('id', filter=Q(created_at__gte=month_ago)),
+            draft=Count('id', filter=Q(status='Draft')),
+            pending=Count('id', filter=Q(status='Pending')),
+            completed=Count('id', filter=Q(status='Completed')),
+            follow_ups=Count('id', filter=Q(follow_up_required=True, status__in=['Completed', 'Pending'])),
+        )
+        
+        # Optimize: Get maintenance request stats in ONE query
+        request_stats = MaintenanceRequest.objects.aggregate(
+            open_count=Count('id', filter=Q(status='Open')),
+            urgent_count=Count('id', filter=Q(urgency='Emergency', status__in=['Open', 'Scheduled'])),
+        )
+        
         context.update({
-            'total_reports': ServiceReport.objects.count(),
-            'reports_this_week': ServiceReport.objects.filter(created_at__gte=week_ago).count(),
-            'reports_this_month': ServiceReport.objects.filter(created_at__gte=month_ago).count(),
-            'draft_count': ServiceReport.objects.filter(status='Draft').count(),
-            'pending_count': ServiceReport.objects.filter(status='Pending').count(),
-            'completed_count': ServiceReport.objects.filter(status='Completed').count(),
-            'follow_ups_needed': ServiceReport.objects.filter(follow_up_required=True, status__in=['Completed', 'Pending']).count(),
-            'open_requests': MaintenanceRequest.objects.filter(status='Open').count(),
-            'urgent_requests': MaintenanceRequest.objects.filter(urgency='Emergency', status__in=['Open', 'Scheduled']).count(),
+            'total_reports': report_stats['total'],
+            'reports_this_week': report_stats['this_week'],
+            'reports_this_month': report_stats['this_month'],
+            'draft_count': report_stats['draft'],
+            'pending_count': report_stats['pending'],
+            'completed_count': report_stats['completed'],
+            'follow_ups_needed': report_stats['follow_ups'],
+            'open_requests': request_stats['open_count'],
+            'urgent_requests': request_stats['urgent_count'],
             'top_equipment': (
                 ReportItem.objects.values('equipment__product__name')
                 .annotate(count=Count('id')).order_by('-count')[:5]
@@ -262,6 +286,15 @@ class ServiceReportDetailView(LoginRequiredMixin, DetailView):
     template_name = 'core/report_detail.html'
     context_object_name = 'report'
 
+    def get_queryset(self):
+        # Optimize: prefetch all related data for detail view
+        return super().get_queryset().select_related(
+            'engineer', 'maintenance_request'
+        ).prefetch_related(
+            'items__equipment__product',
+            'images'
+        )
+
 # --- MAINTENANCE REQUESTS ---
 
 class MaintenanceRequestListView(LoginRequiredMixin, ListView):
@@ -271,7 +304,13 @@ class MaintenanceRequestListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = super().get_queryset().order_by('-created_at')
+        # Optimize: prefetch related equipment data
+        queryset = super().get_queryset().select_related(
+            'created_by'
+        ).prefetch_related(
+            'equipment_items__equipment__product'
+        ).order_by('-created_at')
+        
         if not self.request.user.is_staff:
             queryset = queryset.filter(created_by=self.request.user)
         status = self.request.GET.get('status')
