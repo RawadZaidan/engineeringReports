@@ -146,10 +146,10 @@ OPENAI_API_KEY = os.getenv('OPENAI_API')
 
 # Cloudflare R2 Storage Configuration
 # R2 is S3-compatible, so we use AWS S3 settings
-AWS_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.getenv('R2_BUCKET_NAME')
-AWS_S3_ENDPOINT_URL = os.getenv('R2_ENDPOINT_URL')
+AWS_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID', '')
+AWS_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY', '')
+AWS_STORAGE_BUCKET_NAME = os.getenv('R2_BUCKET_NAME', 'medilab')
+AWS_S3_ENDPOINT_URL = os.getenv('R2_ENDPOINT_URL', '')
 AWS_S3_REGION_NAME = 'auto'  # Cloudflare R2 uses 'auto' for region
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_S3_FILE_OVERWRITE = False
@@ -159,13 +159,17 @@ AWS_QUERYSTRING_AUTH = False  # Don't add auth params to URLs
 AWS_S3_OBJECT_PARAMETERS = {
     'CacheControl': 'max-age=86400',  # Cache for 1 day
 }
+
 # Use custom domain (public R2 URL) for file URLs
-# Extract domain from R2_PUBLIC_URL (remove https://)
-AWS_S3_CUSTOM_DOMAIN = os.getenv('R2_PUBLIC_URL', '').replace('https://', '').replace('http://', '')
+R2_PUBLIC_URL = os.getenv('R2_PUBLIC_URL', '')
+if R2_PUBLIC_URL:
+    AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_URL.replace('https://', '').replace('http://', '')
+    MEDIA_URL = R2_PUBLIC_URL + '/'
+else:
+    AWS_S3_CUSTOM_DOMAIN = ''
+    MEDIA_URL = '/media/'  # Fallback to prevent crashes, but R2 credentials are required for functionality
 
-
-
-# Use R2 for media file storage
+# Always use R2 for media file storage
 STORAGES = {
     'default': {
         'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
@@ -174,6 +178,3 @@ STORAGES = {
         'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
 }
-
-# Update MEDIA_URL to use public R2 URL
-MEDIA_URL = os.getenv('R2_PUBLIC_URL') + '/'

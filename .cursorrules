@@ -1,7 +1,0 @@
-Always read `AI_AGENT_ASSISTANCE.md` before analyzing or changing the codebase. 
-
-Follow these project-specific rules:
-1. DESIGN: Maintain a premium, professional medical/engineering aesthetic. Use custom CSS in `static/css/`, avoid adding frameworks like Tailwind or Bootstrap.
-2. SIGNATURES: All signature logic uses the Canvas API in templates and Base64 conversion in `core/views.py`.
-3. DATABASE: Always check `core/models.py` before modifying logic.
-4. WORKFLOW: If a task involves new equipment, remember to use Django Inline Formsets.
