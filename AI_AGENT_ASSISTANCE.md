@@ -9,9 +9,9 @@ This document is designed to help AI agents (like Antigravity) navigate, underst
 
 ## 🏗️ Architecture & Stack
 - **Backend:** Django 5.0 (Monolithic)
-- **Database:** SQLite (default)
+- **Database:** Supabase PostgreSQL (Production)
 - **Frontend:** Server-rendered HTML, Vanilla CSS (custom), Vanilla JS.
-- **Key Dependencies:** Pillow (Images), python-dotenv (Config), Whitenoise (Static files), boto3 (Cloud Storage), django-storages (R2 Integration).
+- **Key Dependencies:** Pillow (Images), python-dotenv (Config), Whitenoise (Static files), boto3 (Cloud Storage), django-storages (R2 Integration), psycopg2-binary (PostgreSQL).
 - **Cloud Storage:** Cloudflare R2 (S3-compatible) for media files.
 
 ---
@@ -86,6 +86,21 @@ This document is designed to help AI agents (like Antigravity) navigate, underst
     - `ServiceReport.client_signature` → `signatures/`
     - `ReportImage.image` → `report_photos/`
     - `TenderDocument.document` → `tender_docs/`
+
+### 6. Supabase PostgreSQL Database
+- **Purpose:** Primary database for the application, replacing SQLite.
+- **Configuration:** Located in `config/settings.py` using `dj_database_url`.
+- **Environment Variables:**
+    - `DATABASE_URL`: Connection string for Supabase PostgreSQL.
+    - `SUPABASE_URL`: Project URL.
+    - `SUPABASE_ANON_KEY`: Public anonymous key.
+    - `SUPABASE_SERVICE_ROLE_KEY`: Secret service role key.
+- **Connection Details:**
+    - **Render/Production:** Uses **Direct Connection** (`db.rfgaq...`) on port 5432 because it handles DNS resolution correctly.
+    - **Local Development:** Direct connection requires correct DNS resolution.
+- **Notes:** 
+    - Migrations must be run against this database (`python manage.py migrate`).
+    - The project uses `psycopg2-binary` as the adapter.
 
 ---
 

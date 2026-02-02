@@ -14,3 +14,5 @@ openai
 striprtf==0.0.26
 boto3
 django-storages[s3]
+psycopg2-binary
+dj-database-url
