@@ -11,7 +11,8 @@ This document is designed to help AI agents (like Antigravity) navigate, underst
 - **Backend:** Django 5.0 (Monolithic)
 - **Database:** SQLite (default)
 - **Frontend:** Server-rendered HTML, Vanilla CSS (custom), Vanilla JS.
-- **Key Dependencies:** Pillow (Images), python-dotenv (Config), Whitenoise (Static files).
+- **Key Dependencies:** Pillow (Images), python-dotenv (Config), Whitenoise (Static files), boto3 (Cloud Storage), django-storages (R2 Integration).
+- **Cloud Storage:** Cloudflare R2 (S3-compatible) for media files.
 
 ---
 
@@ -69,6 +70,24 @@ This document is designed to help AI agents (like Antigravity) navigate, underst
     - `get_context_data()`: Attempts to auto-match `Product` records based on the equipment type/model strings in the request and pre-fills the `ReportItemFormSet`.
 
 
+
+### 5. Cloudflare R2 Cloud Storage
+- **Purpose:** All media files (signatures, report photos, tender documents) are stored in Cloudflare R2 instead of the local filesystem.
+- **Configuration:** Located in `config/settings.py` under "Cloudflare R2 Storage Configuration".
+- **Environment Variables Required:**
+    - `R2_ACCESS_KEY_ID`: Access key for R2 API authentication
+    - `R2_SECRET_ACCESS_KEY`: Secret key for R2 API authentication
+    - `R2_BUCKET_NAME`: Name of the R2 bucket (e.g., "medilab")
+    - `R2_ENDPOINT_URL`: R2 endpoint URL for API calls
+    - `R2_PUBLIC_URL`: Public URL for accessing uploaded files
+- **Storage Backend:** Uses `django-storages` with S3-compatible backend (`storages.backends.s3boto3.S3Boto3Storage`)
+- **Public Access:** The R2 bucket must have public read access enabled in Cloudflare dashboard for files to be viewable.
+- **Media Files Affected:** 
+    - `ServiceReport.client_signature` → `signatures/`
+    - `ReportImage.image` → `report_photos/`
+    - `TenderDocument.document` → `tender_docs/`
+
+---
 
 ---
 

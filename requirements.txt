@@ -12,3 +12,5 @@ pandas
 openpyxl
 openai
 striprtf==0.0.26
+boto3
+django-storages[s3]

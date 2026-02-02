@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',  # For Cloudflare R2 integration
     'core',
     'docai',
 ]
@@ -142,3 +143,37 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 # Gemini API Settings
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API')
+
+# Cloudflare R2 Storage Configuration
+# R2 is S3-compatible, so we use AWS S3 settings
+AWS_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
+AWS_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
+AWS_STORAGE_BUCKET_NAME = os.getenv('R2_BUCKET_NAME')
+AWS_S3_ENDPOINT_URL = os.getenv('R2_ENDPOINT_URL')
+AWS_S3_REGION_NAME = 'auto'  # Cloudflare R2 uses 'auto' for region
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = 'public-read'  # Make uploaded files publicly accessible
+AWS_S3_VERIFY = True
+AWS_QUERYSTRING_AUTH = False  # Don't add auth params to URLs
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',  # Cache for 1 day
+}
+# Use custom domain (public R2 URL) for file URLs
+# Extract domain from R2_PUBLIC_URL (remove https://)
+AWS_S3_CUSTOM_DOMAIN = os.getenv('R2_PUBLIC_URL', '').replace('https://', '').replace('http://', '')
+
+
+
+# Use R2 for media file storage
+STORAGES = {
+    'default': {
+        'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+    },
+    'staticfiles': {
+        'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+    },
+}
+
+# Update MEDIA_URL to use public R2 URL
+MEDIA_URL = os.getenv('R2_PUBLIC_URL') + '/'
