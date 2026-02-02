@@ -1,9 +1,10 @@
 from django.urls import path
 from .views import (
     DashboardView, ServiceReportCreateView, ServiceReportUpdateView, ServiceReportDetailView,
-    ProductListView, ProductCreateView, product_create_ajax,
+    ProductListView, ProductCreateView,
     EquipmentListView, equipment_create_ajax,
-    MaintenanceRequestListView, MaintenanceRequestCreateView, MaintenanceRequestDetailView, MaintenanceRequestUpdateView
+    MaintenanceRequestListView, MaintenanceRequestCreateView, MaintenanceRequestDetailView, MaintenanceRequestUpdateView,
+    update_pricing_ajax, product_create_ajax
 )
 
 urlpatterns = [
@@ -23,4 +24,5 @@ urlpatterns = [
     path('requests/new/', MaintenanceRequestCreateView.as_view(), name='request_create'),
     path('requests/<int:pk>/', MaintenanceRequestDetailView.as_view(), name='request_detail'),
     path('requests/<int:pk>/edit/', MaintenanceRequestUpdateView.as_view(), name='request_update'),
+    path('requests/update-pricing/', update_pricing_ajax, name='update_pricing_ajax'),
 ]

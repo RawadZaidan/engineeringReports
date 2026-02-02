@@ -159,6 +159,9 @@ class MaintenanceRequest(models.Model):
     billing_status = models.CharField(max_length=20, choices=BILLING_STATUS_CHOICES, default='Billable')
     estimated_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     
+    pricing_set_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='priced_requests')
+    pricing_set_at = models.DateTimeField(null=True, blank=True)
+    
     status = models.CharField(max_length=20, choices=REQUEST_STATUS_CHOICES, default='Open')
     
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)

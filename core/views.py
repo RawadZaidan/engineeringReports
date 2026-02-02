@@ -290,6 +290,8 @@ class MaintenanceRequestCreateView(LoginRequiredMixin, CreateView):
             data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(self.request.POST)
         else:
             data['equipment_formset'] = MaintenanceRequestEquipmentFormSet()
+        
+        data['is_engineer'] = self.request.user.groups.filter(name='Engineer').exists()
         return data
 
     def get_form_kwargs(self):
@@ -311,7 +313,15 @@ class MaintenanceRequestCreateView(LoginRequiredMixin, CreateView):
 class MaintenanceRequestDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
     model = MaintenanceRequest
     template_name = 'core/request_detail.html'
+    model = MaintenanceRequest
+    template_name = 'core/request_detail.html'
     context_object_name = 'request'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_engineer'] = self.request.user.groups.filter(name='Engineer').exists()
+        return context
+
     def test_func(self):
         obj = self.get_object()
         return self.request.user.is_staff or obj.created_by == self.request.user
@@ -338,6 +348,8 @@ class MaintenanceRequestUpdateView(LoginRequiredMixin, UserPassesTestMixin, Upda
             data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(self.request.POST, instance=self.object)
         else:
             data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(instance=self.object)
+        
+        data['is_engineer'] = self.request.user.groups.filter(name='Engineer').exists()
         return data
 
     def form_valid(self, form):
@@ -350,3 +362,38 @@ class MaintenanceRequestUpdateView(LoginRequiredMixin, UserPassesTestMixin, Upda
                 equipment_formset.save()
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form))
+        return self.render_to_response(self.get_context_data(form=form))
+
+@require_POST
+def update_pricing_ajax(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+    
+    # Check if user is Engineer
+    if not request.user.groups.filter(name='Engineer').exists():
+        return JsonResponse({'success': False, 'message': 'Only Engineers can update pricing.'}, status=403)
+
+    request_id = request.POST.get('request_id')
+    price = request.POST.get('price')
+
+    if not request_id or not price:
+        return JsonResponse({'success': False, 'message': 'Missing data'}, status=400)
+
+    try:
+        mr = MaintenanceRequest.objects.get(pk=request_id)
+        # Optional: Check logic if needed (e.g. only Billable requests)
+        mr.estimated_cost = float(price)
+        mr.pricing_set_by = request.user
+        mr.pricing_set_at = timezone.now()
+        mr.save()
+        
+        return JsonResponse({
+            'success': True, 
+            'formatted_price': f"${mr.estimated_cost:.2f}",
+            'updated_by': request.user.get_full_name() or request.user.username,
+            'updated_at': mr.pricing_set_at.strftime("%b %d, %Y, %I:%M %p")
+        })
+    except MaintenanceRequest.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Request not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)

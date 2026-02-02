@@ -43,8 +43,8 @@
                 <div class="equipment-grid">
                     {% for item in request.equipment_items.all %}
                     <div class="equipment-item-badge">
-                        <div class="equipment-item-type">{{ item.equipment_type }}</div>
-                        <div class="equipment-item-model">{{ item.model_name }}</div>
+                        <div class="equipment-item-type">{{ item.equipment.product.category|default:'Equipment' }}</div>
+                        <div class="equipment-item-model">{{ item.equipment.product.manufacturer }} {{ item.equipment.product.model }}</div>
                     </div>
                     {% empty %}
                         {% if request.equipment_list %}
@@ -146,8 +146,21 @@
             <div class="info-group">
                 <span class="info-label">Estimated Pricing</span>
                 <div class="info-value" style="font-size: 1.25rem; font-weight: 700; color: #b45309;">
-                    ${{ request.estimated_cost|floatformat:2 }}
+                    <span id="display-price">${{ request.estimated_cost|floatformat:2 }}</span>
                 </div>
+                {% if request.pricing_set_by %}
+                <div style="font-size: 0.8rem; color: #92400e; margin-top: 4px;">
+                    Set by <span id="display-pricer">{{ request.pricing_set_by.get_full_name|default:request.pricing_set_by.username }}</span> on <span id="display-date">{{ request.pricing_set_at|date:"M d, Y, h:i A" }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% if is_engineer and request.billing_status == 'Billable' %}
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #fde68a;">
+                <button type="button" class="btn btn-sm btn-outline-primary" style="background: white; border-color: #d97706; color: #d97706; width: 100%;" onclick="openPricingModal()">
+                    {% if request.estimated_cost %}Update Pricing{% else %}Enter Engineer Pricing{% endif %}
+                </button>
             </div>
             {% endif %}
         </div>
@@ -176,4 +189,80 @@
     </div>
 </div>
 
+
+<!-- Pricing Modal -->
+<div id="pricingModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; pad: 20px; border: 1px solid #888; width: 400px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+        <div style="padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="margin: 0; color: #1e293b;">Enter Pricing</h3>
+                <span aria-hidden="true" style="cursor: pointer; font-size: 1.5rem;" onclick="document.getElementById('pricingModal').style.display='none'">&times;</span>
+            </div>
+            
+            <form id="pricingForm">
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label class="form-label">Estimated Cost ($)</label>
+                    <input type="number" step="0.01" class="form-control" name="price" id="modalPriceInput" value="{{ request.estimated_cost|default:'' }}" required style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px;">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('pricingModal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="savePriceBtn">Save Price</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openPricingModal() {
+        document.getElementById('pricingModal').style.display = 'block';
+    }
+    
+    // Close on click outside
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('pricingModal')) {
+            document.getElementById('pricingModal').style.display = "none";
+        }
+    }
+
+    document.getElementById('pricingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('savePriceBtn');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        
+        const price = document.getElementById('modalPriceInput').value;
+        const formData = new FormData();
+        formData.append('request_id', '{{ request.pk }}');
+        formData.append('price', price);
+        
+        fetch('{% url "update_pricing_ajax" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update UI without reload
+                document.getElementById('pricingModal').style.display = 'none';
+                // Reload to keep it simple and ensure all logical blocks update (like if previous price was null)
+                window.location.reload(); 
+            } else {
+                alert('Error: ' + data.message);
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred.');
+            btn.disabled = false;
+            btn.textContent = originalText;
+        });
+    });
+</script>
 {% endblock %}
