@@ -110,11 +110,14 @@ def equipment_create_ajax(request):
 
 # --- SERVICE REPORTS ---
 
-class ServiceReportCreateView(LoginRequiredMixin, CreateView):
+class ServiceReportCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = ServiceReport
     form_class = ServiceReportForm
     template_name = 'core/report_form.html'
     success_url = reverse_lazy('dashboard')
+
+    def test_func(self):
+        return self.request.user.groups.filter(name='Engineer').exists()
 
     def get_initial(self):
         initial = super().get_initial()
@@ -195,11 +198,14 @@ class ServiceReportCreateView(LoginRequiredMixin, CreateView):
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form))
 
-class ServiceReportUpdateView(LoginRequiredMixin, UpdateView):
+class ServiceReportUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = ServiceReport
     form_class = ServiceReportForm
     template_name = 'core/report_form.html'
     success_url = reverse_lazy('dashboard')
+
+    def test_func(self):
+        return self.request.user.groups.filter(name='Engineer').exists()
 
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)

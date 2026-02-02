@@ -34,7 +34,9 @@
             </button>
             <nav class="main-nav">
                 <a href="{% url 'dashboard' %}" class="nav-link">Dashboard</a>
+                {% if is_engineer %}
                 <a href="{% url 'report_create' %}" class="nav-link">New Report</a>
+                {% endif %}
                 <a href="{% url 'product_list' %}" class="nav-link">Catalogue</a>
                 <a href="{% url 'equipment_list' %}" class="nav-link">Asset Registry</a>
                 <a href="{% url 'request_list' %}" class="nav-link">Requests</a>
@@ -62,10 +64,12 @@
             <span class="bottom-nav-icon">🏠</span>
             <span class="bottom-nav-label">Dashboard</span>
         </a>
+        {% if is_engineer %}
         <a href="{% url 'report_create' %}" class="bottom-nav-link">
             <span class="bottom-nav-icon">➕</span>
             <span class="bottom-nav-label">New Report</span>
         </a>
+        {% endif %}
         <a href="{% url 'request_list' %}" class="bottom-nav-link">
             <span class="bottom-nav-icon">🛠️</span>
             <span class="bottom-nav-label">Requests</span>

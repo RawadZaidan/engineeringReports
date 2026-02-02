@@ -24,7 +24,7 @@
         {% if user.is_staff or request.created_by == user %}
         <a href="{% url 'request_update' request.pk %}" class="btn btn-primary">Edit Request</a>
         {% endif %}
-        {% if user.is_staff %}
+        {% if is_engineer %}
         <a href="{% url 'report_create' %}?request_id={{ request.pk }}" class="btn btn-primary" style="background-color: var(--success-color); border-color: var(--success-color);">Create Service Report</a>
         {% endif %}
         <button class="btn btn-secondary" onclick="window.print()"><i class="icon-printer"></i> Print</button>
