@@ -9,181 +9,176 @@
     <img src="{% static 'img/iso_logo.png' %}" alt="ISO Certification" class="letterhead-logo">
 </div>
 
-<div class="report-page-header">
-    <div class="report-title-section">
-        <h1 class="page-title">
-            Maintenance Request #MR-{{ request.id }}
-            <span class="status-badge status-{{ request.status|lower|cut:' ' }}">{{ request.status }}</span>
-        </h1>
-        <div class="report-meta">
-            <span><i class="icon-user"></i> Requested by: {{ request.created_by.get_full_name|default:request.created_by.username|default:"System" }}</span>
-            <span><i class="icon-calendar"></i> Contact Date: {{ request.customer_contact_date|date:"M d, Y" }}</span>
+<div class="detail-page-container">
+    <div class="detail-header-card">
+        <div class="detail-header-main">
+            <h1>
+                Request #MR-{{ request.id }}
+                <span class="status-badge status-{{ request.status|lower|cut:' ' }}" style="font-size: 0.8rem; padding: 0.5rem 1rem;">{{ request.status }}</span>
+            </h1>
+            <div class="detail-header-meta">
+                <span><i class="fas fa-user-circle"></i> {{ request.created_by.get_full_name|default:request.created_by.username }}</span>
+                <span><i class="fas fa-calendar-alt"></i> {{ request.customer_contact_date|date:"M d, Y" }}</span>
+            </div>
+        </div>
+        <div class="detail-header-urgency" style="text-align: right;">
+            <span class="info-label">Current Urgency</span>
+            <span class="status-badge urgency-{{ request.urgency|lower }}" style="font-size: 0.9rem; padding: 0.5rem 1.25rem;">{{ request.urgency }}</span>
         </div>
     </div>
-    <div class="report-actions">
+
+    <!-- Actions Bar -->
+    <div class="detail-action-grid">
         {% if user.is_staff or request.created_by == user %}
-        <a href="{% url 'request_update' request.pk %}" class="btn btn-primary">Edit Request</a>
+        <a href="{% url 'request_update' request.pk %}" class="detail-action-btn btn-premium-primary">
+            <i class="fas fa-edit"></i> Edit Request
+        </a>
         {% endif %}
+        
         {% if is_engineer %}
-        <a href="{% url 'report_create' %}?request_id={{ request.pk }}" class="btn btn-primary" style="background-color: var(--success-color); border-color: var(--success-color);">Create Service Report</a>
+        <a href="{% url 'report_create' %}?request_id={{ request.pk }}" class="detail-action-btn btn-premium-success">
+            <i class="fas fa-plus-circle"></i> Create Service Report
+        </a>
         {% endif %}
-        <button class="btn btn-secondary" onclick="window.print()"><i class="icon-printer"></i> Print</button>
-        <a href="{% url 'request_list' %}" class="btn btn-secondary">Back to List</a>
-    </div>
-</div>
 
-<div class="report-grid-layout">
-    <!-- Main Info -->
-    <div class="report-main-col grid-col-8">
-        <div class="card" style="margin-bottom: 1.5rem;">
-            <div class="card-title">Service Details & Equipment</div>
-            
-            <div class="content-block">
-                <h4>Equipment to be Serviced</h4>
-                <div class="equipment-grid">
-                    {% for item in request.equipment_items.all %}
-                    <div class="equipment-item-badge">
-                        <div class="equipment-item-type">{{ item.equipment.product.category|default:'Equipment' }}</div>
-                        <div class="equipment-item-model">{{ item.equipment.product.manufacturer }} {{ item.equipment.product.model }}</div>
+        <button class="detail-action-btn btn-premium-outline" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Details
+        </button>
+        
+        <a href="{% url 'request_list' %}" class="detail-action-btn btn-premium-outline">
+            <i class="fas fa-arrow-left"></i> Back to Fleet
+        </a>
+    </div>
+
+    <div class="detail-content-grid">
+        <!-- Main Column -->
+        <div class="detail-main-col">
+            <div class="content-section-card">
+                <h2 class="section-title"><i class="fas fa-tools" style="color: var(--primary-color);"></i> Service Information</h2>
+                
+                <div class="detail-item">
+                    <span class="item-label">Equipment to be Serviced</span>
+                    <div class="equipment-badge-container">
+                        {% for item in request.equipment_items.all %}
+                        <div class="equipment-premium-badge">
+                            <div class="eq-category">{{ item.equipment.product.category|default:'Standard Equipment' }}</div>
+                            <div class="eq-model">{{ item.equipment.product.manufacturer }} {{ item.equipment.product.model }}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">S/N: {{ item.equipment.serial_number|default:"N/A" }}</div>
+                        </div>
+                        {% empty %}
+                            {% if request.equipment_list %}
+                                <div style="background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.9rem; line-height: 1.6; color: #475569;">
+                                    {{ request.equipment_list|linebreaksbr }}
+                                </div>
+                            {% else %}
+                                <div class="text-muted" style="font-style: italic;">No specific equipment linked.</div>
+                            {% endif %}
+                        {% endfor %}
                     </div>
-                    {% empty %}
-                        {% if request.equipment_list %}
-                            <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; font-style: italic; color: #64748b;">
-                                {{ request.equipment_list|linebreaksbr }}
+                </div>
+
+                <div class="detail-item" style="margin-top: 2rem;">
+                    <span class="item-label">Service Category</span>
+                    <div style="background: #eff6ff; color: #1e40af; padding: 6px 16px; border-radius: 12px; font-size: 0.9rem; font-weight: 700; border: 1px solid #bfdbfe; display: inline-block;">
+                        {{ request.service_type|default:"General Maintenance" }}
+                    </div>
+                </div>
+
+                {% if request.request_details %}
+                <div class="detail-item" style="margin-top: 2rem;">
+                    <span class="item-label">Special Instructions / Details</span>
+                    <div style="background: #f8fafc; padding: 1.5rem; border-radius: 16px; color: #1e293b; font-size: 1rem; line-height: 1.7; border-left: 4px solid var(--primary-color);">
+                        {{ request.request_details|linebreaksbr }}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if request.service_reports.all %}
+                <div class="detail-item" style="margin-top: 2.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.5rem;">
+                    <span class="item-label" style="margin-bottom: 1rem;">Linked Service Outcomes</span>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;">
+                        {% for report in request.service_reports.all %}
+                        <a href="{% url 'report_detail' report.pk %}" style="text-decoration: none;">
+                            <div class="content-section-card" style="padding: 1.25rem; margin-bottom: 0; background: #f8fafc; transition: all 0.2s; border-color: #e2e8f0;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                                    <div style="font-weight: 800; color: var(--primary-color);">#SR-{{ report.id }}</div>
+                                    <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">{{ report.service_date|date:"M d, Y" }}</div>
+                                </div>
+                                <div style="font-size: 0.85rem; color: #475569; font-weight: 600;">Status: <span style="color: var(--success-color);">Finalized</span></div>
+                                <div style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--primary-color); font-weight: 800;">View Full Report ➔</div>
                             </div>
-                        {% else %}
-                            <div class="text-muted">No equipment specified.</div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </div>
-
-            {% if request.service_type %}
-            <div class="content-block" style="margin-top: 1.5rem;">
-                <h4>Requested Service Type</h4>
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    {% for type in request.service_type.split|slice:"::" %}
-                         {# Splitting by comma might be better if I knew the split tag behavior but custom split isn't default #}
-                         {# I'll just display the string for now or use a basic loop if I had a custom filter #}
-                    {% endfor %}
-                    <div style="background: #eff6ff; color: #1e40af; padding: 4px 12px; border-radius: 9999px; font-size: 0.85rem; font-weight: 500; border: 1px solid #bfdbfe;">
-                        {{ request.service_type }}
+                        </a>
+                        {% endfor %}
                     </div>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if request.request_details %}
-            <div class="content-block" style="margin-top: 2rem;">
-                <h4>Additional Request Details</h4>
-                <p>{{ request.request_details|linebreaksbr }}</p>
-            </div>
-            {% endif %}
-            {% if request.service_reports.all %}
-            <div class="content-block" style="margin-top: 2rem; border-top: 1px solid #e2e8f0; padding-top: 1rem;">
-                <h4 style="margin-bottom: 1rem;">Linked Service Reports</h4>
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
-                    {% for report in request.service_reports.all %}
-                    <div class="card" style="padding: 1rem; margin-bottom: 0; background: #f8fafc; border: 1px solid #e2e8f0;">
-                        <div style="font-weight: 700; color: var(--primary-color);">SR-{{ report.id }}</div>
-                        <div style="font-size: 0.8rem; color: #64748b;">{{ report.service_date|date:"M d, Y" }}</div>
-                        <a href="{% url 'report_detail' report.pk %}" class="view-link" style="margin-top: 0.5rem; display: block; font-size: 0.85rem;">View Report &#8594;</a>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Sidebar Info -->
-    <div class="report-sidebar-col grid-col-4">
-        <div class="card" style="margin-bottom: 1.5rem;">
-            <div class="card-title">Customer Information</div>
-            <div class="info-group">
-                <span class="info-label">Facility</span>
-                <div class="info-value" style="font-weight: 700;">{{ request.facility_name|default:"N/A" }}</div>
-            </div>
-            {% if request.location %}
-            <div class="info-group">
-                <span class="info-label">Location (District)</span>
-                <div class="info-value" style="color: #4b5563;">{{ request.get_location_display }}</div>
-            </div>
-            {% endif %}
-            {% if request.donor %}
-            <div class="info-group">
-                <span class="info-label">Donor / Project</span>
-                <div class="info-value">{{ request.donor }}</div>
-            </div>
-            {% endif %}
-            <div class="info-group">
-                <span class="info-label">Contact Person</span>
-                <div class="info-value">{{ request.contact_name|default:"N/A" }}</div>
-            </div>
-            <div class="info-group">
-                <span class="info-label">Contact Number</span>
-                <div class="info-value" style="color: var(--primary-color); font-weight: 600;">{{ request.contact_number|default:"N/A" }}</div>
-            </div>
-            {% if request.contact_email %}
-            <div class="info-group">
-                <span class="info-label">Contact Email</span>
-                <div class="info-value" style="font-size: 0.9rem;">{{ request.contact_email }}</div>
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="card" style="margin-bottom: 1.5rem; background: #fffbeb; border-color: #fef3c7;">
-            <div class="card-title" style="color: #92400e;">Billing & Warranty</div>
-            <div class="info-group">
-                <span class="info-label">Billing Status</span>
-                <div class="info-value">
-                    <span class="status-badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a;">
-                        {{ request.get_billing_status_display }}
-                    </span>
-                </div>
-            </div>
-            {% if request.estimated_cost %}
-            <div class="info-group">
-                <span class="info-label">Estimated Pricing</span>
-                <div class="info-value" style="font-size: 1.25rem; font-weight: 700; color: #b45309;">
-                    <span id="display-price">${{ request.estimated_cost|floatformat:2 }}</span>
-                </div>
-                {% if request.pricing_set_by %}
-                <div style="font-size: 0.8rem; color: #92400e; margin-top: 4px;">
-                    Set by <span id="display-pricer">{{ request.pricing_set_by.get_full_name|default:request.pricing_set_by.username }}</span> on <span id="display-date">{{ request.pricing_set_at|date:"M d, Y, h:i A" }}</span>
                 </div>
                 {% endif %}
             </div>
-            {% endif %}
-            
-            {% if is_engineer and request.billing_status == 'Billable' %}
-            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #fde68a;">
-                <button type="button" class="btn btn-sm btn-outline-primary" style="background: white; border-color: #d97706; color: #d97706; width: 100%;" onclick="openPricingModal()">
-                    {% if request.estimated_cost %}Update Pricing{% else %}Enter Engineer Pricing{% endif %}
-                </button>
-            </div>
-            {% endif %}
         </div>
 
-        <div class="card">
-            <div class="card-title">Availability & Urgency</div>
-            <div class="info-group">
-                <span class="info-label">Urgency</span>
-                <div class="info-value">
-                    <span class="status-badge urgency-{{ request.urgency|lower }}">
-                        {{ request.urgency }}
-                    </span>
-                </div>
-            </div>
-            <div class="info-group">
-                <span class="info-label">Availability Window</span>
-                <div class="info-value">
-                    {% if request.availability_start and request.availability_end %}
-                        {{ request.availability_start|date:"M d" }} - {{ request.availability_end|date:"M d, Y" }}
-                    {% else %}
-                        Not specified
+        <!-- Sidebar Column -->
+        <div class="detail-sidebar-col">
+            <div class="content-section-card">
+                <h2 class="section-title"><i class="fas fa-building" style="color: var(--primary-color);"></i> Logistics</h2>
+                
+                <div class="detail-item">
+                    <span class="item-label">Facility Details</span>
+                    <div class="item-value" style="font-size: 1.15rem; color: #1e293b;">{{ request.facility_name|default:"General Facility" }}</div>
+                    {% if request.location %}
+                    <div style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
+                        <i class="fas fa-map-marker-alt"></i> {{ request.get_location_display }}
+                    </div>
                     {% endif %}
                 </div>
+
+                <div class="detail-item">
+                    <span class="item-label">Primary Contact</span>
+                    <div class="item-value">{{ request.contact_name|default:"Not Supplied" }}</div>
+                    <div style="color: var(--primary-color); font-weight: 700; margin-top: 4px;">
+                        <i class="fas fa-phone-alt"></i> {{ request.contact_number|default:"No Number" }}
+                    </div>
+                </div>
+
+                {% if request.availability_start %}
+                <div class="detail-item">
+                    <span class="item-label">Availability Window</span>
+                    <div class="item-value" style="font-size: 0.9rem;">
+                        {{ request.availability_start|date:"M d" }} — {{ request.availability_end|date:"M d, Y" }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="content-section-card" style="background: #fffbeb; border-color: #fef3c7;">
+                <h2 class="section-title" style="color: #92400e; border-color: #fde68a;">
+                    <i class="fas fa-file-invoice-dollar"></i> Billing & Warranty
+                </h2>
+                
+                <div class="detail-item">
+                    <span class="item-label">Agreement Type</span>
+                    <div class="item-value">
+                        <span class="status-badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.75rem;">
+                            {{ request.get_billing_status_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <span class="item-label">Engineers Quote</span>
+                    <div class="item-value" style="font-size: 1.5rem; font-weight: 800; color: #b45309;">
+                        ${{ request.estimated_cost|floatformat:2|default:"0.00" }}
+                    </div>
+                    {% if request.pricing_set_by %}
+                    <div style="font-size: 0.75rem; color: #92400e; margin-top: 8px; opacity: 0.8;">
+                        Validated by {{ request.pricing_set_by.username }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if is_engineer and request.billing_status == 'Billable' %}
+                <button type="button" class="detail-action-btn btn-premium-outline" style="width: 100%; border-color: #d97706; color: #d97706; margin-top: 1rem;" onclick="openPricingModal()">
+                    <i class="fas fa-calculator"></i> Update Valuation
+                </button>
+                {% endif %}
             </div>
         </div>
     </div>
