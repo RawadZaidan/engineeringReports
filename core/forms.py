@@ -289,7 +289,7 @@ class DriverRequestForm(forms.ModelForm):
                 if conflict.start_time and conflict.end_time:
                     if (start_t < conflict.end_time) and (end_t > conflict.start_time):
                         raise forms.ValidationError(
-                            f"Driver {driver.name} is already reserved for this time "
-                            f"({conflict.start_time.strftime('%H:%M')} - {conflict.end_time.strftime('%H:%M')})."
+                            f"Driver {driver.name} is already reserved from "
+                            f"{conflict.start_time.strftime('%H:%M')} to {conflict.end_time.strftime('%H:%M')}."
                         )
         return cleaned_data

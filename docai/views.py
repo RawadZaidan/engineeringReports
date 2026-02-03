@@ -3,10 +3,13 @@ import json
 import base64
 import logging
 import traceback
+import threading
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.contrib import messages
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from openai import OpenAI
 from .models import TenderSummary
 from .utils import extract_text_from_file
@@ -41,7 +44,9 @@ def summarize_document(request):
         summary_obj = TenderSummary.objects.create(
             user=request.user,
             document=primary_document,
-            status='processing'
+            status='processing',
+            current_step="Reading document content...",
+            analysis_progress=5
         )
         
         if not client:
@@ -51,22 +56,53 @@ def summarize_document(request):
             messages.error(request, "AI service not configured.")
             return redirect('docai:home')
 
-        try:
-            # Extract text from all uploaded files and combine them
-            combined_text = ""
-            for idx, document in enumerate(documents, 1):
-                extracted_text = extract_text_from_file(document)
-                if extracted_text:
-                    # Add a separator between documents for clarity
-                    if idx > 1:
-                        combined_text += f"\n\n{'='*50}\n--- Document {idx}: {document.name} ---\n{'='*50}\n\n"
-                    else:
-                        combined_text += f"--- Document {idx}: {document.name} ---\n\n"
-                    combined_text += extracted_text
+        # Extract text/bytes synchronously first, because file handles close after request
+        pre_extracted_text = ""
+        image_attachments = [] # List of (mime_type, base64_data)
+        
+        for idx, document in enumerate(documents, 1):
+            extracted = extract_text_from_file(document)
+            if extracted:
+                if idx > 1:
+                    pre_extracted_text += f"\n\n{'='*50}\n--- Document {idx}: {document.name} ---\n{'='*50}\n\n"
+                else:
+                    pre_extracted_text += f"--- Document {idx}: {document.name} ---\n\n"
+                pre_extracted_text += extracted
+            else:
+                # Handle as image
+                try:
+                    document.seek(0)
+                    file_data = document.read()
+                    base64_image = base64.b64encode(file_data).decode('utf-8')
+                    mime_type = document.content_type or "image/jpeg"
+                    image_attachments.append((mime_type, base64_image))
+                except Exception as e:
+                    logger.error(f"Error reading image {document.name}: {e}")
+
+        # Run analysis in background
+        thread = threading.Thread(
+            target=perform_analysis_task, 
+            args=(summary_obj.id, pre_extracted_text, image_attachments)
+        )
+        thread.start()
+        
+        return redirect('docai:detail', summary_id=summary_obj.id)
             
-            # Use combined_text instead of extracted_text from single file
-            
-            EXTRACTION_PROMPT = """
+    return redirect('docai:home')
+
+def perform_analysis_task(summary_id, pre_extracted_text, image_attachments):
+    """Background task to perform document analysis and update progress."""
+    from django.db import connection
+    
+    try:
+        summary_obj = TenderSummary.objects.get(id=summary_id)
+        
+        # 1. Update progress
+        summary_obj.current_step = "Analyzing with gpt-5-nano (this may take 10-20s)..."
+        summary_obj.analysis_progress = 50
+        summary_obj.save()
+
+        EXTRACTION_PROMPT = """
 Analyze the attached tender document as a Senior Procurement Specialist. 
 Your goal is to extract structured data while flagging critical 'Bid/No-Bid' risks.
 
@@ -127,100 +163,171 @@ IMPORTANT EXTRACTION RULES:
 3. Do NOT leave country, location, or procuring_entity as "Not specified" unless they are truly absent
 4. Common entity names include: Ministry of [X], [Country] Health Authority, UNICEF, UNHCR, WHO, etc.
 """
+        
+        messages_list = [
+            {"role": "system", "content": "You are a specialized tender document parser."},
+            {"role": "user", "content": [{"type": "text", "text": EXTRACTION_PROMPT}]}
+        ]
+        
+        if pre_extracted_text:
+            messages_list[1]["content"].append({
+                "type": "text", 
+                "text": f"DOCUMENT TEXT SOURCE:\n\n{pre_extracted_text}"
+            })
             
-            messages_list = [
-                {"role": "system", "content": "You are a specialized tender document parser."},
-                {"role": "user", "content": [{"type": "text", "text": EXTRACTION_PROMPT}]}
-            ]
-            
-            if combined_text:
-                messages_list[1]["content"].append({
-                    "type": "text", 
-                    "text": f"DOCUMENT SOURCE:\n\n{combined_text}"
-                })
-            else:
-                # No text extracted from any file - use the first document as image
-                documents[0].seek(0)
-                file_data = documents[0].read()
-                base64_image = base64.b64encode(file_data).decode('utf-8')
-                mime_type = documents[0].content_type or "image/jpeg"
-                messages_list[1]["content"].append({
-                    "type": "image_url",
-                    "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}
-                })
+        for mime_type, base64_data in image_attachments:
+            messages_list[1]["content"].append({
+                "type": "image_url",
+                "image_url": {"url": f"data:{mime_type};base64,{base64_data}"}
+            })
 
-            # Call OpenAI with gpt-5-nano as requested
-            response = client.chat.completions.create(
-                model="gpt-5-nano",
-                messages=messages_list,
-                response_format={"type": "json_object"}
-            )
-            
-            data = json.loads(response.choices[0].message.content.strip())
-            
-            # Update summary object from new schema
-            summary = data.get('summary', {})
-            compliance = data.get('compliance_check', {})
-            bid = data.get('bid_logic', {})
-            risk = data.get('risk_assessment', {})
-            
-            
-            summary_obj.title = summary.get('title', 'Unknown')
-            summary_obj.deadline = summary.get('submission_deadline', 'Not specified')
-            summary_obj.clarification_deadline = summary.get('clarification_deadline', 'Not specified')
-            summary_obj.currency_code = summary.get('currency_code', 'Not specified')
-            summary_obj.raw_summary = summary.get('overall_summary', 'No summary generated')
-            
-            # Location and Entity Information
-            country = summary.get('country', 'Not specified')
-            location_detail = summary.get('location', 'Not specified')
-            # Combine country and location for better context
-            if country != 'Not specified' and location_detail != 'Not specified':
-                summary_obj.location = f"{location_detail}, {country}"
-            elif country != 'Not specified':
-                summary_obj.location = country
-            else:
-                summary_obj.location = location_detail
-            
-            summary_obj.tenderer = summary.get('procuring_entity', 'Not specified')
-            
-            # Lots and technical aspects
-            lots_data = bid.get('lot_hierarchy', [])
-            summary_obj.lots = json.dumps(lots_data)
-            summary_obj.technical_financial_split = bid.get('evaluation_method', 'Not specified')
-            
-            # Risk and Compliance
-            summary_obj.local_presence_required = compliance.get('local_presence_required', False)
-            summary_obj.bid_security = compliance.get('bid_security', 'Not specified')
-            summary_obj.financial_thresholds = compliance.get('financial_vitals', 'Not specified')
-            
-            summary_obj.killer_clauses = ", ".join(risk.get('killer_clauses', [])) if isinstance(risk.get('killer_clauses'), list) else str(risk.get('killer_clauses', ''))
-            summary_obj.maintenance_warranty = risk.get('maintenance_warranty', 'Not specified')
-            summary_obj.key_experts = risk.get('key_experts', 'Not specified')
-            summary_obj.past_performance = risk.get('past_performance', 'Not specified')
-            summary_obj.site_visit = risk.get('site_visit', 'Not specified')
-            
-            summary_obj.document_checklist = "\n".join(data.get('document_checklist', [])) if isinstance(data.get('document_checklist'), list) else str(data.get('document_checklist', ''))
-            
-            summary_obj.status = 'completed'
-            summary_obj.save()
-            
-            
-            file_count_msg = f"{len(documents)} documents" if len(documents) > 1 else "document"
-            messages.success(request, f"Tender {file_count_msg} analyzed successfully. Critical risks flagged.")
-            return redirect('docai:detail', summary_id=summary_obj.id)
-            
-        except Exception as e:
-            traceback.print_exc()
+        # Call OpenAI with gpt-5-nano as requested
+        if not client:
+             raise Exception("AI client not initialized")
+
+        response = client.chat.completions.create(
+            model="gpt-5-nano",
+            messages=messages_list,
+            response_format={"type": "json_object"}
+        )
+        
+        # 4. Parse Results (90%)
+        summary_obj.current_step = "Parsing AI response and saving analysis..."
+        summary_obj.analysis_progress = 90
+        summary_obj.save()
+
+        data = json.loads(response.choices[0].message.content.strip())
+        
+        # Update summary object fields
+        summary_data = data.get('summary', {})
+        compliance = data.get('compliance_check', {})
+        bid = data.get('bid_logic', {})
+        risk = data.get('risk_assessment', {})
+        
+        summary_obj.title = summary_data.get('title', 'Unknown')
+        summary_obj.deadline = summary_data.get('submission_deadline', 'Not specified')
+        summary_obj.clarification_deadline = summary_data.get('clarification_deadline', 'Not specified')
+        summary_obj.currency_code = summary_data.get('currency_code', 'Not specified')
+        summary_obj.raw_summary = summary_data.get('overall_summary', 'No summary generated')
+        
+        country = summary_data.get('country', 'Not specified')
+        location_detail = summary_data.get('location', 'Not specified')
+        if country != 'Not specified' and location_detail != 'Not specified':
+            summary_obj.location = f"{location_detail}, {country}"
+        elif country != 'Not specified':
+            summary_obj.location = country
+        else:
+            summary_obj.location = location_detail
+        
+        summary_obj.tenderer = summary_data.get('procuring_entity', 'Not specified')
+        
+        lots_data = bid.get('lot_hierarchy', [])
+        summary_obj.lots = json.dumps(lots_data)
+        summary_obj.technical_financial_split = bid.get('evaluation_method', 'Not specified')
+        
+        # Ensure boolean and handle potential nulls from AI
+        raw_local_req = compliance.get('local_presence_required')
+        summary_obj.local_presence_required = bool(raw_local_req) if raw_local_req is not None else False
+        
+        summary_obj.bid_security = compliance.get('bid_security', 'Not specified')
+        summary_obj.financial_thresholds = compliance.get('financial_vitals', 'Not specified')
+        
+        summary_obj.killer_clauses = ", ".join(risk.get('killer_clauses', [])) if isinstance(risk.get('killer_clauses'), list) else str(risk.get('killer_clauses', ''))
+        summary_obj.maintenance_warranty = risk.get('maintenance_warranty', 'Not specified')
+        summary_obj.key_experts = risk.get('key_experts', 'Not specified')
+        summary_obj.past_performance = risk.get('past_performance', 'Not specified')
+        summary_obj.site_visit = risk.get('site_visit', 'Not specified')
+        
+        summary_obj.document_checklist = "\n".join(data.get('document_checklist', [])) if isinstance(data.get('document_checklist'), list) else str(data.get('document_checklist', ''))
+        
+        summary_obj.status = 'completed'
+        summary_obj.analysis_progress = 100
+        summary_obj.current_step = "Analysis complete!"
+        summary_obj.save()
+        
+    except Exception as e:
+        logger.error(f"Error in background analysis: {e}")
+        logger.error(traceback.format_exc())
+        try:
+            summary_obj = TenderSummary.objects.get(id=summary_id)
             summary_obj.status = 'failed'
             summary_obj.failure_reason = str(e)
             summary_obj.save()
-            messages.error(request, f"Error processing document: {str(e)}")
-            return redirect('docai:home')
-            
+        except:
+            pass
+    finally:
+        # Close connection for the thread
+        connection.close()
+
+@login_required
+def analysis_progress_api(request, summary_id):
+    """API endpoint to get the current progress of an analysis."""
+    summary = get_object_or_404(TenderSummary, id=summary_id, user=request.user)
+    return JsonResponse({
+        'status': summary.status,
+        'progress': summary.analysis_progress,
+        'step': summary.current_step,
+        'failure_reason': summary.failure_reason if summary.status == 'failed' else None
+    })
+
+@login_required
+@require_POST
+def delete_summary(request, summary_id):
+    """View to delete a summary if the user is the creator or an admin."""
+    summary = get_object_or_404(TenderSummary, id=summary_id)
+    
+    # Permission check: Creator or Admin
+    if summary.user == request.user or request.user.is_staff:
+        summary.delete()
+        messages.success(request, "Summary deleted successfully.")
+    else:
+        messages.error(request, "You do not have permission to delete this summary.")
+        
     return redirect('docai:home')
 
 @login_required
 def summary_detail(request, summary_id):
     summary = get_object_or_404(TenderSummary, id=summary_id, user=request.user)
     return render(request, 'docai/detail.html', {'summary': summary})
+
+@login_required
+@require_POST
+def edit_summary(request, summary_id):
+    """View to manually edit tender summary info."""
+    summary = get_object_or_404(TenderSummary, id=summary_id, user=request.user)
+    
+    # Update fields from POST data
+    summary.title = request.POST.get('title', summary.title)
+    summary.deadline = request.POST.get('deadline', summary.deadline)
+    summary.clarification_deadline = request.POST.get('clarification_deadline', summary.clarification_deadline)
+    summary.location = request.POST.get('location', summary.location)
+    summary.tenderer = request.POST.get('tenderer', summary.tenderer)
+    summary.currency_code = request.POST.get('currency_code', summary.currency_code)
+    summary.raw_summary = request.POST.get('raw_summary', summary.raw_summary)
+    
+    summary.financial_thresholds = request.POST.get('financial_thresholds', summary.financial_thresholds)
+    summary.maintenance_warranty = request.POST.get('maintenance_warranty', summary.maintenance_warranty)
+    summary.technical_financial_split = request.POST.get('technical_financial_split', summary.technical_financial_split)
+    summary.key_experts = request.POST.get('key_experts', summary.key_experts)
+    summary.past_performance = request.POST.get('past_performance', summary.past_performance)
+    summary.bid_security = request.POST.get('bid_security', summary.bid_security)
+    summary.site_visit = request.POST.get('site_visit', summary.site_visit)
+    summary.killer_clauses = request.POST.get('killer_clauses', summary.killer_clauses)
+    summary.document_checklist = request.POST.get('document_checklist', summary.document_checklist)
+    summary.quality_certificates = request.POST.get('quality_certificates', summary.quality_certificates)
+    
+    # Update lots if provided (it's stored as JSON string)
+    lots_json = request.POST.get('lots')
+    if lots_json:
+        try:
+            # Validate JSON if possible, or just save it
+            json.loads(lots_json)
+            summary.lots = lots_json
+        except:
+            pass
+            
+    summary.is_human_enhanced = True
+    summary.save()
+    
+    messages.success(request, "Summary updated successfully.")
+    return redirect('docai:detail', summary_id=summary.id)

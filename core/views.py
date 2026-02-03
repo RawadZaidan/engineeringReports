@@ -591,3 +591,36 @@ def driver_request_action(request, pk):
     driver_request.save()
     
     return JsonResponse({'success': True})
+
+def get_driver_occupancy(request):
+    driver_id = request.GET.get('driver_id')
+    date_str = request.GET.get('date')
+    request_id = request.GET.get('request_id')
+
+    if not driver_id or not date_str:
+        return JsonResponse({'occupied_slots': []})
+
+    try:
+        from datetime import datetime, timedelta
+        
+        # Base query for conflicting requests
+        query = DriverRequest.objects.filter(
+            driver_id=driver_id,
+            date=date_str,
+            status__in=['Pending', 'Approved', 'Edit Requested']
+        )
+        
+        if request_id:
+            query = query.exclude(pk=request_id)
+            
+        occupied_slots = []
+        for trip in query:
+            if trip.start_time and trip.end_time:
+                occupied_slots.append({
+                    'start': trip.start_time.strftime('%H:%M'),
+                    'end': trip.end_time.strftime('%H:%M')
+                })
+        
+        return JsonResponse({'occupied_slots': occupied_slots})
+    except Exception as e:
+        return JsonResponse({'occupied_slots': [], 'error': str(e)}, status=500)

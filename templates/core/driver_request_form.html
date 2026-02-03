@@ -100,6 +100,70 @@
     </div>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const driverSelect = document.getElementById('id_driver');
+    const dateInput = document.getElementById('id_date');
+    const startTimeSelect = document.getElementById('id_start_time');
+    const endTimeSelect = document.getElementById('id_end_time');
+
+    function updateOccupancy() {
+        const driverId = driverSelect.value;
+        const dateValue = dateInput.value;
+
+        if (!driverId || !dateValue) return;
+
+        // Reset all options first
+        [startTimeSelect, endTimeSelect].forEach(select => {
+            Array.from(select.options).forEach(option => {
+                option.disabled = false;
+                option.style.backgroundColor = '';
+                option.style.color = '';
+            });
+        });
+
+        // Request Occupancy
+        fetch(`{% url 'get_driver_occupancy' %}?driver_id=${driverId}&date=${dateValue}{% if form.instance.pk %}&request_id={{ form.instance.pk }}{% endif %}`)
+            .then(response => response.json())
+            .then(data => {
+                const occupied = data.occupied_slots || [];
+                
+                [startTimeSelect, endTimeSelect].forEach(select => {
+                    Array.from(select.options).forEach(option => {
+                        const optionTime = option.value;
+                        
+                        const isBlocked = occupied.some(slot => {
+                            // Slot is HH:MM strings. We can compare them directly in 24h format.
+                            return optionTime >= slot.start && optionTime <= slot.end;
+                        });
+
+                        if (isBlocked) {
+                            option.disabled = true;
+                            option.style.backgroundColor = '#fee2e2';
+                            option.style.color = '#991b1b';
+                        }
+                    });
+                });
+            });
+    }
+
+    driverSelect.addEventListener('change', updateOccupancy);
+    dateInput.addEventListener('change', updateOccupancy);
+
+    // Run on load if values exist
+    if (driverSelect.value && dateInput.value) {
+        updateOccupancy();
+    }
+});
+</script>
+
+<style>
+/* Add styling for disabled options if needed */
+option:disabled {
+    color: #991b1b;
+    background-color: #fee2e2;
+}
+</style>
 <style>
 .form-page-container {
     max-width: 800px;

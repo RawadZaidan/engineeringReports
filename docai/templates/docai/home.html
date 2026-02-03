@@ -7,7 +7,7 @@
 <div class="docai-container">
     <div class="page-header">
         <h1>DocAi: Tender Analyzer</h1>
-        <p class="subtitle">Upload your tender documents (PDF/Images) and let Gemini summarize the key details for you.</p>
+        <p class="subtitle">Upload your tender documents (PDF/Images) and let gpt-5-nano summarize the key details for you.</p>
     </div>
 
     <div class="card upload-card">
@@ -32,14 +32,50 @@
         {% for summary in summaries %}
         <div class="card summary-card status-{{ summary.status }}">
             <div class="summary-card-header">
-                <h3>{{ summary.title|default:summary.document.name }}</h3>
-                <span class="badge badge-{{ summary.status }}">{{ summary.status|title }}</span>
+                <div class="summary-id-title">
+                    <span class="summary-id">#{{ summary.id }}</span>
+                    <h3>{{ summary.title|default:summary.document.name }}</h3>
+                </div>
+                <div class="summary-header-actions">
+                    {% if summary.status != 'completed' %}
+                    <span class="badge badge-{{ summary.status }}">{{ summary.status|title }}</span>
+                    {% endif %}
+                    
+                    {% if summary.is_human_enhanced %}
+                    <span class="version-badge human" title="Edited by human">👤 Human Enhanced</span>
+                    {% else %}
+                    <span class="version-badge ai" title="Pure AI generated">🤖 Pure AI</span>
+                    {% endif %}
+                    
+                    {% if summary.user == request.user or request.user.is_staff %}
+                    <form action="{% url 'docai:delete' summary.id %}" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this summary?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-icon-delete" title="Delete Summary">🗑️</button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
             <div class="summary-card-body">
-                <p><strong>Deadline:</strong> {{ summary.deadline|default:"Processing..." }}</p>
-                <p><strong>Location:</strong> {{ summary.location|default:"Processing..." }}</p>
+                <div class="summary-info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Creator:</span>
+                        <span class="info-value">{{ summary.user.get_full_name|default:summary.user.username }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Donor:</span>
+                        <span class="info-value">{{ summary.tenderer|default:"Processing..." }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Location:</span>
+                        <span class="info-value">{{ summary.location|default:"Processing..." }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Deadline:</span>
+                        <span class="info-value">{{ summary.deadline|default:"Processing..." }}</span>
+                    </div>
+                </div>
                 <div class="card-footer">
-                    <span class="date">{{ summary.created_at|date:"M d, Y" }}</span>
+                    <span class="date">Summarized: {{ summary.created_at|date:"M d, Y" }}</span>
                     <a href="{% url 'docai:detail' summary.id %}" class="btn btn-outline btn-sm">View Full Summary</a>
                 </div>
             </div>
@@ -182,17 +218,80 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+    .summary-id-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         max-width: 70%;
+        min-width: 0;
+    }
+    .summary-id {
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 0.75rem;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-family: monospace;
+        flex-shrink: 0;
+    }
+    .summary-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-icon-delete {
+        background: none;
+        border: none;
+        padding: 0.25rem;
+        cursor: pointer;
+        font-size: 1.1rem;
+        transition: transform 0.2s;
+        line-height: 1;
+        opacity: 0.6;
+    }
+    .btn-icon-delete:hover {
+        transform: scale(1.2);
+        opacity: 1;
     }
     .summary-card-body {
-        padding: 1rem;
+        padding: 1.25rem;
         flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    .summary-info-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+    }
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        border-bottom: 1px dashed #f1f5f9;
+        padding-bottom: 0.25rem;
+    }
+    .info-label {
+        color: #94a3b8;
+        font-weight: 500;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+    .info-value {
+        color: #334155;
+        font-weight: 600;
+        text-align: right;
     }
     .card-footer {
-        margin-top: 1rem;
+        margin-top: auto;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding-top: 1rem;
+        border-top: 1px solid #f1f5f9;
     }
     .date {
         font-size: 0.85rem;
@@ -208,6 +307,26 @@
     .badge-processing { background: #fef9c3; color: #854d0e; }
     .badge-failed { background: #fee2e2; color: #991b1b; }
     .badge-pending { background: #f1f5f9; color: #475569; }
+
+    .version-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .version-badge.ai {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+    }
+    .version-badge.human {
+        background: #fdf2f8;
+        color: #9d174d;
+        border: 1px solid #fbcfe8;
+    }
 </style>
 
 <script>

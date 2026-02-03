@@ -28,7 +28,13 @@ class TenderSummary(models.Model):
     
     # Smart Agent Enhancements
     local_presence_required = models.BooleanField(default=False, help_text="Is a local partner or office mandatory?")
-    currency_code = models.CharField(max_length=10, blank=True, null=True, help_text="Currency code (e.g., USD, EUR, LBP)")
+    currency_code = models.CharField(max_length=100, blank=True, null=True, help_text="Currency code (e.g., USD, EUR, LBP)")
+    
+    # Progress Tracking
+    analysis_progress = models.IntegerField(default=0)
+    current_step = models.CharField(max_length=255, blank=True, null=True)
+    
+    is_human_enhanced = models.BooleanField(default=False, help_text="Has this summary been manually edited by a human?")
     
     raw_summary = models.TextField(blank=True, null=True)
     failure_reason = models.TextField(blank=True, null=True)

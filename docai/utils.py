@@ -64,7 +64,7 @@ def extract_text_from_rtf(file_obj):
 def extract_text_from_file(file_obj):
     """
     Dispatcher to extract text based on file extension.
-    Returns the extracted text or None if the file should be handled by Gemini vision (images).
+    Returns the extracted text or None if the file should be handled by gpt-5-nano vision (images).
     """
     filename = file_obj.name.lower()
     
@@ -77,7 +77,7 @@ def extract_text_from_file(file_obj):
     elif filename.endswith('.rtf'):
         return extract_text_from_rtf(file_obj)
     elif filename.endswith(('.png', '.jpg', '.jpeg', '.webp')):
-        # Gemini handles these directly with its vision model
+        # gpt-5-nano handles these directly with its vision model
         return None
     else:
         # Try to read as plain text if all else fails

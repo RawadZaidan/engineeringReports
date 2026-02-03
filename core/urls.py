@@ -5,7 +5,8 @@ from .views import (
     EquipmentListView, equipment_create_ajax,
     MaintenanceRequestListView, MaintenanceRequestCreateView, MaintenanceRequestDetailView, MaintenanceRequestUpdateView,
     update_pricing_ajax, product_create_ajax,
-    DriverSchedulingView, DriverRequestCreateView, DriverRequestUpdateView, driver_request_action
+    DriverSchedulingView, DriverRequestCreateView, DriverRequestUpdateView, driver_request_action,
+    get_driver_occupancy
 )
 
 urlpatterns = [
@@ -32,4 +33,5 @@ urlpatterns = [
     path('scheduling/request/', DriverRequestCreateView.as_view(), name='driver_request_create'),
     path('scheduling/request/<int:pk>/edit/', DriverRequestUpdateView.as_view(), name='driver_request_edit'),
     path('scheduling/action/<int:pk>/', driver_request_action, name='driver_request_action'),
+    path('scheduling/occupancy/', get_driver_occupancy, name='get_driver_occupancy'),
 ]

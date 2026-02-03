@@ -88,7 +88,7 @@
 
         <div class="stream-reports">
             {% for report in reports %}
-            <div class="stream-card" onclick="window.location='{% url 'report_detail' report.pk %}';" style="cursor: pointer;">
+            <div class="stream-card" onclick="location.href='{% url 'report_detail' report.pk %}'" style="cursor: pointer;">
                 <div class="stream-id">#SR-{{ report.id }}</div>
                 
                 <div class="stream-client">
