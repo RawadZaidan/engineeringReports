@@ -138,11 +138,32 @@
 }
 
 @media (max-width: 600px) {
+    .form-page-container {
+        margin: 1rem;
+    }
+    .form-card-modern {
+        padding: 1.5rem;
+    }
     .form-grid {
         grid-template-columns: 1fr;
     }
     .form-group.full-width {
         grid-column: span 1;
+    }
+    .form-actions-modern, .form-actions-modern .btn-create-modern {
+        width: 100%;
+    }
+    .dashboard-header-modern {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .header-actions-modern {
+        width: 100%;
+    }
+    .header-actions-modern .btn-create-modern {
+        width: 100%;
+        justify-content: center;
     }
 }
 </style>
