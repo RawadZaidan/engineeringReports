@@ -319,12 +319,16 @@ class MaintenanceRequestListView(LoginRequiredMixin, ListView):
             'created_by'
         ).prefetch_related(
             'equipment_items__equipment__product'
-        ).order_by('-created_at')
+        )
         
+        # Filtering
         if not self.request.user.is_staff:
             queryset = queryset.filter(created_by=self.request.user)
+        
         status = self.request.GET.get('status')
-        if status: queryset = queryset.filter(status=status)
+        if status: 
+            queryset = queryset.filter(status=status)
+            
         q = self.request.GET.get('q')
         if q:
             queryset = queryset.filter(
@@ -332,6 +336,24 @@ class MaintenanceRequestListView(LoginRequiredMixin, ListView):
                 Q(equipment_items__equipment__product__name__icontains=q) |
                 Q(equipment_items__equipment__serial_number__icontains=q)
             ).distinct()
+
+        # Sorting
+        sort = self.request.GET.get('sort', 'timeline')
+        if sort == 'urgency':
+            from django.db.models import Case, When, Value, IntegerField
+            queryset = queryset.annotate(
+                urgency_rank=Case(
+                    When(urgency='Emergency', then=Value(0)),
+                    When(urgency='High', then=Value(1)),
+                    When(urgency='Medium', then=Value(2)),
+                    When(urgency='Low', then=Value(3)),
+                    default=Value(4),
+                    output_field=IntegerField(),
+                )
+            ).order_by('urgency_rank', '-customer_contact_date')
+        else: # Default: timeline
+            queryset = queryset.order_by('-customer_contact_date', '-created_at')
+            
         return queryset
 
 class MaintenanceRequestCreateView(LoginRequiredMixin, CreateView):

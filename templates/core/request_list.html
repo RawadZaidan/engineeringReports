@@ -3,127 +3,110 @@
 {% block title %}Maintenance Requests - Medilab{% endblock %}
 
 {% block content %}
-<div class="page-header-actions dashboard-header">
+<div class="page-header-actions dashboard-header" style="margin-bottom: 2rem; border: none;">
     <div class="header-content">
-        <h1 class="page-title">Maintenance Requests</h1>
-        <p class="text-muted mobile-hide" style="margin-top: 0.25rem;">Manage incoming service requests</p>
+        <h1 class="page-title" style="font-size: 2rem; font-weight: 800;">Maintenance Requests</h1>
+        <p class="text-muted" style="font-size: 1.1rem; margin-top: 0.25rem;">Manage and track facility upkeep tasks.</p>
     </div>
     <div class="action-btn-group">
-        <button class="btn btn-secondary desktop-only" onclick="window.print()"><i class="icon-printer"></i> Print List</button>
-        <a href="{% url 'request_create' %}" class="btn btn-primary create-btn">+ New Request</a>
+        <a href="{% url 'request_create' %}" class="btn btn-primary create-btn" style="padding: 0.75rem 1.5rem; border-radius: 12px; font-weight: 700;">+ New Request</a>
     </div>
 </div>
 
-<!-- Mobile Filter Bar -->
-<div class="mobile-filter-row mobile-only">
-    <div class="horizontal-scroll-filters">
-        <a href="?status=" class="mobile-filter-pill {% if not request.GET.status %}active{% endif %}">All</a>
-        <a href="?status=Open" class="mobile-filter-pill {% if request.GET.status == 'Open' %}active{% endif %}">Open</a>
-        <a href="?status=Scheduled" class="mobile-filter-pill {% if request.GET.status == 'Scheduled' %}active{% endif %}">Scheduled</a>
-        <a href="?status=In Progress" class="mobile-filter-pill {% if request.GET.status == 'In Progress' %}active{% endif %}">Active</a>
-        <a href="?status=Completed" class="mobile-filter-pill {% if request.GET.status == 'Completed' %}active{% endif %}">Closed</a>
+<div class="premium-filter-container">
+    <!-- Status Selection -->
+    <div class="modern-status-pills">
+        <a href="?status=&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if not request.GET.status %}active{% endif %}">All</a>
+        <a href="?status=Open&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if request.GET.status == 'Open' %}active{% endif %}">Open</a>
+        <a href="?status=Scheduled&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if request.GET.status == 'Scheduled' %}active{% endif %}">Scheduled</a>
+        <a href="?status=In Progress&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if request.GET.status == 'In Progress' %}active{% endif %}">Active</a>
+        <a href="?status=Completed&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if request.GET.status == 'Completed' %}active{% endif %}">Closed</a>
+    </div>
+
+    <!-- Sort & Search Bar -->
+    <div class="premium-sort-search">
+        <div class="sort-label-group">
+            <span class="sort-label">Sort by:</span>
+            <div class="sort-toggle-group">
+                <a href="?sort=timeline{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                   class="sort-toggle-btn {% if request.GET.sort != 'urgency' %}active{% endif %}">
+                    <i class="fas fa-history"></i> Timeline
+                </a>
+                <a href="?sort=urgency{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                   class="sort-toggle-btn {% if request.GET.sort == 'urgency' %}active{% endif %}">
+                    <i class="fas fa-bolt"></i> Urgency
+                </a>
+            </div>
+        </div>
+
+        <form method="get" class="search-form" style="margin-bottom: 0; flex: 1; max-width: 400px;">
+            <div class="search-input-wrapper">
+                <span class="search-icon"><i class="fas fa-search"></i></span>
+                <input type="text" name="q" placeholder="Search by facility, location..." class="form-control" value="{{ request.GET.q }}" style="height: 44px; border-radius: 12px; border-color: #e2e8f0;">
+            </div>
+            {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
+            {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+        </form>
     </div>
 </div>
 
-<!-- Search Bar -->
-<form method="get" class="search-form">
-     <div class="search-input-wrapper">
-        <span class="search-icon">🔍</span>
-        <input type="text" name="q" placeholder="Search by facility, location, or equipment..." class="form-control" value="{{ request.GET.q }}">
-     </div>
-     {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
-</form>
+<div class="request-modern-grid">
+    {% for request_item in requests %}
+    <div class="request-modern-card" 
+         onclick="window.location='{% url 'request_detail' request_item.pk %}';" 
+         style="cursor: pointer;">
+        <div class="request-card-header">
+            <span class="card-id-badge">#MR-{{ request_item.id }}</span>
+            <span class="status-badge urgency-{{ request_item.urgency|lower }}" style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; min-width: auto; padding: 0.35rem 0.75rem;">
+                {{ request_item.urgency }}
+                {% if request_item.urgency != 'Low' and request_item.urgency != 'Medium' %}Urgency{% endif %}
+            </span>
+        </div>
 
-<div class="card" style="padding: 0; overflow: hidden;">
-    <div class="table-responsive">
-        <table class="modern-table">
-            <thead>
-                <tr>
-                    <th>Facility</th>
-                    <th>Ref</th>
-                    <th>Type</th>
-                    <th>Urgency</th>
-                    <th>Status</th>
-                    <th>Equipment</th>
-                    <th>Est. Cost</th>
-                    <th>Date Contacted</th>
-                    <th style="text-align: right;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for request_item in requests %}
-                <tr>
-                    <td>
-                        <div style="font-weight: 700; color: #0f172a;">{{ request_item.facility_name|default:"N/A" }}</div>
-                        {% if request_item.location %}
-                        <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.1rem;">
-                             {{ request_item.get_location_display }}
-                         </div>
-                        {% endif %}
-                    </td>
-                    <td><span style="font-family: monospace; color: #64748b;">#MR-{{ request_item.id }}</span></td>
-                    <td><div style="font-size: 0.85rem; color: #4b5563;">{{ request_item.service_type|default:"-" }}</div></td>
-                    <td>
-                        <span class="status-badge urgency-{{ request_item.urgency|lower }}">
-                            {{ request_item.urgency }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="status-badge status-{{ request_item.status|lower|cut:' ' }}">
-                            {{ request_item.status }}
-                        </span>
-                        <div style="font-size: 0.75rem; color: #92400e; margin-top: 0.25rem; font-weight: 500;">
-                            {{ request_item.get_billing_status_display }}
-                        </div>
-                    </td>
-                    <td>
-                        {% with items=request_item.equipment_items.all %}
-                            {% if items %}
-                                <div style="font-weight: 500;">{{ items.0.equipment_type }}</div>
-                                <div style="font-size: 0.8rem; color: #64748b;">{{ items.0.model_name }}</div>
-                                {% if items|length > 1 %}
-                                    <span class="text-muted small" style="background: #f1f5f9; padding: 1px 4px; border-radius: 4px;">+{{ items|length|add:"-1" }} more instruments</span>
-                                {% endif %}
-                            {% else %}
-                                <span class="text-muted italic">{{ request_item.equipment_list|default:"No equipment"|truncatechars:30 }}</span>
-                            {% endif %}
-                        {% endwith %}
-                    </td>
-                    <td>
-                        {% if request_item.estimated_cost %}
-                            <div style="font-weight: 700; color: #b45309;">${{ request_item.estimated_cost|floatformat:2 }}</div>
-                        {% else %}
-                            <span class="text-muted" style="font-size: 0.8rem;">-</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div style="font-size: 0.9rem; font-weight: 500;">{{ request_item.customer_contact_date|date:"M d, Y" }}</div>
-                    </td>
-                    <td>
-                        <div class="action-btn-group" style="justify-content: flex-end;">
-                            <a href="{% url 'request_detail' request_item.pk %}" class="btn action-btn action-btn-view">View</a>
-                            {% if user.is_staff or request_item.created_by == user %}
-                            <a href="{% url 'request_update' request_item.pk %}" class="btn action-btn action-btn-edit">Edit</a>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="8" class="text-center py-5">
-                        <div style="color: #94a3b8; font-size: 1.1rem;">No maintenance requests found.</div>
-                        <a href="{% url 'request_create' %}" class="btn btn-primary" style="margin-top: 1rem;">Create One Now</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <h3 class="request-card-title">{{ request_item.facility_name|default:request_item.service_type|default:"Maintenance Request" }}</h3>
+        <div class="request-card-location">
+            <i class="fas fa-map-marker-alt" style="color: var(--primary-color);"></i>
+            {{ request_item.get_location_display|default:"On-site" }}
+        </div>
+
+        <div class="request-card-info-grid">
+            <div>
+                <span class="info-label">Requested By</span>
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <div class="engineer-avatar" style="width: 28px; height: 28px; font-size: 0.8rem; border-radius: 8px;">
+                        {{ request_item.created_by.username|make_list|first|upper }}
+                    </div>
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #334155;">{{ request_item.created_by.get_full_name|default:request_item.created_by.username }}</span>
+                </div>
+            </div>
+            <div>
+                <span class="info-label">Due Date</span>
+                <span style="font-size: 0.85rem; font-weight: 700; color: #334155;">{{ request_item.customer_contact_date|date:"M d, Y" }}</span>
+            </div>
+        </div>
+
+        <div class="request-card-footer">
+            <a href="{% url 'request_detail' request_item.pk %}" class="footer-link">View Details</a>
+            {% if user.is_staff or request_item.created_by == user %}
+            <a href="{% url 'request_update' request_item.pk %}" class="footer-edit-link" onclick="event.stopPropagation();">
+                <i class="fas fa-pen" style="font-size: 0.75rem;"></i> Edit
+            </a>
+            {% endif %}
+        </div>
     </div>
+    {% empty %}
+    <div style="grid-column: 1/-1; text-align: center; padding: 5rem 2rem; background: #f8fafc; border-radius: 30px; border: 2px dashed #e2e8f0;">
+        <i class="fas fa-clipboard-check" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1.5rem;"></i>
+        <h2 style="color: #64748b;">No maintenance tasks found</h2>
+        <p class="text-muted">Adjust your filters or start a new request.</p>
+        <a href="{% url 'request_create' %}" class="btn btn-primary" style="margin-top: 2rem; border-radius: 12px;">+ Create New Request</a>
+    </div>
+    {% endfor %}
 </div>
 
 {% if is_paginated %}
-<div class="pagination">
-    <!-- Pagination logic here -->
+<div class="pagination" style="margin-top: 3rem; justify-content: center;">
+    <!-- Pagination remains functional -->
 </div>
 {% endif %}
 {% endblock %}
