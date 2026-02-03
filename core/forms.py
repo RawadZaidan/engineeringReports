@@ -1,5 +1,6 @@
 from django import forms
-from .models import ServiceReport, Product, Equipment, ReportItem, MaintenanceRequest, MaintenanceRequestEquipment
+import datetime
+from .models import ServiceReport, Product, Equipment, ReportItem, MaintenanceRequest, MaintenanceRequestEquipment, DriverRequest, Driver
 from django.forms import inlineformset_factory
 
 SERVICE_TYPE_CHOICES = [
@@ -207,3 +208,88 @@ class EquipmentForm(forms.ModelForm):
             'warranty_expiration_date': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 3}),
         }
+
+class DriverRequestForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Only show active drivers
+        self.fields['driver'].queryset = Driver.objects.filter(is_active=True)
+        # Apply form-control class to all fields
+        for field in self.fields.values():
+            if not isinstance(field.widget, forms.CheckboxSelectMultiple):
+                field.widget.attrs.update({'class': 'form-control'})
+
+    # Generate 30-minute increments for time fields (6 AM to 6 PM)
+    TIME_CHOICES = [
+        (datetime.time(hour, minute).strftime('%H:%M'), datetime.time(hour, minute).strftime('%H:%M'))
+        for hour in range(6, 19)
+        for minute in (0, 30)
+    ]
+
+    start_time = forms.ChoiceField(choices=TIME_CHOICES, required=True)
+    end_time = forms.ChoiceField(choices=TIME_CHOICES, required=True)
+
+    class Meta:
+        model = DriverRequest
+        fields = [
+            'driver', 'department', 'maintenance_request', 'date', 'start_time', 'end_time', 
+            'vehicle_type', 'origin', 'location', 'estimated_distance', 'client_name', 
+            'contact_person', 'contact_number', 'duration'
+        ]
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'maintenance_request': forms.Select(),
+            'origin': forms.Select(),
+            'location': forms.Select(),
+            'client_name': forms.TextInput(attrs={'placeholder': 'End User / Hospital / Client'}),
+            'contact_person': forms.TextInput(attrs={'placeholder': 'Who should the driver meet?'}),
+            'contact_number': forms.TextInput(attrs={'placeholder': 'Client contact number'}),
+            'estimated_distance': forms.TextInput(attrs={'placeholder': 'e.g., 30 km'}),
+            'duration': forms.TextInput(attrs={'placeholder': 'Optional notes on trip duration'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        driver = cleaned_data.get('driver')
+        date = cleaned_data.get('date')
+        start_time_val = cleaned_data.get('start_time')
+        end_time_val = cleaned_data.get('end_time')
+
+        if driver and date and start_time_val and end_time_val:
+            # Check if values are already time objects or need conversion
+            if isinstance(start_time_val, str):
+                try:
+                    h, m = map(int, start_time_val.split(':'))
+                    start_t = datetime.time(h, m)
+                except (ValueError, AttributeError):
+                    return cleaned_data
+            else:
+                start_t = start_time_val
+
+            if isinstance(end_time_val, str):
+                try:
+                    h, m = map(int, end_time_val.split(':'))
+                    end_t = datetime.time(h, m)
+                except (ValueError, AttributeError):
+                    return cleaned_data
+            else:
+                end_t = end_time_val
+
+            if start_t >= end_t:
+                raise forms.ValidationError("End time must be after start time.")
+
+            # Check for overlaps logic: (StartA < EndB) and (EndA > StartB)
+            conflicts = DriverRequest.objects.filter(
+                driver=driver,
+                date=date,
+                status__in=['Pending', 'Approved', 'Edit Requested']
+            ).exclude(pk=self.instance.pk if self.instance else None)
+
+            for conflict in conflicts:
+                if conflict.start_time and conflict.end_time:
+                    if (start_t < conflict.end_time) and (end_t > conflict.start_time):
+                        raise forms.ValidationError(
+                            f"Driver {driver.name} is already reserved for this time "
+                            f"({conflict.start_time.strftime('%H:%M')} - {conflict.end_time.strftime('%H:%M')})."
+                        )
+        return cleaned_data

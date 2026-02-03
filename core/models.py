@@ -240,5 +240,65 @@ class SavedFilter(models.Model):
         ordering = ['-created_at']
         unique_together = [['user', 'name', 'filter_type']]
     
+class Driver(models.Model):
+    name = models.CharField(max_length=100)
+    photo = models.ImageField(upload_to='drivers/', blank=True, null=True)
+    license_info = models.CharField(max_length=255, blank=True, null=True, help_text="e.g., Class A CDL Holder", default="Class A CDL Holder")
+    is_active = models.BooleanField(default=True)
+
     def __str__(self):
-        return f"{self.name} ({self.user.username})"
+        return self.name
+
+class DriverRequest(models.Model):
+    DEPARTMENT_CHOICES = [
+        ('Engineering', 'Engineering'),
+        ('Sales', 'Sales'),
+        ('Procurement', 'Procurement'),
+        ('Management', 'Management'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('Pending', 'Pending Review'),
+        ('Approved', 'Approved'),
+        ('Denied', 'Denied'),
+        ('Edit Requested', 'Edit Requested'),
+        ('Cancelled', 'Cancelled'),
+    ]
+
+    VEHICLE_CHOICES = [
+        ('Truck', 'Truck'),
+        ('Car', 'Car'),
+        ('Moto', 'Moto'),
+    ]
+
+    requester = models.ForeignKey(User, on_delete=models.CASCADE, related_name='driver_requests')
+    driver = models.ForeignKey(Driver, on_delete=models.CASCADE, related_name='assignments')
+    maintenance_request = models.ForeignKey('MaintenanceRequest', on_delete=models.SET_NULL, null=True, blank=True, related_name='driver_trips')
+    department = models.CharField(max_length=50, choices=DEPARTMENT_CHOICES)
+    
+    origin = models.CharField(max_length=100, choices=MaintenanceRequest.LEBANON_LOCATIONS, default='Beirut')
+    location = models.CharField(max_length=100, choices=MaintenanceRequest.LEBANON_LOCATIONS, verbose_name="Destination")
+    estimated_distance = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., 30 km")
+    
+    client_name = models.CharField(max_length=255, blank=True, null=True, verbose_name="End User (Client)")
+    contact_person = models.CharField(max_length=255, blank=True, null=True)
+    contact_number = models.CharField(max_length=50, blank=True, null=True)
+    
+    date = models.DateField()
+    
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+    
+    duration = models.CharField(max_length=100, help_text="e.g., 2 hours, Full day", blank=True, null=True)
+    vehicle_type = models.CharField(max_length=20, choices=VEHICLE_CHOICES, default='Car')
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending', db_index=True)
+    admin_notes = models.TextField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.requester.username} - {self.driver.name} ({self.date})"

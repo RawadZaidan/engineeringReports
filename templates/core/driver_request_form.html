@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="form-page-container">
+    <div class="dashboard-header-modern">
+        <div class="header-content">
+            <h2 class="page-title-modern">Request a Driver</h2>
+            <p class="subtitle-modern">Submit a new transport request</p>
+        </div>
+        <div class="header-actions-modern">
+            <a href="{% url 'driver_scheduling' %}" class="btn-create-modern" style="background: #94a3b8;">
+                <span>⬅️ Back</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="form-card-modern">
+        <form method="post" class="modern-form">
+            {% csrf_token %}
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="{{ form.driver.id_for_label }}">Select Driver</label>
+                    {{ form.driver }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.department.id_for_label }}">Department</label>
+                    {{ form.department }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.maintenance_request.id_for_label }}">Link to Maintenance Job (Optional)</label>
+                    {{ form.maintenance_request }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.date.id_for_label }}">Date of Trip</label>
+                    {{ form.date }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.vehicle_type.id_for_label }}">Preferred Vehicle</label>
+                    {{ form.vehicle_type }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.origin.id_for_label }}">Origin (Source)</label>
+                    {{ form.origin }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.location.id_for_label }}">Destination (Location)</label>
+                    {{ form.location }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.estimated_distance.id_for_label }}">Estimated Distance (Optional)</label>
+                    {{ form.estimated_distance }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.start_time.id_for_label }}">Start Time</label>
+                    {{ form.start_time }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.end_time.id_for_label }}">End Time</label>
+                    {{ form.end_time }}
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="{{ form.client_name.id_for_label }}">End User (Client)</label>
+                    {{ form.client_name }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.contact_person.id_for_label }}">Contact Person</label>
+                    {{ form.contact_person }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.contact_number.id_for_label }}">Contact Number</label>
+                    {{ form.contact_number }}
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="{{ form.duration.id_for_label }}">Notes / Duration Details</label>
+                    {{ form.duration }}
+                </div>
+            </div>
+
+            <div class="form-actions-modern">
+                <button type="submit" class="btn-create-modern">
+                    <span>🚀 Submit Request</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.form-page-container {
+    max-width: 800px;
+    margin: 2rem auto;
+}
+
+.form-card-modern {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.08);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.form-group.full-width {
+    grid-column: span 2;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.form-actions-modern {
+    margin-top: 2.5rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 600px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    .form-group.full-width {
+        grid-column: span 1;
+    }
+}
+</style>
+{% endblock %}

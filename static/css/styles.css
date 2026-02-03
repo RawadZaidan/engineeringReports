@@ -1480,3 +1480,221 @@ body {
         justify-content: center;
     }
 }
+
+/* --- FleetOps-Inspired Scheduling Styles --- */
+.scheduling-dashboard {
+    background: #f8fafc;
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+.driver-hero-section {
+    background: white;
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2.5rem;
+}
+
+.driver-profile-info {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.driver-large-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    object-fit: cover;
+    background: #e2e8f0;
+}
+
+.driver-details h2 {
+    margin: 0;
+    font-size: 1.75rem;
+    color: #1e293b;
+}
+
+.driver-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+}
+
+.shift-section-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Shift Cards */
+.shift-card {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #f1f5f9;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.shift-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    border-color: #3b82f6;
+}
+
+.shift-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.shift-id {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.shift-route {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0.25rem 0;
+}
+
+.shift-status-tag {
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.status-in-progress { background: #e0f2fe; color: #036b9a; }
+.status-scheduled { background: #fef3c7; color: #92400e; }
+.status-completed { background: #dcfce7; color: #166534; }
+
+.shift-card-body {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.body-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.body-item i {
+    font-size: 1.1rem;
+    color: #94a3b8;
+}
+
+.body-item-label {
+    display: block;
+    font-size: 0.7rem;
+    color: #94a3b8;
+}
+
+.body-item-value {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+/* Layout Split */
+.scheduling-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+}
+
+/* Calendar Widget */
+.calendar-widget {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+}
+
+.calendar-day-label {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.calendar-day:hover {
+    background: #f1f5f9;
+}
+
+.calendar-day.active {
+    background: #3b82f6;
+    color: white;
+    font-weight: 700;
+}
+
+.calendar-day.has-shift::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 4px;
+    height: 4px;
+    background: #3b82f6;
+    border-radius: 50%;
+}
+
+@media (max-width: 992px) {
+    .scheduling-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .shift-card-body {
+        grid-template-columns: 1fr 1fr;
+    }
+}

@@ -1,6 +1,6 @@
 import base64
 from django.core.files.base import ContentFile
-from django.shortcuts import redirect
+from django.shortcuts import redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
@@ -13,10 +13,10 @@ from datetime import timedelta
 from django.utils import timezone
 from django.core.cache import cache
 
-from .models import ServiceReport, Product, Equipment, ReportItem, ReportImage, MaintenanceRequest, MaintenanceRequestEquipment
+from .models import ServiceReport, Product, Equipment, ReportItem, ReportImage, MaintenanceRequest, MaintenanceRequestEquipment, Driver, DriverRequest
 from .forms import (
     ServiceReportForm, ProductForm, EquipmentForm, ReportItemFormSet, 
-    MaintenanceRequestForm, MaintenanceRequestEquipmentFormSet
+    MaintenanceRequestForm, MaintenanceRequestEquipmentFormSet, DriverRequestForm
 )
 
 class DashboardView(LoginRequiredMixin, ListView):
@@ -452,3 +452,120 @@ def update_pricing_ajax(request):
         return JsonResponse({'success': False, 'message': 'Request not found'}, status=404)
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+# --- DRIVER SCHEDULING ---
+
+class DriverSchedulingView(LoginRequiredMixin, ListView):
+    model = DriverRequest
+    template_name = 'core/driver_scheduling.html'
+    context_object_name = 'requests'
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        selected_date = self.request.GET.get('date')
+        if selected_date:
+            try:
+                queryset = queryset.filter(date=selected_date)
+            except (ValueError, TypeError):
+                pass
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        import calendar
+        from datetime import date, timedelta
+        
+        today = date.today()
+        year = int(self.request.GET.get('year', today.year))
+        month = int(self.request.GET.get('month', today.month))
+        
+        cal = calendar.Calendar(firstweekday=0)
+        month_days_raw = cal.monthdayscalendar(year, month)
+        
+        # Build structured calendar data with ISO dates
+        calendar_weeks = []
+        for week in month_days_raw:
+            week_data = []
+            for day in week:
+                if day == 0:
+                    week_data.append({'day': 0, 'iso': None})
+                else:
+                    iso_str = f"{year}-{month:02d}-{day:02d}"
+                    week_data.append({
+                        'day': day,
+                        'iso': iso_str,
+                        'is_today': today.year == year and today.month == month and today.day == day
+                    })
+            calendar_weeks.append(week_data)
+        
+        # Get days that have shifts
+        shift_days = DriverRequest.objects.filter(
+            date__year=year, 
+            date__month=month
+        ).values_list('date__day', flat=True).distinct()
+        
+        context.update({
+            'drivers': Driver.objects.filter(is_active=True),
+            'is_admin': self.request.user.is_staff,
+            'calendar_weeks': calendar_weeks,
+            'shift_days': list(shift_days),
+            'current_month': month,
+            'current_year': year,
+            'month_name': calendar.month_name[month],
+            'selected_date': self.request.GET.get('date'),
+        })
+        return context
+
+class DriverRequestCreateView(LoginRequiredMixin, CreateView):
+    model = DriverRequest
+    form_class = DriverRequestForm
+    template_name = 'core/driver_request_form.html'
+    success_url = reverse_lazy('driver_scheduling')
+
+    def form_valid(self, form):
+        form.instance.requester = self.request.user
+        return super().form_valid(form)
+
+class DriverRequestUpdateView(LoginRequiredMixin, UpdateView):
+    model = DriverRequest
+    form_class = DriverRequestForm
+    template_name = 'core/driver_request_form.html'
+    success_url = reverse_lazy('driver_scheduling')
+
+    def get_queryset(self):
+        # Users can edit their own, staff can edit any
+        if self.request.user.is_staff:
+            return DriverRequest.objects.all()
+        return DriverRequest.objects.filter(requester=self.request.user)
+
+    def form_valid(self, form):
+        # If a non-staff user edits, revert to pending for re-approval
+        if not self.request.user.is_staff:
+            form.instance.status = 'Pending'
+        return super().form_valid(form)
+
+@require_POST
+def driver_request_action(request, pk):
+    if not request.user.is_staff:
+        return JsonResponse({'success': False, 'message': 'Permission denied.'}, status=403)
+    
+    driver_request = get_object_or_404(DriverRequest, pk=pk)
+    action = request.POST.get('action')
+    notes = request.POST.get('notes', '')
+
+    if action == 'approve':
+        driver_request.status = 'Approved'
+    elif action == 'deny':
+        driver_request.status = 'Denied'
+    elif action == 'request_edit':
+        driver_request.status = 'Edit Requested'
+    elif action == 'cancel':
+        # Requesters can cancel their own, or admin can cancel any
+        if not request.user.is_staff and driver_request.requester != request.user:
+            return JsonResponse({'success': False, 'message': 'Permission denied.'}, status=403)
+        driver_request.status = 'Cancelled'
+    
+    driver_request.admin_notes = notes
+    driver_request.save()
+    
+    return JsonResponse({'success': True})

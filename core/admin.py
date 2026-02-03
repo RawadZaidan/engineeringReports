@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Product, Equipment, ServiceReport, ReportItem,
     ReportImage, SavedFilter, MaintenanceRequest,
-    MaintenanceRequestEquipment
+    MaintenanceRequestEquipment, Driver, DriverRequest
 )
 
 class ReportItemInline(admin.TabularInline):
@@ -45,3 +45,13 @@ class SavedFilterAdmin(admin.ModelAdmin):
     list_display = ('name', 'user', 'filter_type', 'is_default', 'created_at')
     list_filter = ('filter_type', 'is_default')
     search_fields = ('name', 'user__username')
+
+@admin.register(Driver)
+class DriverAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_active')
+
+@admin.register(DriverRequest)
+class DriverRequestAdmin(admin.ModelAdmin):
+    list_display = ('id', 'requester', 'driver', 'date', 'status')
+    list_filter = ('status', 'date', 'driver', 'department')
+    search_fields = ('requester__username', 'location', 'admin_notes')

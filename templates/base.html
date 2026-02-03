@@ -20,6 +20,7 @@
     <link rel="apple-touch-icon" href="{% static 'icons/icon-192x192.png' %}">
     
     <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=3.1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body>
     <header class="app-header">
@@ -41,6 +42,7 @@
                 <a href="{% url 'equipment_list' %}" class="nav-link">Asset Registry</a>
                 <a href="{% url 'request_list' %}" class="nav-link">Requests</a>
                 <a href="{% url 'docai:home' %}" class="nav-link">DocAi</a>
+                <a href="{% url 'driver_scheduling' %}" class="nav-link">Scheduling</a>
                 {% if user.is_authenticated %}
                     <div class="user-profile">
                         <div class="user-avatar">
@@ -77,6 +79,10 @@
         <a href="{% url 'docai:home' %}" class="bottom-nav-link">
             <span class="bottom-nav-icon">🤖</span>
             <span class="bottom-nav-label">DocAi</span>
+        </a>
+        <a href="{% url 'driver_scheduling' %}" class="bottom-nav-link">
+            <span class="bottom-nav-icon">📅</span>
+            <span class="bottom-nav-label">Scheduling</span>
         </a>
     </nav>
 
