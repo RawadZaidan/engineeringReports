@@ -164,7 +164,11 @@
                 <div class="card-image-header">
                     <!-- Placeholder or first image -->
                     {% if report.images.first %}
-                        <img src="{{ report.images.first.image.url }}" alt="Report Image">
+                        {% if report.images.first.thumbnail %}
+                            <img src="{{ report.images.first.thumbnail.url }}" alt="Report Image" loading="lazy">
+                        {% else %}
+                            <img src="{{ report.images.first.image.url }}" alt="Report Image" loading="lazy">
+                        {% endif %}
                     {% else %}
                         <div style="width:100%; height:100%; background: linear-gradient(45deg, #f1f5f9 25%, #e2e8f0 25%, #e2e8f0 50%, #f1f5f9 50%, #f1f5f9 75%, #e2e8f0 75%, #e2e8f0 100%); background-size: 20px 20px; opacity: 0.5;"></div>
                     {% endif %}

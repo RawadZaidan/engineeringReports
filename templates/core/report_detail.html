@@ -124,7 +124,11 @@
             <div class="photo-grid">
                 {% for img in report.images.all %}
                     <a href="{{ img.image.url }}" target="_blank">
-                        <img src="{{ img.image.url }}" class="photo-thumb" alt="Attachment">
+                        {% if img.thumbnail %}
+                            <img src="{{ img.thumbnail.url }}" class="photo-thumb" alt="Attachment" loading="lazy">
+                        {% else %}
+                            <img src="{{ img.image.url }}" class="photo-thumb" alt="Attachment" loading="lazy">
+                        {% endif %}
                     </a>
                 {% empty %}
                     <p class="text-muted">No photos attached.</p>

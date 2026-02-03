@@ -1,5 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
+from PIL import Image
+from io import BytesIO
+from django.core.files.base import ContentFile
+import os
 from django.utils import timezone
 
 class Product(models.Model):
@@ -95,7 +99,36 @@ class ReportItem(models.Model):
 class ReportImage(models.Model):
     report = models.ForeignKey(ServiceReport, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='report_photos/')
+    thumbnail = models.ImageField(upload_to='report_thumbnails/', blank=True, null=True)
     caption = models.CharField(max_length=255, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        if self.image:
+            # Generate thumbnail
+            try:
+                img = Image.open(self.image)
+                # Convert RGBA to RGB if needed
+                if img.mode in ('RGBA', 'P'):
+                    img = img.convert('RGB')
+                
+                # Resize keeping aspect ratio
+                img.thumbnail((600, 600), Image.Resampling.LANCZOS)
+                
+                # Save to buffer
+                thumb_io = BytesIO()
+                img.save(thumb_io, format='JPEG', quality=85)
+                
+                # Create thumbnail filename
+                name, ext = os.path.splitext(os.path.basename(self.image.name))
+                thumb_name = f"{name}_thumb.jpg"
+                
+                # Save thumbnail file
+                self.thumbnail.save(thumb_name, ContentFile(thumb_io.getvalue()), save=False)
+            except Exception as e:
+                print(f"Error creating thumbnail: {e}")
+                # Fallback handled in template (if thumbnail is null)
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Image for Report {self.report.id}"
