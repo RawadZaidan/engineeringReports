@@ -110,6 +110,9 @@ CACHES = {
     }
 }
 
+# Use cached_db session engine to reduce latency (avoids DB hits for sessions/users)
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+
 
 
 # Password validation
