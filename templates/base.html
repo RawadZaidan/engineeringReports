@@ -44,11 +44,22 @@
                 <a href="{% url 'docai:home' %}" class="nav-link"><i class="fas fa-robot nav-icon"></i> DocAi</a>
                 <a href="{% url 'driver_scheduling' %}" class="nav-link"><i class="fas fa-truck-loading nav-icon"></i> Scheduling</a>
                 {% if user.is_authenticated %}
-                    <div class="user-profile">
-                        <div class="user-avatar">
-                            <span class="avatar-text">{{ user.username|slice:":1"|upper }}</span>
+                    <div class="user-dropdown">
+                        <div class="user-profile" id="userDropdownToggle">
+                            <div class="user-avatar">
+                                <span class="avatar-text">{{ user.username|slice:":1"|upper }}</span>
+                            </div>
+                            <span class="user-name">{{ user.username }}</span>
+                            <i class="fas fa-chevron-down dropdown-arrow"></i>
                         </div>
-                        <span class="user-name">{{ user.username }}</span>
+                        <div class="dropdown-menu" id="userDropdownMenu">
+                            <form action="{% url 'logout' %}" method="post" id="logout-form">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item logout-btn">
+                                    <i class="fas fa-sign-out-alt"></i> Logout
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 {% endif %}
             </nav>
@@ -175,6 +186,25 @@
                 closeIosBtn.addEventListener('click', () => {
                     iosPrompt.style.display = 'none';
                     sessionStorage.setItem('pwa-banner-closed', 'true');
+                });
+            }
+
+            // User Dropdown Toggle
+            const userToggle = document.getElementById('userDropdownToggle');
+            const userMenu = document.getElementById('userDropdownMenu');
+            
+            if (userToggle && userMenu) {
+                userToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    userMenu.classList.toggle('show');
+                    userToggle.classList.toggle('active');
+                });
+                
+                document.addEventListener('click', function(e) {
+                    if (!userToggle.contains(e.target) && !userMenu.contains(e.target)) {
+                        userMenu.classList.remove('show');
+                        userToggle.classList.remove('active');
+                    }
                 });
             }
 
