@@ -5,6 +5,7 @@ from io import BytesIO
 from django.core.files.base import ContentFile
 import os
 from django.utils import timezone
+from django.core.cache import cache
 
 class Product(models.Model):
     """Product Catalogue - Blueprints/Templates (Manufacturer + Model)"""
@@ -63,8 +64,8 @@ class ServiceReport(models.Model):
     billing_category = models.CharField(max_length=255, help_text="Comma-separated billing categories", blank=True, null=True)
     final_status = models.CharField(max_length=255, help_text="Comma-separated final status outcomes", blank=True, null=True)
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft')
-    follow_up_required = models.BooleanField(default=False)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft', db_index=True)
+    follow_up_required = models.BooleanField(default=False, db_index=True)
 
     warranty_start_on_submission = models.BooleanField(
         default=False, 
@@ -82,8 +83,13 @@ class ServiceReport(models.Model):
     client_phone_number = models.CharField(max_length=20, blank=True, null=True, help_text="Contact number for the client")
     client_signature = models.ImageField(upload_to='signatures/', blank=True, null=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Invalidate dashboard stats cache
+        cache.delete('dashboard_stats')
 
     def __str__(self):
         return f"SR-{self.id} | {self.client_name}"
@@ -176,7 +182,7 @@ class MaintenanceRequest(models.Model):
     customer_contact_date = models.DateField(default=timezone.now)
     availability_start = models.DateField(blank=True, null=True)
     availability_end = models.DateField(blank=True, null=True)
-    urgency = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='Medium')
+    urgency = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='Medium', db_index=True)
     
     contact_name = models.CharField(max_length=255, blank=True, null=True)
     contact_number = models.CharField(max_length=50, blank=True, null=True)
@@ -195,11 +201,16 @@ class MaintenanceRequest(models.Model):
     pricing_set_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='priced_requests')
     pricing_set_at = models.DateTimeField(null=True, blank=True)
     
-    status = models.CharField(max_length=20, choices=REQUEST_STATUS_CHOICES, default='Open')
+    status = models.CharField(max_length=20, choices=REQUEST_STATUS_CHOICES, default='Open', db_index=True)
     
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Invalidate dashboard stats cache
+        cache.delete('dashboard_stats')
 
     def __str__(self):
         return f"MR-{self.id} | {self.facility_name or 'No Facility'}"

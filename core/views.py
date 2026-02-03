@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from datetime import timedelta
 from django.utils import timezone
+from django.core.cache import cache
 
 from .models import ServiceReport, Product, Equipment, ReportItem, ReportImage, MaintenanceRequest, MaintenanceRequestEquipment
 from .forms import (
@@ -51,42 +52,51 @@ class DashboardView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        now = timezone.now()
-        week_ago = now - timedelta(days=7)
-        month_ago = now - timedelta(days=30)
         
-        # Optimize: Use aggregation to get all stats in ONE query instead of 7
-        report_stats = ServiceReport.objects.aggregate(
-            total=Count('id'),
-            this_week=Count('id', filter=Q(created_at__gte=week_ago)),
-            this_month=Count('id', filter=Q(created_at__gte=month_ago)),
-            draft=Count('id', filter=Q(status='Draft')),
-            pending=Count('id', filter=Q(status='Pending')),
-            completed=Count('id', filter=Q(status='Completed')),
-            follow_ups=Count('id', filter=Q(follow_up_required=True, status__in=['Completed', 'Pending'])),
-        )
+        # Try to get stats from cache first
+        stats = cache.get('dashboard_stats')
         
-        # Optimize: Get maintenance request stats in ONE query
-        request_stats = MaintenanceRequest.objects.aggregate(
-            open_count=Count('id', filter=Q(status='Open')),
-            urgent_count=Count('id', filter=Q(urgency='Emergency', status__in=['Open', 'Scheduled'])),
-        )
-        
-        context.update({
-            'total_reports': report_stats['total'],
-            'reports_this_week': report_stats['this_week'],
-            'reports_this_month': report_stats['this_month'],
-            'draft_count': report_stats['draft'],
-            'pending_count': report_stats['pending'],
-            'completed_count': report_stats['completed'],
-            'follow_ups_needed': report_stats['follow_ups'],
-            'open_requests': request_stats['open_count'],
-            'urgent_requests': request_stats['urgent_count'],
-            'top_equipment': (
-                ReportItem.objects.values('equipment__product__name')
-                .annotate(count=Count('id')).order_by('-count')[:5]
+        if not stats:
+            now = timezone.now()
+            week_ago = now - timedelta(days=7)
+            month_ago = now - timedelta(days=30)
+            
+            # Optimize: Use aggregation to get all stats in ONE query instead of 7
+            report_stats = ServiceReport.objects.aggregate(
+                total=Count('id'),
+                this_week=Count('id', filter=Q(created_at__gte=week_ago)),
+                this_month=Count('id', filter=Q(created_at__gte=month_ago)),
+                draft=Count('id', filter=Q(status='Draft')),
+                pending=Count('id', filter=Q(status='Pending')),
+                completed=Count('id', filter=Q(status='Completed')),
+                follow_ups=Count('id', filter=Q(follow_up_required=True, status__in=['Completed', 'Pending'])),
             )
-        })
+            
+            # Optimize: Get maintenance request stats in ONE query
+            request_stats = MaintenanceRequest.objects.aggregate(
+                open_count=Count('id', filter=Q(status='Open')),
+                urgent_count=Count('id', filter=Q(urgency='Emergency', status__in=['Open', 'Scheduled'])),
+            )
+            
+            stats = {
+                'total_reports': report_stats['total'],
+                'reports_this_week': report_stats['this_week'],
+                'reports_this_month': report_stats['this_month'],
+                'draft_count': report_stats['draft'],
+                'pending_count': report_stats['pending'],
+                'completed_count': report_stats['completed'],
+                'follow_ups_needed': report_stats['follow_ups'],
+                'open_requests': request_stats['open_count'],
+                'urgent_requests': request_stats['urgent_count'],
+                'top_equipment': list(
+                    ReportItem.objects.values('equipment__product__name')
+                    .annotate(count=Count('id')).order_by('-count')[:5]
+                )
+            }
+            # Cache for 10 minutes
+            cache.set('dashboard_stats', stats, 600)
+            
+        context.update(stats)
         return context
 
 # --- PRODUCT CATALOGUE & EQUIPMENT REGISTRY ---
