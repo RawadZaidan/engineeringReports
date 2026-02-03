@@ -86,8 +86,30 @@
         </div>
     </footer>
 
+    <!-- PWA Installation Banner -->
+    <div id="pwa-install-banner">
+        <div class="banner-icon">
+            <i class="fas fa-mobile-alt"></i>
+        </div>
+        <div class="banner-text">
+            <span class="banner-title">Install Medilab App</span>
+            <span class="banner-desc">Add to home screen for a full-screen experience.</span>
+        </div>
+        <div class="banner-actions">
+            <button class="btn-install" id="install-button">INSTALL</button>
+            <button class="btn-close-banner" id="close-pwa-banner">Not now</button>
+        </div>
+    </div>
+
+    <!-- iOS Specific Instruction Overlay -->
+    <div id="ios-prompt">
+        <p>To install: tap <span class="share-icon"><i class="fas fa-external-link-alt"></i></span> then <strong>"Add to Home Screen"</strong></p>
+        <div class="btn-ios-close" id="close-ios-prompt">Close</div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Mobile Menu Toggle
             const menuToggle = document.querySelector('.menu-toggle');
             const mainNav = document.querySelector('.main-nav');
             
@@ -98,15 +120,69 @@
                 });
             }
             
-            // Register Service Worker for PWA
+            // PWA Installation & Logic
+            let deferredPrompt;
+            const installBanner = document.getElementById('pwa-install-banner');
+            const installButton = document.getElementById('install-button');
+            const closeBtn = document.getElementById('close-pwa-banner');
+            const iosPrompt = document.getElementById('ios-prompt');
+            const closeIosBtn = document.getElementById('close-ios-prompt');
+
+            // Check if app is already running in standalone mode
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            
+            // Simple check for iOS
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+            // Handle Android/Chrome Native Prompt
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                
+                // Show our custom banner if not in standalone and not closed this session
+                if (!isStandalone && !sessionStorage.getItem('pwa-banner-closed')) {
+                    setTimeout(() => {
+                        installBanner.style.display = 'flex';
+                    }, 2000);
+                }
+            });
+
+            if (installButton) {
+                installButton.addEventListener('click', async () => {
+                    if (!deferredPrompt) return;
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    deferredPrompt = null;
+                    installBanner.style.display = 'none';
+                });
+            }
+
+            if (closeBtn) {
+                closeBtn.addEventListener('click', () => {
+                    installBanner.style.display = 'none';
+                    sessionStorage.setItem('pwa-banner-closed', 'true');
+                });
+            }
+
+            // iOS Specific Logic
+            if (isIOS && !isStandalone && !sessionStorage.getItem('pwa-banner-closed')) {
+                setTimeout(() => {
+                    iosPrompt.style.display = 'block';
+                }, 3000);
+            }
+
+            if (closeIosBtn) {
+                closeIosBtn.addEventListener('click', () => {
+                    iosPrompt.style.display = 'none';
+                    sessionStorage.setItem('pwa-banner-closed', 'true');
+                });
+            }
+
+            // Register Service Worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('{% static "js/service-worker.js" %}')
-                    .then(function(registration) {
-                        console.log('Service Worker registered successfully:', registration.scope);
-                    })
-                    .catch(function(error) {
-                        console.log('Service Worker registration failed:', error);
-                    });
+                    .then(reg => console.log('SW Registered:', reg.scope))
+                    .catch(err => console.log('SW Error:', err));
             }
         });
     </script>

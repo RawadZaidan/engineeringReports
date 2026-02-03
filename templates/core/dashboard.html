@@ -2,235 +2,138 @@
 {% load static %}
 
 {% block content %}
-<div class="dashboard-container">
-    <!-- Sidebar -->
-    <aside class="dashboard-sidebar">
-        <div class="sidebar-title">Filters</div>
+<div class="dashboard-modern-wrapper">
+    <!-- Geometric Background Layer -->
+    <div class="tech-bg-mesh"></div>
+    <div class="floating-shape" style="width: 100px; height: 100px; top: 10%; left: 5%;"></div>
+    <div class="floating-shape" style="width: 150px; height: 150px; top: 60%; left: 85%; transform: rotate(45deg);"></div>
+    <div class="floating-shape" style="width: 80px; height: 80px; top: 40%; left: 40%; border-radius: 50%;"></div>
+
+    <!-- Tech Hero Header -->
+    <header class="dashboard-tech-hero">
+        <div class="tech-title-group">
+            <h1>Engineering Console</h1>
+            <div class="tech-subtitle">
+                <span class="tech-status-dot"></span>
+                LIVE SYSTEM FEED • {{ reports_this_week }} REPORTS LOGGED THIS WEEK
+            </div>
+        </div>
         
-        <div class="filter-group">
-            <a href="?status=" class="filter-item {% if not request.GET.status %}active{% endif %}">
-                <span>All Reports</span>
-                <span>&#8250;</span>
-            </a>
-            <a href="?status=Completed" class="filter-item {% if request.GET.status == 'Completed' %}active{% endif %}">
-                <span>Completed</span>
-                <span>&#8250;</span>
-            </a>
-            <a href="?status=Draft" class="filter-item {% if request.GET.status == 'Draft' %}active{% endif %}">
-                <span>Drafts</span>
-                <span>&#8250;</span>
-            </a>
-            <a href="?status=Pending" class="filter-item {% if request.GET.status == 'Pending' %}active{% endif %}">
-                <span>Pending</span>
-                <span>&#8250;</span>
-            </a>
-        </div>
-
-        <div class="sidebar-title">Quick Stats</div>
-        <div style="display: flex; gap: 10px;">
-            <div class="quick-stat-card" style="flex:1;">
-                <span class="stat-label">Total</span>
-                <span class="stat-value">{{ page_obj.paginator.count }}</span>
-            </div>
-            <!-- Ideal world: calculate pending in context processor or view context -->
-        </div>
-
-        <a href="{% url 'dashboard' %}" class="btn btn-secondary" style="width: 100%; margin-top: 1rem; justify-content: center;">Reset Filters</a>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="dashboard-main">
-        <div class="dashboard-header-modern">
-            <div class="header-content">
-                <div class="header-title-group">
-                    <h1 class="page-title-modern">Service Reports</h1>
-                    <p class="page-subtitle">Recent field service activity</p>
-                </div>
-                <div class="header-stats-mini">
-                    <div class="mini-stat">
-                        <span class="mini-stat-value">{{ reports_this_week }}</span>
-                        <span class="mini-stat-label">This Week</span>
-                    </div>
-                </div>
-            </div>
+        <div class="tech-action-group" style="display: flex; gap: 1rem;">
             {% if is_engineer %}
-            <a href="{% url 'report_create' %}" class="btn-create-modern">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span class="desktop-only">Create New Report</span>
-                <span class="mobile-only">New</span>
+            <a href="{% url 'report_create' %}" class="btn btn-primary" style="padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 800; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-plus-square"></i> INITIALIZE NEW REPORT
             </a>
             {% endif %}
+            <a href="{% url 'request_list' %}" class="btn btn-outline-primary" style="padding: 0.8rem 1.5rem; border-radius: 12px; font-weight: 800; border: 2px solid var(--primary-color);">
+                <i class="fas fa-list-alt"></i> VIEW FLEET REQUESTS
+            </a>
+        </div>
+    </header>
+
+    <!-- Tech Analytics Grid -->
+    <section class="eng-analytics-grid">
+        <div class="eng-card">
+            <div class="eng-label">System Volume [Reports]</div>
+            <div class="eng-value">{{ total_reports }}</div>
+            <div class="eng-footer">
+                <span class="eng-trend-up">↑ +{{ reports_this_month }}</span>
+                <span>DATA OFFSET (MTD)</span>
+            </div>
         </div>
 
-        <!-- Mobile Filter Bar -->
-        <div class="mobile-filter-row mobile-only">
-            <div class="horizontal-scroll-filters">
-                <a href="?status=" class="mobile-filter-pill {% if not request.GET.status %}active{% endif %}">All</a>
-                <a href="?status=Completed" class="mobile-filter-pill {% if request.GET.status == 'Completed' %}active{% endif %}">Completed</a>
-                <a href="?status=Draft" class="mobile-filter-pill {% if request.GET.status == 'Draft' %}active{% endif %}">Drafts</a>
-                <a href="?status=Pending" class="mobile-filter-pill {% if request.GET.status == 'Pending' %}active{% endif %}">Pending</a>
+        <div class="eng-card">
+            <div class="eng-label">Finalized [Output]</div>
+            <div class="eng-value">{{ completed_count }}</div>
+            <div class="eng-footer">
+                <span class="eng-trend-neutral">{{ pending_count }}</span>
+                <span>QUEUED FOR REVIEW</span>
             </div>
         </div>
-        
-        <!-- Analytics Cards -->
-        <div class="analytics-grid">
-            <div class="analytics-card analytics-primary">
-                <div class="analytics-header">
-                    <div class="analytics-icon-circle">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M3 3v18h18"/>
-                            <path d="M18 17V9"/>
-                            <path d="M13 17V5"/>
-                            <path d="M8 17v-3"/>
-                        </svg>
-                    </div>
-                    <span class="analytics-label">Total Reports</span>
-                </div>
-                <div class="analytics-value">{{ total_reports }}</div>
-                <div class="analytics-footer">
-                    <span class="analytics-trend">+{{ reports_this_month }}</span>
-                    <span class="analytics-sub">this month</span>
-                </div>
-            </div>
-            
-            <div class="analytics-card analytics-success">
-                <div class="analytics-header">
-                    <div class="analytics-icon-circle">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                            <polyline points="22 4 12 14.01 9 11.01"/>
-                        </svg>
-                    </div>
-                    <span class="analytics-label">Completed</span>
-                </div>
-                <div class="analytics-value">{{ completed_count }}</div>
-                <div class="analytics-footer">
-                    <span class="analytics-sub">{{ pending_count }} pending</span>
-                </div>
-            </div>
-            
-            <div class="analytics-card analytics-warning">
-                <div class="analytics-header">
-                    <div class="analytics-icon-circle">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
-                    </div>
-                    <span class="analytics-label">Follow-ups</span>
-                </div>
-                <div class="analytics-value">{{ follow_ups_needed }}</div>
-                <div class="analytics-footer">
-                    <span class="analytics-sub">require attention</span>
-                </div>
-            </div>
-            
-            <div class="analytics-card analytics-danger">
-                <div class="analytics-header">
-                    <div class="analytics-icon-circle">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                        </svg>
-                    </div>
-                    <span class="analytics-label">Open Requests</span>
-                </div>
-                <div class="analytics-value">{{ open_requests }}</div>
-                <div class="analytics-footer">
-                    {% if urgent_requests %}
-                    <span class="analytics-trend urgent">{{ urgent_requests }} urgent</span>
-                    {% else %}
-                    <span class="analytics-sub">none urgent</span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <!-- Search Bar -->
-        <form method="get" class="search-form">
-             <div class="search-input-wrapper">
-                <span class="search-icon">🔍</span>
-                <input type="text" name="q" placeholder="Search reports, clients, or equipment..." class="form-control" value="{{ request.GET.q }}">
-             </div>
-             {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
-        </form>
 
-        <div class="modern-grid">
+        <div class="eng-card">
+            <div class="eng-label">Attention req [Alerts]</div>
+            <div class="eng-value" style="color: #f59e0b;">{{ follow_ups_needed }}</div>
+            <div class="eng-footer">
+                <span>SYSTEM INTERVENTION NEEDED</span>
+            </div>
+        </div>
+
+        <div class="eng-card">
+            <div class="eng-label">Active Requests [Open]</div>
+            <div class="eng-value" style="color: var(--primary-color);">{{ open_requests }}</div>
+            <div class="eng-footer">
+                {% if urgent_requests %}
+                <span style="color: #ef4444;">CRITICAL: {{ urgent_requests }}</span>
+                {% else %}
+                <span>STABLE CONDITION</span>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Report Stream Section -->
+    <section class="report-stream-container">
+        <div class="stream-header">
+            <h2 style="font-weight: 900; color: #1e293b; font-size: 1.5rem;">Logistics Stream</h2>
+            
+            <form method="get" class="search-form" style="margin-bottom: 0; width: 350px;">
+                <div class="search-input-wrapper" style="background: white; border: 1px solid #e2e8f0; border-radius: 10px;">
+                    <span class="search-icon" style="padding-left: 1rem;"><i class="fas fa-search"></i></span>
+                    <input type="text" name="q" placeholder="SCAN DATABASE..." class="form-control" value="{{ request.GET.q|default:'' }}" style="background: transparent;">
+                </div>
+                {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
+            </form>
+        </div>
+
+        <div class="stream-reports">
             {% for report in reports %}
-            <div class="modern-card">
-                <div class="card-image-header">
-                    <!-- Placeholder or first image -->
-                    {% if report.images.first %}
-                        {% if report.images.first.thumbnail %}
-                            <img src="{{ report.images.first.thumbnail.url }}" alt="Report Image" loading="lazy">
-                        {% else %}
-                            <img src="{{ report.images.first.image.url }}" alt="Report Image" loading="lazy">
-                        {% endif %}
-                    {% else %}
-                        <div style="width:100%; height:100%; background: linear-gradient(45deg, #f1f5f9 25%, #e2e8f0 25%, #e2e8f0 50%, #f1f5f9 50%, #f1f5f9 75%, #e2e8f0 75%, #e2e8f0 100%); background-size: 20px 20px; opacity: 0.5;"></div>
-                    {% endif %}
-                    <span class="card-status-badge badge-{{ report.status|lower }}">{{ report.status }}</span>
-                </div>
+            <div class="stream-card" onclick="window.location='{% url 'report_detail' report.pk %}';" style="cursor: pointer;">
+                <div class="stream-id">#SR-{{ report.id }}</div>
                 
-                <div class="modern-card-body">
-                    <h3>{{ report.client_name }}</h3>
-                    <div class="modern-card-meta">
-                        <i class="icon-map-pin"></i> {{ report.location }}
-                    </div>
-
-                    <div class="modern-info-row">
-                        <span class="modern-info-label">Product</span>
-                        <div class="modern-info-value" style="max-width: 160px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
-                            {% with first_item=report.items.first count=report.items.count %}
-                                {% if first_item %}
-                                    {{ first_item.product.name }}{% if count > 1 %} <span style="color:var(--text-muted); font-size:0.8em;">(+{{ count|add:"-1" }})</span>{% endif %}
-                                {% else %}
-                                    <span style="color:var(--text-muted);">-</span>
-                                {% endif %}
-                            {% endwith %}
-                        </div>
-                    </div>
-                    <div class="modern-info-row">
-                        <span class="modern-info-label">Service Date</span>
-                        <span class="modern-info-value">{{ report.service_date|date:"M d, Y" }}</span>
-                    </div>
+                <div class="stream-client">
+                    {{ report.client_name }}
+                    <div class="stream-meta"><i class="fas fa-map-marker-alt" style="margin-right: 4px;"></i>{{ report.location|default:"FIELD OPS" }}</div>
                 </div>
 
-                <div class="modern-card-footer">
-                    <div class="engineer-avatar" title="{{ report.engineer.username }}">
-                        {{ report.engineer.username|make_list|first|upper }}
-                    </div>
-                    {% if report.status == 'Draft' %}
-                         <a href="{% url 'report_update' report.pk %}" class="view-link">Resume Editing &#9998;</a>
-                         <a href="{% url 'report_detail' report.pk %}" class="view-link">View Report &#8594;</a>
-                    {% else %}
-                        <a href="{% url 'report_detail' report.pk %}" class="view-link">View Report &#8594;</a>
-                    {% endif %}
+                <div class="stream-product stream-meta">
+                    <span style="color: #94a3b8; font-size: 0.7rem; display: block;">EQUIPMENT MODEL</span>
+                    {% with first_item=report.items.first %}
+                        {{ first_item.product.name|default:"PROVISIONAL HARDWARE"|truncatechars:30 }}
+                    {% endwith %}
+                </div>
+
+                <div class="stream-date stream-meta">
+                    <span style="color: #94a3b8; font-size: 0.7rem; display: block;">TIMESTAMP</span>
+                    {{ report.service_date|date:"Y-m-d" }}
+                </div>
+
+                <div class="stream-status" style="text-align: right;">
+                    <span class="status-badge status-{{ report.status|lower|cut:' ' }}" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;">
+                        {{ report.status|upper }}
+                    </span>
                 </div>
             </div>
             {% empty %}
-            <div style="grid-column: 1/-1; text-align: center; padding: 4rem; color: #64748b;">
-                <h3>No reports found</h3>
-                <p>Try adjusting your search or filters.</p>
+            <div class="tech-empty-state" style="text-align: center; padding: 5rem; border: 2px dashed #e2e8f0; border-radius: 20px;">
+                <i class="fas fa-terminal" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1.5rem;"></i>
+                <h3 style="color: #64748b;">No matching logs found in system database</h3>
+                <p class="text-muted">RESET FILTERS OR TRY A DIFFERENT SCAN QUERY</p>
             </div>
             {% endfor %}
         </div>
 
         {% if is_paginated %}
-        <div class="pagination" style="margin-top: 2rem; display: flex; justify-content: center; gap: 0.5rem;">
+        <div class="pagination" style="margin-top: 3rem; justify-content: center; gap: 0.5rem;">
             {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-secondary">&lsaquo;</a>
+                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-primary" style="border-radius: 8px;">PREV</a>
             {% endif %}
-            <span class="btn btn-primary" style="background: var(--primary-color); border-color: var(--primary-color);">{{ page_obj.number }}</span>
+            <span class="btn btn-primary" style="padding: 0.5rem 1rem; border-radius: 8px; font-weight: 800;">{{ page_obj.number }}</span>
             {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}" class="btn btn-secondary">&rsaquo;</a>
+                <a href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="btn btn-outline-primary" style="border-radius: 8px;">NEXT</a>
             {% endif %}
         </div>
         {% endif %}
-
-    </main>
+    </section>
 </div>
 {% endblock %}
