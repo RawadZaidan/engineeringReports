@@ -17,3 +17,5 @@ django-storages[s3]
 psycopg2-binary
 dj-database-url
 django-debug-toolbar
+django-webpush
+pywebpush

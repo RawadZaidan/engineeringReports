@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'debug_toolbar',
     'core',
     'docai',
+    'webpush',
 ]
 
 MIDDLEWARE = [
@@ -232,3 +233,9 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
+# Web Push Configuration
+WEBPUSH_SETTINGS = {
+    "VAPID_PUBLIC_KEY": os.getenv('VAPID_PUBLIC_KEY'),
+    "VAPID_PRIVATE_KEY": os.getenv('VAPID_PRIVATE_KEY').replace('\\n', '\n') if os.getenv('VAPID_PRIVATE_KEY') else None,
+    "VAPID_ADMIN_EMAIL": os.getenv('VAPID_ADMIN_EMAIL')
+}

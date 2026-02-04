@@ -208,11 +208,95 @@
                 });
             }
 
-            // Register Service Worker
+            // Register Service Worker & Push Logic
+            const publicVapidKey = '{{ webpush_settings.VAPID_PUBLIC_KEY|default:"BLeXxxQNTCI1VBjek1sls_Kcd9LKrK-6N7OSuGGHREOTXzEcKZjLqLYsthOJUYhl1p7CCyt9BE8iG10GaukGG14" }}';
+
+            function urlBase64ToUint8Array(base64String) {
+                const padding = '='.repeat((4 - base64String.length % 4) % 4);
+                const base64 = (base64String + padding)
+                    .replace(/\-/g, '+')
+                    .replace(/_/g, '/');
+            
+                const rawData = window.atob(base64);
+                const outputArray = new Uint8Array(rawData.length);
+            
+                for (let i = 0; i < rawData.length; ++i) {
+                    outputArray[i] = rawData.charCodeAt(i);
+                }
+                return outputArray;
+            }
+
+            async function subscribeUserToPush() {
+                if ('serviceWorker' in navigator && 'PushManager' in window) {
+                    try {
+                        const registration = await navigator.serviceWorker.ready;
+                        const subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+                        });
+                        
+                        console.log('Push Subscribed:', subscription);
+                        await sendSubscriptionToBackEnd(subscription);
+                    } catch (err) {
+                        console.error('Push subscription failed:', err);
+                    }
+                }
+            }
+
+            async function sendSubscriptionToBackEnd(subscription) {
+                // Determine user ID if available (authenticated state)
+                 // Or just send it, webpush view handles current user if session exists
+                const response = await fetch('/webpush/save_information', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}' // Ensure this template tag is available or grabbed from cookie
+                    },
+                    body: JSON.stringify({
+                        status_type: 'subscribe',
+                        subscription: subscription.toJSON(),
+                        browser: navigator.userAgent,
+                        group: 'Engineer' // Optional: Can assist with grouping if backend logic requires it, though django-webpush handles users
+                    })
+                });
+                return response.json();
+            }
+
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('{% static "js/service-worker.js" %}')
-                    .then(reg => console.log('SW Registered:', reg.scope))
+                    .then(reg => {
+                        console.log('SW Registered:', reg.scope);
+                        // Auto-subscribe if user is logged in (handled by user interaction usually to be polite)
+                        // Adding a hidden button or auto-trigger if not denied
+                        if (Notification.permission === 'default') {
+                            // Optionally ask or show button
+                            // createNotificationButton();
+                        } else if (Notification.permission === 'granted') {
+                             subscribeUserToPush(); // Ensure subscription is fresh
+                        }
+                    })
                     .catch(err => console.log('SW Error:', err));
+            }
+
+            // Simple permission requester for demo
+            if (installBanner && Notification.permission === 'default') {
+                 // Reuse banner or create new one for notifications?
+                 // For now, let's attach to a button in the profile menu
+            }
+            
+            // Add "Enable Notifications" to user dropdown
+            if (userMenu && Notification.permission !== 'granted') {
+                const notifBtn = document.createElement('button');
+                notifBtn.className = 'dropdown-item';
+                notifBtn.innerHTML = '<i class="fas fa-bell"></i> Enable Notifications';
+                notifBtn.onclick = async () => {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        subscribeUserToPush();
+                        notifBtn.remove();
+                    }
+                };
+                userMenu.insertBefore(notifBtn, userMenu.firstChild);
             }
         });
     </script>
