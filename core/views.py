@@ -52,51 +52,100 @@ class DashboardView(LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        user = self.request.user
         
-        # Try to get stats from cache first
-        stats = cache.get('dashboard_stats')
+        import calendar
+        from datetime import date
+        today = timezone.now().date()
         
-        if not stats:
-            now = timezone.now()
-            week_ago = now - timedelta(days=7)
-            month_ago = now - timedelta(days=30)
-            
-            # Optimize: Use aggregation to get all stats in ONE query instead of 7
-            report_stats = ServiceReport.objects.aggregate(
-                total=Count('id'),
-                this_week=Count('id', filter=Q(created_at__gte=week_ago)),
-                this_month=Count('id', filter=Q(created_at__gte=month_ago)),
-                draft=Count('id', filter=Q(status='Draft')),
-                pending=Count('id', filter=Q(status='Pending')),
-                completed=Count('id', filter=Q(status='Completed')),
-                follow_ups=Count('id', filter=Q(follow_up_required=True, status__in=['Completed', 'Pending'])),
+        # Calendar processing
+        year = int(self.request.GET.get('year', today.year))
+        month = int(self.request.GET.get('month', today.month))
+        
+        cal = calendar.Calendar(firstweekday=0)
+        month_days_raw = cal.monthdayscalendar(year, month)
+        
+        calendar_weeks = []
+        for week in month_days_raw:
+            week_data = []
+            for day in week:
+                if day == 0:
+                    week_data.append({'day': 0, 'iso': None})
+                else:
+                    iso_str = f"{year}-{month:02d}-{day:02d}"
+                    week_data.append({
+                        'day': day,
+                        'iso': iso_str,
+                        'is_today': today.year == year and today.month == month and today.day == day
+                    })
+            calendar_weeks.append(week_data)
+        
+        # 1. My Pending Reports (Draft or Pending Review)
+        context['my_pending_reports'] = ServiceReport.objects.filter(
+            engineer=user,
+            status__in=['Draft', 'Pending']
+        ).order_by('-updated_at')[:5]
+
+        # 2. Recent Requests (Only Open ones for the list)
+        context['recent_requests'] = MaintenanceRequest.objects.filter(
+            status='Open'
+        ).order_by('-urgency', '-created_at')[:10]
+
+        # 3. Upcoming Visits (Confirmed / In Progress)
+        # Replacing simple list logic with something more robust for the calendar
+        
+        # 4. Awaiting Response
+        context['awaiting_response'] = ServiceReport.objects.filter(
+            follow_up_required=True,
+            status__in=['Completed', 'Pending']
+        ).order_by('-updated_at')[:5]
+
+        # 5. Quick Stats
+        context['stats'] = {
+            'my_pending': ServiceReport.objects.filter(engineer=user, status__in=['Draft', 'Pending']).count(),
+            'open_requests': MaintenanceRequest.objects.filter(status='Open').count(),
+            'visits_this_week': MaintenanceRequest.objects.filter(
+                status__in=['Scheduled', 'In Progress'],
+                availability_start__range=[today, today + timedelta(days=7)]
+            ).count()
+        }
+
+        # 6. Calendar Events - Confirmed Requests Only
+        # Get days that have confirmed visits for this month
+        visit_days = MaintenanceRequest.objects.filter(
+            status__in=['Scheduled', 'In Progress'],
+            availability_start__year=year,
+            availability_start__month=month
+        ).values_list('availability_start__day', flat=True).distinct()
+
+        # Get upcoming visits detail list for the side panel (for current selected date or general upcoming)
+        selected_date = self.request.GET.get('date')
+        if selected_date:
+             visits_list = MaintenanceRequest.objects.filter(
+                status__in=['Scheduled', 'In Progress'],
+                availability_start=selected_date
             )
-            
-            # Optimize: Get maintenance request stats in ONE query
-            request_stats = MaintenanceRequest.objects.aggregate(
-                open_count=Count('id', filter=Q(status='Open')),
-                urgent_count=Count('id', filter=Q(urgency='Emergency', status__in=['Open', 'Scheduled'])),
-            )
-            
-            stats = {
-                'total_reports': report_stats['total'],
-                'reports_this_week': report_stats['this_week'],
-                'reports_this_month': report_stats['this_month'],
-                'draft_count': report_stats['draft'],
-                'pending_count': report_stats['pending'],
-                'completed_count': report_stats['completed'],
-                'follow_ups_needed': report_stats['follow_ups'],
-                'open_requests': request_stats['open_count'],
-                'urgent_requests': request_stats['urgent_count'],
-                'top_equipment': list(
-                    ReportItem.objects.values('equipment__product__name')
-                    .annotate(count=Count('id')).order_by('-count')[:5]
-                )
-            }
-            # Cache for 10 minutes
-            cache.set('dashboard_stats', stats, 600)
-            
-        context.update(stats)
+        else:
+             visits_list = MaintenanceRequest.objects.filter(
+                status__in=['Scheduled', 'In Progress'],
+                availability_start__gte=today
+            ).order_by('availability_start')[:5]
+
+        context.update({
+            'calendar_weeks': calendar_weeks,
+            'visit_days': list(visit_days),
+            'current_month': month,
+            'current_year': year,
+            'month_name': calendar.month_name[month],
+            'today_month': today.month,
+            'today_year': today.year,
+            'selected_date': selected_date,
+            'upcoming_visits': visits_list,
+            'is_engineer': user.groups.filter(name='Engineer').exists()
+        })
+
+        context['is_engineer'] = user.groups.filter(name='Engineer').exists()
+
         return context
 
 # --- PRODUCT CATALOGUE & EQUIPMENT REGISTRY ---
@@ -304,6 +353,48 @@ class ServiceReportDetailView(LoginRequiredMixin, DetailView):
             'items__equipment__product',
             'images'
         )
+
+class ServiceReportListView(LoginRequiredMixin, ListView):
+    model = ServiceReport
+    template_name = 'core/report_list.html'
+    context_object_name = 'reports'
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = super().get_queryset().select_related(
+            'engineer', 'maintenance_request'
+        ).prefetch_related(
+            'items__equipment__product',
+            'images'
+        ).order_by('-created_at')
+        
+        # Search Filter
+        search_query = self.request.GET.get('q')
+        if search_query:
+            queryset = queryset.filter(
+                Q(client_name__icontains=search_query) |
+                Q(location__icontains=search_query) |
+                Q(project_reference__icontains=search_query) |
+                Q(id__icontains=search_query)
+            ).distinct()
+        
+        # Status Filter
+        status_filter = self.request.GET.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Pass status counts for filter UI
+        context['status_counts'] = {
+            'draft': ServiceReport.objects.filter(status='Draft').count(),
+            'pending': ServiceReport.objects.filter(status='Pending').count(),
+            'completed': ServiceReport.objects.filter(status='Completed').count(),
+            'all': ServiceReport.objects.count()
+        }
+        return context
 
 # --- MAINTENANCE REQUESTS ---
 

@@ -55,3 +55,12 @@ class DriverRequestAdmin(admin.ModelAdmin):
     list_display = ('id', 'requester', 'driver', 'date', 'status')
     list_filter = ('status', 'date', 'driver', 'department')
     search_fields = ('requester__username', 'location', 'admin_notes')
+
+@admin.register(MaintenanceRequest)
+class MaintenanceRequestAdmin(admin.ModelAdmin):
+    list_display = ('id', 'facility_name', 'urgency', 'status', 'created_at')
+    list_filter = ('status', 'urgency', 'location')
+    search_fields = ('facility_name', 'request_details')
+    inlines = [MaintenanceRequestEquipmentInline]
+    readonly_fields = ('created_at', 'updated_at')
+

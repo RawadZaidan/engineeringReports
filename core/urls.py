@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    DashboardView, ServiceReportCreateView, ServiceReportUpdateView, ServiceReportDetailView,
+    DashboardView, ServiceReportListView, ServiceReportCreateView, ServiceReportUpdateView, ServiceReportDetailView,
     ProductListView, ProductCreateView,
     EquipmentListView, equipment_create_ajax,
     MaintenanceRequestListView, MaintenanceRequestCreateView, MaintenanceRequestDetailView, MaintenanceRequestUpdateView,
@@ -11,6 +11,7 @@ from .views import (
 
 urlpatterns = [
     path('', DashboardView.as_view(), name='dashboard'),
+    path('reports/', ServiceReportListView.as_view(), name='report_list'),
     path('report/new/', ServiceReportCreateView.as_view(), name='report_create'),
     path('report/<int:pk>/edit/', ServiceReportUpdateView.as_view(), name='report_update'),
     path('report/<int:pk>/', ServiceReportDetailView.as_view(), name='report_detail'),
