@@ -322,6 +322,62 @@
     <a href="{% url 'driver_request_create' %}" class="fab-mobile">
         <i class="fas fa-plus"></i>
     </a>
+
+    <!-- Event Details Modal -->
+    <div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+                <div class="modal-header border-0 bg-slate-50">
+                    <h5 class="modal-title fw-bold text-slate-800" id="eventModalTitle">Trip Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="d-flex align-items-center mb-4">
+                        <div id="eventModalStatusBadge" class="badge rounded-pill px-3 py-2 fs-7 me-3"></div>
+                        <h4 id="eventModalSubject" class="mb-0 fw-bold text-slate-800"></h4>
+                    </div>
+                    
+                    <div class="row g-4">
+                         <div class="col-6">
+                            <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1">Time</label>
+                            <div class="d-flex align-items-center text-slate-700">
+                                <i class="far fa-clock me-2 text-primary"></i>
+                                <span id="eventModalTime" class="fw-medium"></span>
+                            </div>
+                         </div>
+                         <div class="col-6">
+                            <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1">Vehicle</label>
+                            <div class="d-flex align-items-center text-slate-700">
+                                <i class="fas fa-car me-2 text-primary"></i>
+                                <span id="eventModalVehicle" class="fw-medium"></span>
+                            </div>
+                         </div>
+                         <div class="col-12">
+                            <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1">Driver</label>
+                            <div class="d-flex align-items-center text-slate-700">
+                                <i class="far fa-user-circle me-2 text-primary"></i>
+                                <span id="eventModalDriver" class="fw-medium"></span>
+                            </div>
+                         </div>
+                         <div class="col-12">
+                            <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1">Requester</label>
+                            <div class="d-flex align-items-center text-slate-700">
+                                <i class="far fa-id-card me-2 text-primary"></i>
+                                <span id="eventModalRequester" class="fw-medium"></span>
+                            </div>
+                         </div>
+                    </div>
+                    
+                    <div class="mt-4 pt-3 border-top border-slate-100 d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-light text-slate-600 fw-semibold" data-bs-dismiss="modal">Close</button>
+                        <a id="eventModalEditBtn" href="#" class="btn btn-primary fw-semibold px-4">
+                            <i class="fas fa-edit me-2"></i> Edit Request
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Serialized Data from View -->
@@ -337,6 +393,8 @@ let miniCalendarDate = new Date(currentDate); // Separate state for mini calenda
 const serverMonth = {{ current_month }};
 const serverYear = {{ current_year }};
 const requestsData = JSON.parse(document.getElementById('month-requests-data').textContent);
+const currentUserId = {{ request.user.id }};
+const isStaff = {{ request.user.is_staff|yesno:"true,false" }};
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', function() {
@@ -723,41 +781,141 @@ function renderDayView() {
     const container = document.getElementById('day-grid-day-col');
     const headerDateEl = document.querySelector('#day-grid-header .day-header-cell');
     
-    // Update Header Date
+    const drivers = ['Mohammad', 'Mostafa', 'Shafiq'];
+
+    // Update Header Date & Add Driver Labels
     if (headerDateEl) {
-        const options = { weekday: 'long', month: 'long', day: 'numeric' };
-        headerDateEl.innerHTML = `<div>${currentDate.toLocaleDateString('en-US', {weekday: 'short'})}</div><div>${currentDate.getDate()}</div>`;
-        // Or to match the style of "Today" (single line or specific format? "Today" was simple text)
-        // Let's make it look like the week view headers: Weekday (small) Date (large)
-        // Or just the full date string as requested "update what day i clicked on"
-        // The user said "Today" is on top. Line 295 is <div class="day-header-cell">Today</div>
+        headerDateEl.innerHTML = '';
+        headerDateEl.style.display = 'flex';
+        headerDateEl.style.flexDirection = 'column';
+        headerDateEl.style.padding = '0'; // Reset padding to handle inner rows
         
-        // Let's use a nice format: "Monday, Feb 17"
-        headerDateEl.textContent = currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-        headerDateEl.style.fontSize = '1.1rem'; // Ensure it looks good
+        // Row 1: Date
+        const dateRow = document.createElement('div');
+        dateRow.style.padding = '0.75rem 0.5rem';
+        dateRow.style.borderBottom = '1px solid #e2e8f0';
+        dateRow.style.textAlign = 'center';
+        dateRow.innerHTML = `
+            <div style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase;">${currentDate.toLocaleDateString('en-US', {weekday: 'long'})}</div>
+            <div style="font-size: 1.1rem; font-weight: 700; color: #1e293b;">${currentDate.toLocaleDateString('en-US', {month: 'long', day: 'numeric'})}</div>
+        `;
+        headerDateEl.appendChild(dateRow);
+        
+        // Row 2: Driver Columns Labels
+        const driversRow = document.createElement('div');
+        driversRow.style.display = 'flex';
+        driversRow.style.width = '100%';
+        driversRow.style.background = '#f8fafc';
+        
+        drivers.forEach((d, i) => {
+            const label = document.createElement('div');
+            label.style.flex = '1';
+            label.style.textAlign = 'center';
+            label.style.padding = '0.5rem';
+            label.style.fontSize = '0.85rem';
+            label.style.fontWeight = '700';
+            label.style.color = '#475569';
+            label.style.borderRight = i < drivers.length - 1 ? '1px solid #e2e8f0' : 'none';
+            label.textContent = d;
+            driversRow.appendChild(label);
+        });
+        headerDateEl.appendChild(driversRow);
     }
 
     container.innerHTML = '';
-    const dayCol = document.createElement('div');
-    dayCol.className = 'day-column';
     
-    // Add grid lines (12 slots)
-    for(let j=0; j<12; j++) {
-        const line = document.createElement('div');
-        line.className = 'grid-cell-line';
-        dayCol.appendChild(line);
-    }
+    // Create Layout matches the header
+    const columnsWrapper = document.createElement('div');
+    columnsWrapper.style.display = 'flex';
+    columnsWrapper.style.height = '100%';
+    columnsWrapper.style.width = '100%';
     
-    const dayEvents = requestsData.filter(e => isSameDay(new Date(e.start), currentDate));
-    dayEvents.forEach(e => {
-        const el = createEventElement(e);
-        if (el) dayCol.appendChild(el); // Only append if element was created
+    drivers.forEach((driverName, index) => {
+        const colContainer = document.createElement('div');
+        colContainer.style.flex = '1';
+        colContainer.style.borderRight = index < drivers.length - 1 ? '1px solid #e2e8f0' : 'none';
+        colContainer.style.position = 'relative';
+        colContainer.style.minWidth = '0'; 
+        colContainer.className = 'day-column'; // Reuse class for styling if needed, but we handle content manually
+
+        // Add matching grid lines (12 slots)
+        for(let j=0; j<12; j++) {
+            const line = document.createElement('div');
+            line.className = 'grid-cell-line';
+            colContainer.appendChild(line);
+        }
+        
+        // Filter events
+        const dayEvents = requestsData.filter(e => 
+            isSameDay(new Date(e.start), currentDate) && 
+            e.driver && e.driver.includes(driverName)
+        );
+        
+        dayEvents.forEach(e => {
+            const el = createEventElement(e);
+            if (el) colContainer.appendChild(el);
+        });
+        
+        columnsWrapper.appendChild(colContainer);
     });
     
-    container.appendChild(dayCol);
+    container.appendChild(columnsWrapper);
 }
 
 // --- Helper Functions ---
+
+function showEventDetails(e) {
+    document.getElementById('eventModalTitle').textContent = "Trip Details";
+    document.getElementById('eventModalSubject').textContent = e.title; 
+    
+    // Status Badge
+    const badge = document.getElementById('eventModalStatusBadge');
+    badge.className = `badge rounded-pill px-3 py-2 fs-7 me-3 status-${e.status.toLowerCase()}`;
+    badge.textContent = e.status;
+    badge.style.border = '1px solid currentColor'; 
+    
+    // Time
+    const start = new Date(e.start);
+    const end = new Date(e.end);
+    document.getElementById('eventModalTime').textContent = `${start.toLocaleDateString()} ${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    
+    // Details
+    document.getElementById('eventModalVehicle').textContent = e.vehicle || 'N/A';
+    document.getElementById('eventModalDriver').textContent = e.driver || 'Unassigned';
+    document.getElementById('eventModalRequester').textContent = e.details || 'N/A'; 
+    
+    // Edit Link Visibility
+    const editBtn = document.getElementById('eventModalEditBtn');
+    if (e.requester_id === currentUserId || isStaff) {
+        editBtn.style.display = 'inline-flex'; // or whatever the original display was (inline-flex due to btn class)
+        editBtn.href = `/scheduling/request/${e.id}/edit/`;
+    } else {
+        editBtn.style.display = 'none';
+    }
+    
+    // Show Modal (Custom Logic)
+    const modal = document.getElementById('eventDetailsModal');
+    modal.classList.add('show');
+}
+
+// Close Modal Logic
+document.addEventListener('DOMContentLoaded', function() {
+    // ... existing init code ...
+    
+    // Close Modal Handler
+    const modal = document.getElementById('eventDetailsModal');
+    if (modal) {
+        // Close buttons
+        modal.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
+            btn.onclick = () => modal.classList.remove('show');
+        });
+        
+        // Click outside
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.classList.remove('show');
+        };
+    }
+});
 
 function createEventElement(e) {
     const start = new Date(e.start);
@@ -792,12 +950,31 @@ function createEventElement(e) {
     // Add min-height visual if too small (e.g. < 15 mins)
     // But % based height handles scale well.
     
-    el.onclick = () => window.location.href = `/scheduling/request/${e.id}/edit/`;
+    // Modal Trigger
+    el.onclick = (ev) => {
+        ev.stopPropagation(); // Prevent grid click
+        showEventDetails(e);
+    };
     
+    // Enhanced Content
+    // Check if height is very small -> show minimal info
+    // 1 hour (1/12 = 8.3%) is standard. 
+    // If < 5%, maybe just showing title?
+    // Let's standardly show more info as requested.
     el.innerHTML = `
-        <div class="event-time">${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-        <div class="event-title">${e.title}</div>
-        <div class="event-driver"><i class="fas fa-user"></i> ${e.driver}</div>
+        <div class="event-time" style="font-size:0.7rem; opacity:0.8; margin-bottom:2px;">
+            ${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+        </div>
+        <div class="event-title" style="font-weight:700; font-size:0.8rem; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${e.title}
+        </div>
+        <div class="event-driver" style="font-size:0.75rem; color:#475569; display:flex; align-items:center; gap:4px;">
+            <i class="fas fa-user-circle" style="font-size:0.7rem;"></i> ${e.driver}
+        </div>
+         ${e.vehicle ? `
+        <div class="event-vehicle" style="font-size:0.7rem; color:#64748b; margin-top:2px;">
+            <i class="fas fa-car" style="font-size:0.65rem;"></i> ${e.vehicle}
+        </div>` : ''}
     `;
     return el;
 }
@@ -1068,16 +1245,120 @@ main.container {
     border-left-width: 4px;
     font-weight: 500;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    transition: transform 0.1s;
 }
-.event-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 
-/* Status Colors for chips */
-.status-pending { border-left-color: #f59e0b; color: #92400e; }
-.status-approved { border-left-color: #10b981; color: #065f46; }
-.status-completed { border-left-color: #3b82f6; color: #1e40af; }
-.status-in-progress { border-left-color: #0ea5e9; color: #0284c7; }
-.status-cancelled { border-left-color: #ef4444; color: #991b1b; opacity: 0.6; }
+/* Custom Modal Styles (since Bootstrap is missing) */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 1000; 
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.5); /* Black w/ opacity */
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.modal.show {
+    display: block;
+    opacity: 1;
+}
+.modal-dialog {
+    margin: 10% auto; /* 10% from the top and centered */
+    width: 90%;
+    max-width: 500px;
+    pointer-events: none; /* Wrapper shouldn't block clicks? Content should enable them. */
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+}
+.modal.show .modal-dialog {
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.modal-content {
+    background-color: #fefefe;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+.modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #64748b;
+    cursor: pointer;
+}
+.modal-body {
+    padding: 1.5rem;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+    margin-top: 1rem;
+}
+
+/* Custom Grid/Typography classes for modal (mimicking Bootstrap) */
+.d-flex { display: flex; }
+.align-items-center { align-items: center; }
+.justify-content-end { justify-content: flex-end; }
+.justify-content-between { justify-content: space-between; }
+.mb-4 { margin-bottom: 1.5rem !important; }
+.mb-1 { margin-bottom: 0.25rem !important; }
+.mb-0 { margin-bottom: 0 !important; }
+.me-2 { margin-right: 0.5rem !important; }
+.me-3 { margin-right: 1rem !important; }
+.p-4 { padding: 1.5rem !important; }
+.px-3 { padding-left: 1rem !important; padding-right: 1rem !important; }
+.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+.fw-bold { font-weight: 700 !important; }
+.fw-medium { font-weight: 500 !important; }
+.text-slate-800 { color: #1e293b; }
+.text-slate-700 { color: #334155; }
+.text-slate-600 { color: #475569; }
+.text-slate-400 { color: #94a3b8; }
+.text-xs { font-size: 0.75rem; }
+.text-uppercase { text-transform: uppercase; }
+.rounded-pill { border-radius: 9999px; }
+.badge { display: inline-block; font-size: 0.75rem; font-weight: 600; line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline; }
+.row { display: flex; flex-wrap: wrap; margin-left: -0.5rem; margin-right: -0.5rem; }
+.col-6 { flex: 0 0 50%; max-width: 50%; padding-left: 0.5rem; padding-right: 0.5rem; box-sizing: border-box; }
+.col-12 { flex: 0 0 100%; max-width: 100%; padding-left: 0.5rem; padding-right: 0.5rem; box-sizing: border-box; margin-top: 1rem; }
+.g-4 { margin-top: -1.5rem; } /* Simplified gap handling */
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.5rem 1rem; font-weight: 500; border-radius: 0.375rem; transition: all 0.2s; text-decoration: none; border: 1px solid transparent; cursor: pointer; }
+.btn-primary { background-color: #2563eb; color: white; border-color: #2563eb; }
+.btn-primary:hover { background-color: #1d4ed8; }
+.btn-light { background-color: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+.btn-light:hover { background-color: #e2e8f0; }
+
+.event-details-row {
+    margin-bottom: 1rem;
+}
 
 /* Time Grid (Week/Day) */
 .time-grid-container {
@@ -1183,24 +1464,24 @@ main.container {
 
 .time-grid-event {
     position: absolute;
-    width: 92%; /* Slightly narrower */
-    left: 4%;
+    width: 100%; /* Fill the cell width */
+    left: 0;     /* Align to left edge */
     background: white;
-    border-radius: 8px;
+    border-radius: 4px; /* Sharper corners */
     padding: 6px 8px;
     font-size: 0.75rem;
     overflow: hidden;
     cursor: pointer;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* Subtle shadow */
     border: 1px solid #e2e8f0;
     border-left: 4px solid #cbd5e1;
     z-index: 10;
     transition: all 0.2s;
+    box-sizing: border-box; /* Include padding/border in size */
 }
 .time-grid-event:hover {
-    transform: scale(1.02);
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
     z-index: 20;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
 
 /* Event Content */

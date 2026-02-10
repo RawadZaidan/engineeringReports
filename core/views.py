@@ -641,7 +641,8 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
                 'vehicle': req.vehicle_type,
                 'location': req.get_location_display(),
                 'details': f"{req.requester.get_full_name() or req.requester.username} - {req.department}",
-                'day': req.date.day, # Useful for simple month view mapping
+                'day': req.date.day, 
+                'requester_id': req.requester.id,
             })
         
         context.update({
