@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="scheduling-dashboard">
-    <div class="container">
+    <div class="container-fluid" style="padding: 0 2rem;">
         <!-- Driver Profile Header (FleetOps Style) -->
         <div class="driver-hero-section">
             <div class="driver-profile-info">
@@ -159,8 +159,8 @@
                 {% endfor %}
             </div>
 
-            <!-- Right Side: Mini Calendar -->
-            <div class="calendar-column">
+            <!-- Right Side: Mini Calendar (Visible only in List View) -->
+            <div class="calendar-column" id="mini-calendar-column">
                 <div class="calendar-widget">
                     <div class="calendar-header">
                         <span style="font-weight: 700; color: #1e293b;">{{ month_name }} {{ current_year }}</span>
@@ -215,6 +215,107 @@
                 </div>
             </div>
         </div>
+
+        <!-- FULL CALENDAR VIEW CONTAINER (Initially Hidden) -->
+        <div id="full-calendar-container" class="hidden" style="margin-top: 2rem;">
+            <div class="calendar-toolbar">
+                <div class="view-switcher">
+                    <button class="view-btn active" onclick="switchCalendarView('month')">Month</button>
+                    <button class="view-btn" onclick="switchCalendarView('week')">Week</button>
+                    <button class="view-btn" onclick="switchCalendarView('day')">Day</button>
+                </div>
+                <div class="calendar-nav">
+                    <button onclick="changeCalendarPeriod(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <button onclick="resetCalendarToToday()">Today</button>
+                    <button onclick="changeCalendarPeriod(1)"><i class="fas fa-chevron-right"></i></button>
+                    <span id="calendar-current-period" style="font-weight: 700; margin-left: 1rem; color: #1e293b;">February 2026</span>
+                </div>
+            </div>
+
+            <div class="calendar-content-wrapper">
+                <!-- Sidebar (Visible in Week/Day on Desktop) -->
+                <div id="calendar-sidebar" class="hidden">
+                    <div class="mini-month-widget">
+                        <div class="mini-month-header">
+                            <span id="mini-month-label" style="font-weight: 700; color: #1e293b;">February 2026</span>
+                            <div class="mini-nav">
+                                <span onclick="changeMiniMonth(-1)"><i class="fas fa-chevron-left"></i></span>
+                                <span onclick="changeMiniMonth(1)"><i class="fas fa-chevron-right"></i></span>
+                            </div>
+                        </div>
+                        <div class="mini-calendar-grid" id="mini-calendar-grid">
+                            <!-- JS populated -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Views -->
+                <div class="calendar-main-area">
+                    <!-- Month View Grid -->
+                    <div id="calendar-view-month" class="calendar-view">
+                        <div class="month-grid-header">
+                            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                        </div>
+                        <div class="month-grid-body" id="month-grid-body">
+                            <!-- JS will populate -->
+                        </div>
+                    </div>
+
+                    <!-- Week View Grid -->
+                    <div id="calendar-view-week" class="calendar-view hidden">
+                        <div class="time-grid-container">
+                            <div class="time-grid-header" id="week-grid-header">
+                                <div class="time-label-col"></div>
+                                <!-- JS populate headers -->
+                            </div>
+                            <div class="time-grid-body">
+                                <div class="time-label-col">
+                                    <!-- 6 AM to 6 PM (12 hours) -->
+                                    {% for i in "012345678901"|make_list %}
+                                        <div class="time-slot-label">
+                                            {% with hour=forloop.counter0|add:6 %}
+                                                {{ hour }}:00
+                                                {% if hour < 12 %}AM{% elif hour == 12 %}PM{% else %}PM{% endif %}
+                                            {% endwith %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="days-col-container" id="week-grid-days">
+                                    <!-- JS populate columns -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Day View Grid -->
+                    <div id="calendar-view-day" class="calendar-view hidden">
+                        <div class="time-grid-container">
+                            <div class="time-grid-header" id="day-grid-header">
+                                <div class="time-label-col"></div>
+                                <div class="day-header-cell">Today</div>
+                            </div>
+                             <div class="time-grid-body">
+                                <div class="time-label-col">
+                                    {% for i in "012345678901"|make_list %}
+                                        <div class="time-slot-label">
+                                            {% with hour=forloop.counter0|add:6 %}
+                                                {{ hour }}:00
+                                                {% if hour < 12 %}AM{% elif hour == 12 %}PM{% else %}PM{% endif %}
+                                            {% endwith %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="days-col-container" id="day-grid-day-col">
+                                    <!-- JS populate single column -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
     </div>
 
     <!-- Floating Action Button for Mobile -->
@@ -223,8 +324,497 @@
     </a>
 </div>
 
+<!-- Serialized Data from View -->
+<script id="month-requests-data" type="application/json">
+    {{ month_requests_json|safe }}
+</script>
+
 <script>
+// --- Global State ---
+let currentView = 'month'; // month, week, day
+let currentDate = new Date('{{ current_year }}-{{ current_month }}-01'); // Start at view's month
+let miniCalendarDate = new Date(currentDate); // Separate state for mini calendar
+const serverMonth = {{ current_month }};
+const serverYear = {{ current_year }};
+const requestsData = JSON.parse(document.getElementById('month-requests-data').textContent);
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', function() {
+    // Restore view preference
+    const savedView = localStorage.getItem('calendarViewActive');
+    
+    // Inject Toggle Button into Header Actions
+    const headerActions = document.querySelector('.header-actions');
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn btn-toggle-view';
+    toggleBtn.innerHTML = '<i class="fas fa-calendar-alt"></i> Calendar View';
+    toggleBtn.style.cssText = 'background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; margin-right: 1rem;';
+    toggleBtn.onclick = toggleMainView;
+    headerActions.insertBefore(toggleBtn, headerActions.lastElementChild); // Insert before "New Trip"
+
+    // Render Initial Month
+    renderMonthView();
+    renderMiniCalendar();
+    
+    if (savedView === 'true') {
+        // Toggle immediately to show calendar
+        toggleMainView();
+        // Restore specific view type if saved?
+         const prefView = localStorage.getItem('calendarViewPref');
+         if(prefView && prefView !== 'month') {
+             switchCalendarView(prefView);
+         }
+    }
+});
+
+// --- View Switching Logic ---
+function toggleMainView() {
+    const listLayout = document.querySelector('.scheduling-layout');
+    const calendarLayout = document.getElementById('full-calendar-container');
+    const btn = document.querySelector('.btn-toggle-view');
+    const miniCol = document.getElementById('mini-calendar-column');
+
+    if (calendarLayout.classList.contains('hidden')) {
+        // Show Calendar
+        listLayout.classList.add('hidden');
+        if(miniCol) miniCol.classList.add('hidden'); // Hide list-view side calendar
+        calendarLayout.classList.remove('hidden');
+        btn.innerHTML = '<i class="fas fa-list"></i> List View';
+        localStorage.setItem('calendarViewActive', 'true');
+        
+        // Trigger render of current sub-view
+        refreshCalendar();
+    } else {
+        // Show List
+        listLayout.classList.remove('hidden');
+        if(miniCol) miniCol.classList.remove('hidden');
+        calendarLayout.classList.add('hidden');
+        btn.innerHTML = '<i class="fas fa-calendar-alt"></i> Calendar View';
+        localStorage.setItem('calendarViewActive', 'false');
+    }
+}
+
+function switchCalendarView(view) {
+    currentView = view;
+    localStorage.setItem('calendarViewPref', view);
+    
+    // Update active button
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.view-btn[onclick="switchCalendarView('${view}')"]`).classList.add('active');
+
+    // Hide all views
+    document.querySelectorAll('.calendar-view').forEach(v => v.classList.add('hidden'));
+    
+    // Show selected view
+    document.getElementById(`calendar-view-${view}`).classList.remove('hidden');
+
+    // Handle Sidebar Visibility
+    const sidebar = document.getElementById('calendar-sidebar');
+    if (view === 'week' || view === 'day') {
+        sidebar.classList.remove('hidden');
+        // Synchronize mini calendar with current date
+        miniCalendarDate = new Date(currentDate);
+        renderMiniCalendar();
+    } else {
+        sidebar.classList.add('hidden');
+    }
+
+    refreshCalendar();
+}
+
+function changeCalendarPeriod(delta) {
+    if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() + delta);
+    } else if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() + (delta * 7));
+    } else if (currentView === 'day') {
+        // Skip Sat/Sun
+        do {
+            currentDate.setDate(currentDate.getDate() + delta);
+        } while (currentDate.getDay() === 0 || currentDate.getDay() === 6);
+    }
+    refreshCalendar();
+}
+
+function resetCalendarToToday() {
+    currentDate = new Date();
+    miniCalendarDate = new Date();
+    refreshCalendar();
+    if (currentView !== 'month') renderMiniCalendar();
+}
+
+function refreshCalendar() {
+    updatePeriodLabel();
+    if (currentView === 'month') renderMonthView();
+    else if (currentView === 'week') renderWeekView();
+    else if (currentView === 'day') renderDayView();
+}
+
+function updatePeriodLabel() {
+    const label = document.getElementById('calendar-current-period');
+    const options = { year: 'numeric', month: 'long' };
+    if (currentView === 'day') options.day = 'numeric';
+    label.textContent = currentDate.toLocaleDateString('en-US', options);
+}
+
+// --- Rendering Logic ---
+
+function renderMiniCalendar() {
+    const grid = document.getElementById('mini-calendar-grid');
+    const label = document.getElementById('mini-month-label');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    
+    const year = miniCalendarDate.getFullYear();
+    const month = miniCalendarDate.getMonth();
+    
+    label.textContent = miniCalendarDate.toLocaleDateString('en-US', {month: 'long', year: 'numeric'});
+    
+    // Headers Mon-Fri
+    ['M','T','W','T','F'].forEach(d => {
+        const dh = document.createElement('div');
+        dh.className = 'mini-cal-header';
+        dh.textContent = d;
+        grid.appendChild(dh);
+    });
+    
+    // Grid Setup: Override to 5 columns
+    grid.style.gridTemplateColumns = 'repeat(5, 1fr)';
+    
+    const firstDay = new Date(year, month, 1);
+    const dayOfWeek = firstDay.getDay(); // 0(Sun) - 6(Sat)
+    
+    // Align to Monday
+    const distToMon = (dayOfWeek + 6) % 7; 
+    const startDate = new Date(firstDay);
+    startDate.setDate(firstDay.getDate() - distToMon);
+    
+    let currentDayIterator = new Date(startDate);
+    
+    // 6 rows
+    for (let row = 0; row < 6; row++) {
+        for (let col = 0; col < 5; col++) {
+             const cellDate = new Date(currentDayIterator);
+             
+             const d = document.createElement('div');
+             let classes = 'mini-cal-day';
+             
+             // Styles
+             if (isToday(cellDate)) classes += ' today';
+             if (isSameDay(cellDate, currentDate)) classes += ' selected-active';
+             
+             // Check for shifts
+             const hasShift = requestsData.some(e => isSameDay(new Date(e.start), cellDate));
+             if (hasShift) classes += ' has-shift';
+             
+             // Muted if different month
+             if (cellDate.getMonth() !== month) classes += ' disabled';
+             
+             d.className = classes;
+             d.textContent = cellDate.getDate();
+             
+             // Selection logic
+             if (currentView === 'week') {
+                const startOfWeek = new Date(currentDate);
+                startOfWeek.setDate(currentDate.getDate() - (currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1)); // start Mon
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 4); // end Fri
+                
+                // Compare logic
+                if (cellDate >= startOfWeek && cellDate <= endOfWeek) {
+                    d.classList.add('is-selected-week');
+                }
+             }
+
+             d.onclick = () => {
+                 currentDate = new Date(cellDate);
+                 refreshCalendar();
+                 renderMiniCalendar();
+             };
+             
+             grid.appendChild(d);
+             
+             currentDayIterator.setDate(currentDayIterator.getDate() + 1);
+        }
+        // Skip Sat/Sun
+        currentDayIterator.setDate(currentDayIterator.getDate() + 2);
+        
+        if (currentDayIterator.getMonth() !== month && currentDayIterator.getDate() > 7) break; 
+    }
+}
+
+function changeMiniMonth(delta) {
+    miniCalendarDate.setMonth(miniCalendarDate.getMonth() + delta);
+    renderMiniCalendar();
+}
+
+function renderMonthView() {
+    const gridBody = document.getElementById('month-grid-body');
+    const headerContainer = document.querySelector('.month-grid-header');
+    
+    // Update Header to Mon-Fri if not already (or just force it in case)
+    if (headerContainer) {
+        headerContainer.innerHTML = '';
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(d => {
+            const h = document.createElement('div');
+            h.style.padding = '0.5rem';
+            h.textContent = d;
+            headerContainer.appendChild(h);
+        });
+    }
+
+    gridBody.innerHTML = '';
+    
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    // Calculate start date: Monday of the week containing the 1st
+    const firstDayOfMonth = new Date(year, month, 1);
+    const dayOfWeek = firstDayOfMonth.getDay(); // 0(Sun) - 6(Sat)
+    
+    // Calculate difference to get back to Monday
+    // If Sun(0), -6 days? No, we usually want the Monday of the *current* ISO week?
+    // If Month starts on Sun, usually that Sun is the end of the previous week. 
+    // Let's assume standard "month view" logic where we see the full week containing the 1st.
+    // Make Monday index 1. 0=Sun. 
+    // Shift: Mon(1)->0, Tue(2)->1... Sun(0)->6?
+    // Let's use standard JS getDay(): Sun=0, Mon=1...Sat=6.
+    // Distance to previous Monday:
+    // If Mon(1), dist=0.
+    // If Tue(2), dist=1.
+    // If Sun(0), dist=6 (since it's 6 days afert Monday).
+    
+    const distToMon = (dayOfWeek + 6) % 7; 
+    const startDate = new Date(firstDayOfMonth);
+    startDate.setDate(firstDayOfMonth.getDate() - distToMon);
+    
+    let currentDayIterator = new Date(startDate);
+    
+    // 6 rows to cover most months
+    for (let row = 0; row < 6; row++) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'month-row';
+        
+        // Loop 5 days (Mon-Fri)
+        for (let col = 0; col < 5; col++) {
+            const cellDate = new Date(currentDayIterator);
+            // Check if we are checking the right day? 
+            // currentDayIterator is Mon. 
+            // We want Mon, Tue, Wed, Thu, Fri.
+            
+            const cell = document.createElement('div');
+            cell.className = 'month-cell';
+            
+            // Visual Styles for different months
+            if (cellDate.getMonth() !== month) {
+                cell.classList.add('empty');
+                cell.innerHTML = `<div class="cell-date" style="opacity:0.4">${cellDate.getDate()}</div>`;
+            } else {
+                cell.innerHTML = `<div class="cell-date">${cellDate.getDate()}</div>`;
+                
+                // Events
+                const cellEvents = requestsData.filter(e => isSameDay(new Date(e.start), cellDate));
+                const eventsContainer = document.createElement('div');
+                eventsContainer.className = 'cell-events';
+                
+                cellEvents.slice(0, 3).forEach(e => {
+                    const chip = document.createElement('div');
+                    chip.className = `event-chip status-${e.status.toLowerCase()}`;
+                    chip.textContent = `${e.start.substring(11, 16)} ${e.title}`;
+                    chip.onclick = (ev) => {
+                        ev.stopPropagation();
+                        window.location.href = `/scheduling/request/${e.id}/edit/`;
+                    };
+                    eventsContainer.appendChild(chip);
+                });
+                
+                if (cellEvents.length > 3) {
+                    const more = document.createElement('div');
+                    more.style.fontSize = '0.7rem';
+                    more.style.color = '#64748b';
+                    more.style.textAlign = 'center';
+                    more.textContent = `+${cellEvents.length - 3} more`;
+                    eventsContainer.appendChild(more);
+                }
+                
+                cell.appendChild(eventsContainer);
+                
+                // Navigate to Day
+                cell.onclick = () => {
+                    currentView = 'day';
+                    currentDate = new Date(cellDate);
+                    // Ensure local storage or state update if needed
+                    switchCalendarView('day');
+                };
+                
+                if (isToday(cellDate)) cell.style.background = '#eff6ff';
+            }
+            
+            rowEl.appendChild(cell);
+            
+            // Advance 1 day
+            currentDayIterator.setDate(currentDayIterator.getDate() + 1);
+        }
+        
+        // Skip Sat/Sun to get to next Monday
+        currentDayIterator.setDate(currentDayIterator.getDate() + 2);
+        
+        gridBody.appendChild(rowEl);
+        
+        // Break if we are far into the next month
+        if (currentDayIterator.getFullYear() > year || (currentDayIterator.getFullYear() === year && currentDayIterator.getMonth() > month)) {
+             // Basic check: if the *start* of the next week is already next month, do we need it?
+             // Only if the current month ended mid-week, which the col loop handles.
+             // If the whole next week is next month, stop.
+             if (currentDayIterator.getDate() > 7) break; 
+        }
+    }
+}
+
+function renderWeekView() {
+    const container = document.getElementById('week-grid-days');
+    const header = document.getElementById('week-grid-header');
+    container.innerHTML = '';
+    
+    // Clear header except first spacer
+    while(header.children.length > 1) header.removeChild(header.lastChild);
+
+    // Calculate start of week (Sunday)
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+
+    // Loop Mon (1) to Fri (5)
+    for (let i = 1; i <= 5; i++) {
+        const day = new Date(startOfWeek);
+        day.setDate(startOfWeek.getDate() + i);
+        
+        // Header
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'day-header-cell';
+        dayHeader.innerHTML = `<div>${day.toLocaleDateString('en-US', {weekday: 'short'})}</div><div>${day.getDate()}</div>`;
+        if (isToday(day)) dayHeader.classList.add('today');
+        header.appendChild(dayHeader);
+
+        // Column
+        const dayCol = document.createElement('div');
+        dayCol.className = 'day-column';
+        
+        // Add grid lines (12 slots) to match time labels
+        for(let j=0; j<12; j++) {
+            const line = document.createElement('div');
+            line.className = 'grid-cell-line';
+            dayCol.appendChild(line);
+        }
+
+        // Filter events for this day
+        const dayEvents = requestsData.filter(e => isSameDay(new Date(e.start), day));
+        
+        dayEvents.forEach(e => {
+            const el = createEventElement(e);
+            if (el) dayCol.appendChild(el); // Only append if element was created (i.e., within visible range)
+        });
+        
+        container.appendChild(dayCol);
+    }
+}
+
+function renderDayView() {
+    const container = document.getElementById('day-grid-day-col');
+    const headerDateEl = document.querySelector('#day-grid-header .day-header-cell');
+    
+    // Update Header Date
+    if (headerDateEl) {
+        const options = { weekday: 'long', month: 'long', day: 'numeric' };
+        headerDateEl.innerHTML = `<div>${currentDate.toLocaleDateString('en-US', {weekday: 'short'})}</div><div>${currentDate.getDate()}</div>`;
+        // Or to match the style of "Today" (single line or specific format? "Today" was simple text)
+        // Let's make it look like the week view headers: Weekday (small) Date (large)
+        // Or just the full date string as requested "update what day i clicked on"
+        // The user said "Today" is on top. Line 295 is <div class="day-header-cell">Today</div>
+        
+        // Let's use a nice format: "Monday, Feb 17"
+        headerDateEl.textContent = currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        headerDateEl.style.fontSize = '1.1rem'; // Ensure it looks good
+    }
+
+    container.innerHTML = '';
+    const dayCol = document.createElement('div');
+    dayCol.className = 'day-column';
+    
+    // Add grid lines (12 slots)
+    for(let j=0; j<12; j++) {
+        const line = document.createElement('div');
+        line.className = 'grid-cell-line';
+        dayCol.appendChild(line);
+    }
+    
+    const dayEvents = requestsData.filter(e => isSameDay(new Date(e.start), currentDate));
+    dayEvents.forEach(e => {
+        const el = createEventElement(e);
+        if (el) dayCol.appendChild(el); // Only append if element was created
+    });
+    
+    container.appendChild(dayCol);
+}
+
+// --- Helper Functions ---
+
+function createEventElement(e) {
+    const start = new Date(e.start);
+    const end = new Date(e.end);
+    
+    // Calculate position relative to 6 AM - 6 PM (12 hours)
+    let startHour = start.getHours() + (start.getMinutes() / 60);
+    let endHour = end.getHours() + (end.getMinutes() / 60);
+    
+    // Clamp values to visible range (6 - 18)
+    if (endHour < 6 || startHour > 18) return null; // Outside range
+    
+    // Adjust start/end visual bounds
+    if (startHour < 6) startHour = 6;
+    if (endHour > 18) endHour = 18;
+    
+    const duration = endHour - startHour;
+    if (duration <= 0) return null;
+
+    // 12 hours total height = 100%
+    // Top % = ((startHour - 6) / 12) * 100
+    // Height % = (duration / 12) * 100
+    
+    const topPct = ((startHour - 6) / 12) * 100;
+    const heightPct = (duration / 12) * 100;
+    
+    const el = document.createElement('div');
+    el.className = `time-grid-event status-${e.status.toLowerCase()}`;
+    el.style.top = `${topPct}%`;
+    el.style.height = `${heightPct}%`;
+    
+    // Add min-height visual if too small (e.g. < 15 mins)
+    // But % based height handles scale well.
+    
+    el.onclick = () => window.location.href = `/scheduling/request/${e.id}/edit/`;
+    
+    el.innerHTML = `
+        <div class="event-time">${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+        <div class="event-title">${e.title}</div>
+        <div class="event-driver"><i class="fas fa-user"></i> ${e.driver}</div>
+    `;
+    return el;
+}
+
+function isSameDay(d1, d2) {
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+}
+
+function isToday(d) {
+    const today = new Date();
+    return isSameDay(d, today);
+}
+// Handling existing action logic
 function handleAction(requestId, action) {
+    // Check for cancel action
     if (action === 'cancel' && !confirm("Are you sure you want to cancel this trip?")) {
         return;
     }
@@ -263,76 +853,372 @@ function handleAction(requestId, action) {
 </script>
 
 <style>
-.calendar-day {
-    position: relative;
-    text-decoration: none;
+/* Override base.html main.container for full width */
+main.container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Utilities */
+.hidden { display: none !important; }
+
+/* Calendar Container */
+#full-calendar-container {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Enhanced Shadow */
+    border: 1px solid #e2e8f0;
+}
+
+/* Layout Structure */
+.calendar-content-wrapper {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.calendar-main-area {
+    flex: 1;
+    min-width: 0; /* Critical for flex child text-overflow */
+    display: flex;
+    flex-direction: column;
+}
+
+#calendar-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+    #calendar-sidebar { display: none !important; }
+}
+
+/* Sidebar Mini Calendar */
+.mini-month-widget {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mini-month-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.mini-nav span {
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    aspect-ratio: 1;
-    border-radius: 8px;
-    font-size: 0.85rem;
     color: #64748b;
+    border-radius: 6px;
     transition: all 0.2s;
-    background: transparent;
+}
+.mini-nav span:hover { background: #f1f5f9; color: #1e293b; }
+
+.mini-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
 }
 
-.calendar-day:hover {
-    background: #f1f5f9;
-}
-
-.calendar-day.today {
-    border: 1.5px solid #3b82f6;
-    color: #3b82f6;
-}
-
-.calendar-day.has-shift::after {
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    width: 4px;
-    height: 4px;
-    background: #3b82f6;
-    border-radius: 50%;
-}
-
-.calendar-day.selected-active {
-    background: #3b82f6 !important;
-    color: white !important;
+.mini-cal-header {
+    font-size: 0.7rem;
     font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
 }
 
-.calendar-day.disabled {
-    cursor: default;
-    pointer-events: none;
-}
-
-.btn-action-small {
-    padding: 0.4rem 0.8rem;
-    border-radius: 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-decoration: none;
-    display: inline-flex;
+.mini-cal-day {
+    aspect-ratio: 1;
+    display: flex;
     align-items: center;
-    gap: 0.4rem;
-    border: none;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: #475569;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
 }
+.mini-cal-day:hover { background: #f1f5f9; color: #0f172a; }
 
-.btn-action-small.edit { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
-.btn-action-small.edit:hover { background: #e2e8f0; }
+.mini-cal-day.is-today { font-weight: 800; color: #2563eb; background: #eff6ff; }
+.mini-cal-day.is-selected { background: #2563eb; color: white !important; font-weight: 700; }
+.mini-cal-day.is-selected-week { background: #dbeafe; color: #1e40af; border-radius: 0; }
+.mini-cal-day.is-selected-week:first-of-type { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.mini-cal-day.is-selected-week:last-of-type { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
 
-.btn-action-small.cancel { background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; }
-.btn-action-small.cancel:hover { background: #fecdd3; }
 
-.btn-action-small.approve { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-.btn-action-small.approve:hover { background: #bbf7d0; }
+/* Toolbar */
+.calendar-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
 
-.btn-action-small.deny { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-.btn-action-small.deny:hover { background: #fecaca; }
+.view-switcher, .calendar-nav {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
 
-.badge-cancelled { background: #f1f5f9; color: #64748b; }
+.view-btn {
+    padding: 0.6rem 1.2rem;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+.view-btn:hover { background: #f8fafc; color: #334155; }
+.view-btn.active {
+    background: #0f172a; /* Darker Active State */
+    color: white;
+    border-color: #0f172a;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-nav button {
+    background: white;
+    border: 1px solid #e2e8f0;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.calendar-nav button:hover { background: #f8fafc; color: #0f172a; border-color: #cbd5e1; }
+
+/* Month Grid */
+.month-grid-header {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* Business Week */
+    text-align: center;
+    font-weight: 700;
+    color: #475569;
+    padding: 1rem 0;
+    border-bottom: 1px solid #cbd5e1;
+    background: #f8fafc;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.month-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* Business Week */
+    min-height: 140px;
+}
+
+.month-cell {
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    padding: 0.75rem;
+    position: relative;
+    background: white;
+    transition: background 0.2s;
+}
+
+.month-cell:hover { background: #fcfcfc; }
+.month-cell:nth-child(5n) { border-right: none; } /* 5th item */
+.month-cell.empty { background: #f8fafc; }
+
+.cell-date {
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.cell-events {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.event-chip {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-left-width: 4px;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    transition: transform 0.1s;
+}
+.event-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+/* Status Colors for chips */
+.status-pending { border-left-color: #f59e0b; color: #92400e; }
+.status-approved { border-left-color: #10b981; color: #065f46; }
+.status-completed { border-left-color: #3b82f6; color: #1e40af; }
+.status-in-progress { border-left-color: #0ea5e9; color: #0284c7; }
+.status-cancelled { border-left-color: #ef4444; color: #991b1b; opacity: 0.6; }
+
+/* Time Grid (Week/Day) */
+.time-grid-container {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    overflow: hidden; /* Hide outer scroll, handle inside */
+    background: white;
+}
+
+.time-grid-header {
+    display: flex;
+    border-bottom: 1px solid #cbd5e1;
+    background: #f8fafc;
+    /* Spacing for scrollbar alignment - Adjust based on OS, usually 15-17px */
+    padding-right: 17px; 
+}
+
+.time-label-col {
+    width: 70px;
+    flex-shrink: 0;
+    border-right: 1px solid #cbd5e1;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+.day-header-cell {
+    flex: 1;
+    min-width: 140px; /* MATCH day-column min-width */
+    text-align: center;
+    padding: 0.75rem 0.5rem;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.day-header-cell div:first-child { font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.day-header-cell div:last-child { font-size: 1.2rem; font-weight: 700; color: #1e293b; margin-top: 2px; }
+.day-header-cell.today div:last-child { 
+    background: #2563eb; color: white; width: 32px; height: 32px; 
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+
+.time-grid-body {
+    display: flex;
+    position: relative;
+    height: 600px;
+    overflow-y: scroll; /* Always show scrollbar to match header padding */
+}
+
+/* Time slots distribute evenly */
+.time-slot-label {
+    flex: 1; /* Distribute height evenly among 12 slots */
+    border-bottom: 1px solid #f1f5f9; /* Lighter separator */
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    padding-top: 4px; /* Slight offset */
+    box-sizing: border-box; /* Strict box model */
+    min-height: 0; /* Prevent content expansion */
+}
+.time-slot-label:last-child { border-bottom: none; }
+
+.days-col-container {
+    display: flex;
+    flex: 1;
+}
+
+.day-column {
+    flex: 1;
+    min-width: 0; /* Allow shrinking if needed, but flex:1 handles width */
+    border-right: 1px solid #e2e8f0;
+    position: relative;
+    height: 100%;
+    /* Flex container for grid lines */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Explicit Grid Lines for alignment */
+.grid-cell-line {
+    flex: 1;
+    border-bottom: 1px solid #f1f5f9;
+    box-sizing: border-box; /* Include border in height calc */
+    min-height: 0; /* Prevent content expansion */
+}
+.grid-cell-line:last-child { border-bottom: none; }
+
+/* Current Time Indicator Line (Optional enhancement) */
+.current-time-line {
+    position: absolute;
+    width: 100%;
+    border-top: 2px solid #ef4444;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.time-grid-event {
+    position: absolute;
+    width: 92%; /* Slightly narrower */
+    left: 4%;
+    background: white;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #cbd5e1;
+    z-index: 10;
+    transition: all 0.2s;
+}
+.time-grid-event:hover {
+    transform: scale(1.02);
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    z-index: 20;
+}
+
+/* Event Content */
+.time-grid-event .event-time { font-weight: 700; font-size: 0.7rem; margin-bottom: 2px; opacity: 0.8; }
+.time-grid-event .event-title { font-weight: 700; font-size: 0.8rem; margin-bottom: 2px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; color: #1e293b; }
+.time-grid-event .event-driver { color: #64748b; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; }
+
+/* Status styling for time grid events using same classes */
+.time-grid-event.status-pending { border-left-color: #f59e0b; background: #fffbeb; }
+.time-grid-event.status-approved { border-left-color: #10b981; background: #f0fdf4; }
+.time-grid-event.status-completed { border-left-color: #3b82f6; background: #eff6ff; }
+.time-grid-event.status-cancelled { border-left-color: #ef4444; background: #fef2f2; opacity: 0.7; }
+
+@media (max-width: 768px) {
+    .calendar-toolbar { flex-direction: column; align-items: stretch; }
+    .view-switcher, .calendar-nav { justify-content: center; width: 100%; }
+    .month-cell { min-height: 80px; }
+    .event-chip { font-size: 0.65rem; }
+}
 </style>
 {% endblock %}

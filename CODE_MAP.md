@@ -38,6 +38,7 @@ The primary application containing business logic, database models, and views.
 - `update_pricing_ajax`: Updates pricing calculations on request forms.
 - `driver_request_action`: Handles accept/reject actions for driver requests.
 - `get_driver_occupancy`: Returns driver availability data.
+- **Note**: `DriverSchedulingView` serializes monthly request data to JSON for the frontend calendar.
 
 ### 📝 Forms (`core/forms.py`)
 - `ServiceReportForm`: Main report form. Includes hidden `client_signature` field.

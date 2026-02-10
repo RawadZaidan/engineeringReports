@@ -1,4 +1,6 @@
 import base64
+import json
+import datetime
 from django.core.files.base import ContentFile
 from django.shortcuts import redirect, get_object_or_404
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
@@ -611,11 +613,36 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
                     })
             calendar_weeks.append(week_data)
         
-        # Get days that have shifts
+        # Get days that have shifts (for mini-calendar dots)
         shift_days = DriverRequest.objects.filter(
             date__year=year, 
             date__month=month
         ).values_list('date__day', flat=True).distinct()
+        
+        # --- NEW: Fetch and serialize ALL requests for the month for Full Calendar ---
+        month_requests_qs = DriverRequest.objects.filter(
+            date__year=year,
+            date__month=month
+        ).select_related('driver', 'requester')
+        
+        serialized_requests = []
+        for req in month_requests_qs:
+            # Combine date and time for start/end
+            start_dt = datetime.datetime.combine(req.date, req.start_time)
+            end_dt = datetime.datetime.combine(req.date, req.end_time)
+            
+            serialized_requests.append({
+                'id': req.id,
+                'title': f"{req.get_location_display()} ({req.client_name or 'General'})",
+                'start': start_dt.isoformat(),
+                'end': end_dt.isoformat(),
+                'driver': req.driver.name if req.driver else "Unassigned",
+                'status': req.status,
+                'vehicle': req.vehicle_type,
+                'location': req.get_location_display(),
+                'details': f"{req.requester.get_full_name() or req.requester.username} - {req.department}",
+                'day': req.date.day, # Useful for simple month view mapping
+            })
         
         context.update({
             'drivers': Driver.objects.filter(is_active=True),
@@ -626,6 +653,7 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
             'current_year': year,
             'month_name': calendar.month_name[month],
             'selected_date': self.request.GET.get('date'),
+            'month_requests_json': json.dumps(serialized_requests), # Pass as JSON string
         })
         return context
 
