@@ -396,6 +396,13 @@ const requestsData = JSON.parse(document.getElementById('month-requests-data').t
 const currentUserId = {{ request.user.id }};
 const isStaff = {{ request.user.is_staff|yesno:"true,false" }};
 
+const DRIVER_COLORS = {
+    'Mohammad': 'driver-color-mohammad',
+    'Mostafa': 'driver-color-mostafa',
+    'Shafiq': 'driver-color-shafiq'
+};
+const DEFAULT_DRIVER_COLOR = 'driver-color-default';
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', function() {
     // Restore view preference
@@ -413,6 +420,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Render Initial Month
     renderMonthView();
     renderMiniCalendar();
+    renderDriverLegend(); // New Legend
     
     if (savedView === 'true') {
         // Toggle immediately to show calendar
@@ -468,11 +476,17 @@ function switchCalendarView(view) {
 
     // Handle Sidebar Visibility
     const sidebar = document.getElementById('calendar-sidebar');
+    const legend = document.getElementById('driver-legend-box');
+    
     if (view === 'week' || view === 'day') {
         sidebar.classList.remove('hidden');
         // Synchronize mini calendar with current date
         miniCalendarDate = new Date(currentDate);
         renderMiniCalendar();
+        
+        // Toggle Legend: Only for Week View
+        if (legend) legend.style.display = (view === 'week') ? 'block' : 'none';
+        
     } else {
         sidebar.classList.add('hidden');
     }
@@ -738,12 +752,16 @@ function renderWeekView() {
     // Clear header except first spacer
     while(header.children.length > 1) header.removeChild(header.lastChild);
 
-    // Calculate start of week (Sunday)
+    // Calculate start of week (Sunday then shift to Mon)
+    // Current logic: currentDate is the month start or selected date.
+    // If we want "Current Week", we need to find the Monday of the week containing currentDate.
     const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+    const dayOfWeek = startOfWeek.getDay(); // 0-6
+    const distToMon = (dayOfWeek + 6) % 7; 
+    startOfWeek.setDate(startOfWeek.getDate() - distToMon);
 
     // Loop Mon (1) to Fri (5)
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 0; i < 5; i++) {
         const day = new Date(startOfWeek);
         day.setDate(startOfWeek.getDate() + i);
         
@@ -768,12 +786,133 @@ function renderWeekView() {
         // Filter events for this day
         const dayEvents = requestsData.filter(e => isSameDay(new Date(e.start), day));
         
+        // --- Overlap Logic ---
+        // 1. Sort by start time, then duration desc
+        dayEvents.sort((a,b) => {
+            const startA = new Date(a.start);
+            const startB = new Date(b.start);
+            if(startA - startB !== 0) return startA - startB;
+            return (new Date(b.end) - new Date(b.start)) - (new Date(a.end) - new Date(a.start));
+        });
+
+        // 2. Group into overlapping clusters
+        const clusters = [];
+        let currentCluster = [];
+        
         dayEvents.forEach(e => {
-            const el = createEventElement(e);
-            if (el) dayCol.appendChild(el); // Only append if element was created (i.e., within visible range)
+            if (currentCluster.length === 0) {
+                currentCluster.push(e);
+            } else {
+                // Check if e overlaps with usage of the Cluster (defined by max end time property?)
+                // Actually we just need to know if it overlaps with ANY in the cluster?
+                // Visual packing: "If it overlaps with any currently active event"
+                // Simple approach: Overlap if start < max_end_of_cluster
+                
+                // Get max end time of current cluster
+                let maxEnd = 0;
+                currentCluster.forEach(c => {
+                    const end = new Date(c.end).getTime();
+                    if(end > maxEnd) maxEnd = end;
+                });
+                
+                const start = new Date(e.start).getTime();
+                if (start < maxEnd) {
+                    currentCluster.push(e);
+                } else {
+                    clusters.push(currentCluster);
+                    currentCluster = [e];
+                }
+            }
+        });
+        if(currentCluster.length > 0) clusters.push(currentCluster);
+
+        // 3. Process clusters
+        clusters.forEach(cluster => {
+             // Assign columns
+             const columns = []; // array of end times
+             const placements = []; // { event, colIdx }
+             
+             cluster.forEach(e => {
+                 const start = new Date(e.start).getTime();
+                 const end = new Date(e.end).getTime();
+                 let placed = false;
+                 
+                 for(let c=0; c<columns.length; c++) {
+                     if(start >= columns[c]) {
+                         columns[c] = end;
+                         placements.push({event: e, colIdx: c});
+                         placed = true;
+                         break;
+                     }
+                 }
+                 if(!placed) {
+                     columns.push(end);
+                     placements.push({event: e, colIdx: columns.length - 1});
+                 }
+             });
+             
+             const widthPct = 100 / columns.length;
+             
+             placements.forEach(p => {
+                 const el = createEventElement(p.event);
+                 if(el) {
+                     // Add Color
+                     const colorClass = DRIVER_COLORS[p.event.driver] || DEFAULT_DRIVER_COLOR;
+                     el.classList.add(colorClass);
+                     
+                     // Layout
+                     if (columns.length > 1) {
+                         el.style.width = `calc(${widthPct}% - 2px)`; // -2px for margin
+                         el.style.left = `${p.colIdx * widthPct}%`;
+                         el.classList.add('compact');
+                         el.title = `${p.event.title} \nDriver: ${p.event.driver}`;
+                     }
+                     dayCol.appendChild(el);
+                 }
+             });
         });
         
         container.appendChild(dayCol);
+    }
+}
+
+function renderDriverLegend() {
+    const parent = document.getElementById('calendar-sidebar');
+    if(!parent) return;
+    
+    // Check if legend already exists
+    if(document.getElementById('driver-legend-box')) return;
+    
+    const legendBox = document.createElement('div');
+    legendBox.id = 'driver-legend-box';
+    legendBox.className = 'driver-legend';
+    
+    legendBox.innerHTML = `
+        <div class="legend-title">Drivers</div>
+        <div class="legend-item">
+            <div class="legend-dot driver-color-mohammad"></div>
+            <span>Mohammad</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot driver-color-mostafa"></div>
+            <span>Mostafa</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot driver-color-shafiq"></div>
+            <span>Shafiq</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-dot driver-color-default"></div>
+            <span>Other/Unassigned</span>
+        </div>
+    `;
+    
+    // Insert after mini calendar
+    const miniWidget = parent.querySelector('.mini-month-widget');
+    if(miniWidget) {
+        miniWidget.parentNode.insertBefore(legendBox, miniWidget.nextSibling);
+    } else {
+        parent.appendChild(legendBox);
     }
 }
 
@@ -1500,6 +1639,65 @@ main.container {
     .view-switcher, .calendar-nav { justify-content: center; width: 100%; }
     .month-cell { min-height: 80px; }
     .event-chip { font-size: 0.65rem; }
+}
+</style>
+<style>
+/* Driver Colors */
+.driver-color-mohammad { background-color: #3b82f6 !important; border-left-color: #1d4ed8 !important; color: white !important; }
+.driver-color-mostafa { background-color: #10b981 !important; border-left-color: #047857 !important; color: white !important; }
+.driver-color-shafiq { background-color: #8b5cf6 !important; border-left-color: #6d28d9 !important; color: white !important; }
+.driver-color-default { background-color: #94a3b8 !important; border-left-color: #475569 !important; color: white !important; }
+
+/* Legend Styles */
+.driver-legend {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+.legend-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: #1e293b;
+    font-weight: 500;
+}
+.legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+/* Compact Overlap Style */
+.time-grid-event.compact {
+    padding: 0 !important;
+    font-size: 0 !important;
+    border: none !important;
+    /* border-left: 2px solid rgba(0,0,0,0.2) !important; Optional */
+    opacity: 0.9;
+}
+.time-grid-event.compact .event-time, 
+.time-grid-event.compact .event-title, 
+.time-grid-event.compact .event-driver,
+.time-grid-event.compact .event-vehicle {
+    display: none !important;
+}
+.time-grid-event.compact:hover {
+    opacity: 1;
+    z-index: 50 !important;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 </style>
 {% endblock %}
