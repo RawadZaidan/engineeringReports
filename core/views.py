@@ -89,9 +89,9 @@ class DashboardView(LoginRequiredMixin, ListView):
             status__in=['Draft', 'Pending']
         ).order_by('-updated_at')[:5]
 
-        # 2. Recent Requests (Only Open ones for the list)
+        # 2. Recent Requests (Include Scheduled and In Progress)
         context['recent_requests'] = MaintenanceRequest.objects.filter(
-            status='Open'
+            status__in=['Open', 'Scheduled', 'In Progress']
         ).order_by('-urgency', '-created_at')[:10]
 
         # 3. Upcoming Visits (Confirmed / In Progress)
@@ -104,35 +104,51 @@ class DashboardView(LoginRequiredMixin, ListView):
         ).order_by('-updated_at')[:5]
 
         # 5. Quick Stats
+        visit_week_filter = Q(date__range=[today, today + timedelta(days=7)])
+        if user.groups.filter(name='Engineer').exists():
+            try:
+                engineer = user.engineer_profile
+                visit_week_filter &= Q(engineer=engineer)
+            except Engineer.DoesNotExist:
+                pass
+
         context['stats'] = {
             'my_pending': ServiceReport.objects.filter(engineer=user, status__in=['Draft', 'Pending']).count(),
             'open_requests': MaintenanceRequest.objects.filter(status='Open').count(),
-            'visits_this_week': MaintenanceRequest.objects.filter(
-                status__in=['Scheduled', 'In Progress'],
-                availability_start__range=[today, today + timedelta(days=7)]
-            ).count()
+            'visits_this_week': MaintenanceAssignment.objects.filter(visit_week_filter).count()
         }
 
-        # 6. Calendar Events - Confirmed Requests Only
-        # Get days that have confirmed visits for this month
-        visit_days = MaintenanceRequest.objects.filter(
-            status__in=['Scheduled', 'In Progress'],
-            availability_start__year=year,
-            availability_start__month=month
-        ).values_list('availability_start__day', flat=True).distinct()
+        # 6. Calendar Events - Maintenance Assignments
+        # Get days that have assignments for this month
+        assignment_filter = Q(date__year=year, date__month=month)
+        if user.groups.filter(name='Engineer').exists():
+            # If engineer, only show their own assignments on the calendar
+            try:
+                engineer = user.engineer_profile
+                assignment_filter &= Q(engineer=engineer)
+            except Engineer.DoesNotExist:
+                pass
 
-        # Get upcoming visits detail list for the side panel (for current selected date or general upcoming)
+        visit_days = MaintenanceAssignment.objects.filter(
+            assignment_filter
+        ).values_list('date__day', flat=True).distinct()
+
+        # Get upcoming visits detail list for the side panel
         selected_date = self.request.GET.get('date')
+        
+        visits_query = MaintenanceAssignment.objects.select_related('maintenance_request', 'engineer')
+        
+        if user.groups.filter(name='Engineer').exists():
+            try:
+                engineer = user.engineer_profile
+                visits_query = visits_query.filter(engineer=engineer)
+            except Engineer.DoesNotExist:
+                pass
+
         if selected_date:
-             visits_list = MaintenanceRequest.objects.filter(
-                status__in=['Scheduled', 'In Progress'],
-                availability_start=selected_date
-            )
+             visits_list = visits_query.filter(date=selected_date)
         else:
-             visits_list = MaintenanceRequest.objects.filter(
-                status__in=['Scheduled', 'In Progress'],
-                availability_start__gte=today
-            ).order_by('availability_start')[:5]
+             visits_list = visits_query.filter(date__gte=today).order_by('date', 'start_time')[:5]
 
         context.update({
             'calendar_weeks': calendar_weeks,
@@ -796,6 +812,13 @@ class MaintenanceAssignmentCreateView(LoginRequiredMixin, CreateView):
     template_name = 'core/maintenance_assignment_form.html'
     success_url = reverse_lazy('engineer_scheduling')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        request_id = self.request.GET.get('request_id')
+        if request_id:
+            context['maintenance_request'] = get_object_or_404(MaintenanceRequest, pk=request_id)
+        return context
+
     def get_initial(self):
         initial = super().get_initial()
         request_id = self.request.GET.get('request_id')
@@ -817,6 +840,12 @@ class MaintenanceAssignmentUpdateView(LoginRequiredMixin, UpdateView):
     form_class = MaintenanceAssignmentForm
     template_name = 'core/maintenance_assignment_form.html'
     success_url = reverse_lazy('engineer_scheduling')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if hasattr(self, 'object') and self.object:
+            context['maintenance_request'] = self.object.maintenance_request
+        return context
 
     def get_queryset(self):
         if self.request.user.is_staff:

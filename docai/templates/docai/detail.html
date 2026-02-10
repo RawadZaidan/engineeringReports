@@ -202,7 +202,19 @@
                 <div class="info-grid">
                     <div class="card detail-card">
                         <h2><span class="icon">💰</span> Financial Thresholds</h2>
-                        <div class="content-text">{{ summary.financial_thresholds|linebreaks }}</div>
+                        <div class="content-text">
+                            {% with ft=summary.get_financial_thresholds %}
+                                {% if ft %}
+                                    <div style="line-height: 1.8;">
+                                    {% for key, value in ft.items %}
+                                        <div><strong>{{ key|title }}:</strong> {{ value }}</div>
+                                    {% endfor %}
+                                    </div>
+                                {% else %}
+                                    Not specified
+                                {% endif %}
+                            {% endwith %}
+                        </div>
                     </div>
                     <div class="card detail-card">
                         <h2><span class="icon">🔧</span> Maintenance & Warranty</h2>
@@ -517,7 +529,6 @@
     .content-text {
         color: #475569;
         line-height: 1.6;
-        white-space: pre-wrap;
     }
     .killer-clause-card {
         border-left: 6px solid #ef4444;

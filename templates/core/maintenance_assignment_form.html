@@ -6,7 +6,18 @@
     <div class="dashboard-header-modern">
         <div class="header-content">
             <h2 class="page-title-modern">Schedule Engineer</h2>
-            <p class="subtitle-modern">Assign an engineer to maintenance request MR-{{ form.initial.maintenance_request }}</p>
+            <p class="subtitle-modern">
+                Assign an engineer to maintenance request MR-{{ maintenance_request.pk }}
+                {% if maintenance_request.availability_start or maintenance_request.availability_end %}
+                    <br>
+                    <span class="small text-slate-500">
+                        Valid Range: 
+                        {% if maintenance_request.availability_start %}{{ maintenance_request.availability_start|date:"d M Y" }}{% else %}Any time{% endif %} 
+                        - 
+                        {% if maintenance_request.availability_end %}{{ maintenance_request.availability_end|date:"d M Y" }}{% else %}Any time{% endif %}
+                    </span>
+                {% endif %}
+            </p>
         </div>
         <div class="header-actions-modern">
             <a href="{% url 'engineer_scheduling' %}" class="btn-create-modern" style="background: #94a3b8;">
@@ -134,4 +145,40 @@
     .form-group.full-width { grid-column: span 1; }
 }
 </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startSelect = document.getElementById('{{ form.start_time.id_for_label }}');
+    const endSelect = document.getElementById('{{ form.end_time.id_for_label }}');
+
+    function updateEndTimeOptions() {
+        const startIndex = startSelect.selectedIndex;
+        const currentEndValue = endSelect.value;
+        let firstValidOption = null;
+
+        Array.from(endSelect.options).forEach((option, index) => {
+            if (index <= startIndex) {
+                option.disabled = true;
+                option.style.color = '#cbd5e1'; // Light grey for disabled
+            } else {
+                option.disabled = false;
+                option.style.color = '';
+                if (!firstValidOption) firstValidOption = option.value;
+            }
+        });
+
+        // If selected end time is now disabled, auto-pick the next one
+        if (endSelect.options[endSelect.selectedIndex].disabled && firstValidOption) {
+            endSelect.value = firstValidOption;
+        }
+    }
+
+    startSelect.addEventListener('change', updateEndTimeOptions);
+    
+    // Initial run to set state if start time is already picked (e.g. on page load)
+    updateEndTimeOptions();
+});
+</script>
 {% endblock %}

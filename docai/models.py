@@ -108,6 +108,19 @@ class TenderSummary(models.Model):
                 })
         return flat_list
 
+    def get_financial_thresholds(self):
+        """Parse financial_thresholds from JSON/dict string to dict."""
+        if not self.financial_thresholds:
+            return {}
+        try:
+            import json
+            # Handle Python dict string format (single quotes)
+            content = str(self.financial_thresholds).replace("'", '"')
+            return json.loads(content)
+        except:
+            # Fallback: return as-is if parsing fails
+            return {}
+
     def __str__(self):
         return f"Tender Summary: {self.title or self.document.name}"
 

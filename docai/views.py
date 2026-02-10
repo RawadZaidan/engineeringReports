@@ -134,42 +134,49 @@ def perform_analysis_task(summary_id, pre_extracted_text, image_attachments):
         summary_obj.save()
 
         EXTRACTION_PROMPT = """
-Analyze the attached tender document as a Senior Procurement Specialist. 
-Your goal is to extract structured data while flagging critical 'Bid/No-Bid' risks.
+Analyze the attached tender documents with the precision of a Senior Procurement Auditor. 
+Your primary goal is to extract strictly grounded information. Do NOT hypothesize or assume. If a value is missing, return "Not specified".
 
-### EXTRACTION CATEGORIES:
-1. **Administrative Metadata:** Reference numbers, entities, and critical timeline dates (Clarification vs. Submission).
-2. **Eligibility & 'Gatekeeper' Clauses:** Extract any mandatory requirements that disqualify a bidder (e.g., local residency, specific portal registrations like UNGM, or mandatory site visits).
-3. **Financial Requirements:** Extract minimum annual turnover, liquidity ratios, and bid security (bond) amounts.
-4. **Lot & Award Logic:** Identify if the tender is 'All-or-Nothing' or if it allows 'Partial Bidding' (per Lot or per Item). 
-5. **Contractual 'Tripwires':** Extract liquidated damages (penalties), tax/VAT status, and payment terms (e.g., net 30 days, no advance payments).
+### 1. TARGET DOCUMENTS CHECKLIST
+Identify if the following specific documents are explicitly required for submission:
+- **Legal/Identity**: Commercial Registry, Tax Compliance/Clearance, VAT Registration, Power of Attorney.
+- **Registrations**: UNGM Vendor ID, UNOPS/GIZ/WB Portal registration.
+- **Technical/Quality**: Certificate of Origin of Goods (MANDATORY CHECK), ISO Certifications (9001, 14001, 13485, etc.), Manufacturer Authorization Letter.
+- **Financial**: Audited Financial Statements, Credit Facilities.
 
-### OUTPUT STRUCTURE (JSON):
-Return ONLY a JSON object with this schema. CRITICAL: Always extract the country/location and procuring entity name - these are mandatory fields that MUST be populated.
+### 2. EXTRACTION REQUIREMENTS:
+- **Country & Entity**: Grounded identification of the location and the full official name of the buyer.
+- **Eligibility**: Mandatory disqualification criteria (Gatekeepers).
+- **Financial Vitals**: Turnover, Bid Bonds, and Liquidated Damages.
+- **Schedule**: Key dates (Clarification vs. Submission).
+
+### 3. OUTPUT STRUCTURE (JSON):
+Return a JSON object only. In "quality_certificates", list only the high-level certificate names found (e.g. "Certificate of Origin", "ISO 9001").
+
 {
   "summary": {
-    "title": "Full tender title exactly as written",
-    "id_reference": "Tender reference number or ID",
-    "country": "MANDATORY - The country where the tender is located (e.g., Lebanon, Jordan, Iraq, Egypt, etc.)",
-    "continent": "The continent of the country (Africa, Asia, Europe, North America, South America, Oceania)",
-    "location": "MANDATORY - City, region, or specific project location",
-    "procuring_entity": "MANDATORY - The FULL NAME of the organization issuing the tender (Ministry, Agency, Company, NGO, etc.)",
-    "donor_entity": "The organization or donor funding the tender (e.g., USAID, EU, World Bank, etc.)",
-    "category": "Pick ONE exactly from: medical, lab, agricultural, industrial, educational, research, mix",
-    "submission_deadline": "Exact date and time for bid submission",
-    "clarification_deadline": "Deadline for asking questions",
-    "currency_code": "Currency code (USD/EUR/LBP/etc)",
-    "overall_summary": "Brief overview of what the tender is for"
+    "title": "Full tender title",
+    "id_reference": "Tender ID",
+    "country": "Country",
+    "continent": "Africa/Asia/Europe/etc.",
+    "location": "City/Region",
+    "procuring_entity": "Full Buyer Name",
+    "donor_entity": "Funding Organization (e.g. EU, USAID)",
+    "category": "Pick: medical, lab, agricultural, industrial, educational, research, mix",
+    "submission_deadline": "Date & Time",
+    "clarification_deadline": "Date & Time",
+    "currency_code": "USD/EUR/etc",
+    "overall_summary": "1-2 sentence overview"
   },
-  "compliance_check": {
-    "mandatory_registrations": ["List all required portal/entity registrations"],
+  "compliance": {
     "local_presence_required": true/false,
-    "bid_security": "Amount and format, or 'None'",
-    "financial_vitals": "Minimum turnover/liquidity requirements"
+    "bid_security": "Amount and format",
+    "financial_vitals": "Turnover/Liquidity rules",
+    "quality_certificates": ["ISO 9001", "Certificate of Origin", "etc"]
   },
-  "bid_logic": {
-    "evaluation_method": "e.g., Lowest Price vs. Technical Weighted",
-    "allow_partial_bids": "Can the bidder quote for just one Lot/Item?",
+  "logic": {
+    "evaluation_method": "Evaluation criteria weighting",
+    "allow_partial_bids": "Yes/No",
     "lot_hierarchy": [
         {
             "lot_number": "1",
@@ -179,23 +186,17 @@ Return ONLY a JSON object with this schema. CRITICAL: Always extract the country
         }
     ]
   },
-  "risk_assessment": {
-    "tax_and_vat": "Exemption details or inclusive/exclusive rules",
-    "penalties": "Liquidated damages percentage and caps",
-    "killer_clauses": ["List any high-risk terms found in the text"],
-    "maintenance_warranty": "Post-delivery obligations and warranty terms",
-    "key_experts": "Required roles and certifications",
-    "past_performance": "Similar project requirements",
-    "site_visit": "Details on meetings/visits"
+  "risks": {
+    "tax_and_vat": "Rules & Exemptions",
+    "penalties": "Liquidated damages",
+    "killer_clauses": ["High risk terms"],
+    "maintenance_warranty": "Warranty terms",
+    "key_experts": "Required roles",
+    "past_performance": "Experience rules",
+    "site_visit": "Meeting/Visit details"
   },
-  "document_checklist": ["List every form/certificate explicitly mentioned as 'Mandatory'"]
+  "document_checklist": ["Complete list of every mandatory file mentioned"]
 }
-
-IMPORTANT EXTRACTION RULES:
-1. Look for the country in headers, addresses, or procurement entity details
-2. The procuring entity is usually in the header or first page - extract the COMPLETE organization name
-3. Do NOT leave country, location, or procuring_entity as "Not specified" unless they are truly absent
-4. Common entity names include: Ministry of [X], [Country] Health Authority, UNICEF, UNHCR, WHO, etc.
 """
         
         messages_list = [
@@ -234,9 +235,9 @@ IMPORTANT EXTRACTION RULES:
         
         # Update summary object fields
         summary_data = data.get('summary', {})
-        compliance = data.get('compliance_check', {})
-        bid = data.get('bid_logic', {})
-        risk = data.get('risk_assessment', {})
+        compliance = data.get('compliance', {})
+        logic = data.get('logic', {})
+        risks = data.get('risks', {})
         
         summary_obj.title = summary_data.get('title', 'Unknown')
         summary_obj.deadline = summary_data.get('submission_deadline', 'Not specified')
@@ -263,11 +264,11 @@ IMPORTANT EXTRACTION RULES:
         if raw_category in valid_categories:
             summary_obj.category = raw_category
         else:
-            summary_obj.category = 'mix' # Default if invalid or not specified
+            summary_obj.category = 'mix'
         
-        lots_data = bid.get('lot_hierarchy', [])
+        lots_data = logic.get('lot_hierarchy', [])
         summary_obj.lots = json.dumps(lots_data)
-        summary_obj.technical_financial_split = bid.get('evaluation_method', 'Not specified')
+        summary_obj.technical_financial_split = logic.get('evaluation_method', 'Not specified')
         
         # Ensure boolean and handle potential nulls from AI
         raw_local_req = compliance.get('local_presence_required')
@@ -276,11 +277,15 @@ IMPORTANT EXTRACTION RULES:
         summary_obj.bid_security = compliance.get('bid_security', 'Not specified')
         summary_obj.financial_thresholds = compliance.get('financial_vitals', 'Not specified')
         
-        summary_obj.killer_clauses = ", ".join(risk.get('killer_clauses', [])) if isinstance(risk.get('killer_clauses'), list) else str(risk.get('killer_clauses', ''))
-        summary_obj.maintenance_warranty = risk.get('maintenance_warranty', 'Not specified')
-        summary_obj.key_experts = risk.get('key_experts', 'Not specified')
-        summary_obj.past_performance = risk.get('past_performance', 'Not specified')
-        summary_obj.site_visit = risk.get('site_visit', 'Not specified')
+        # Store high-level certificates
+        certs = compliance.get('quality_certificates', [])
+        summary_obj.quality_certificates = ", ".join(certs) if isinstance(certs, list) else str(certs)
+        
+        summary_obj.killer_clauses = ", ".join(risks.get('killer_clauses', [])) if isinstance(risks.get('killer_clauses'), list) else str(risks.get('killer_clauses', ''))
+        summary_obj.maintenance_warranty = risks.get('maintenance_warranty', 'Not specified')
+        summary_obj.key_experts = risks.get('key_experts', 'Not specified')
+        summary_obj.past_performance = risks.get('past_performance', 'Not specified')
+        summary_obj.site_visit = risks.get('site_visit', 'Not specified')
         
         summary_obj.document_checklist = "\n".join(data.get('document_checklist', [])) if isinstance(data.get('document_checklist'), list) else str(data.get('document_checklist', ''))
         

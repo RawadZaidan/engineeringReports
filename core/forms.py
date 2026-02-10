@@ -303,24 +303,69 @@ class DriverRequestForm(forms.ModelForm):
         return cleaned_data
 
 class MaintenanceAssignmentForm(forms.ModelForm):
+    def get_time_choices():
+        choices = []
+        curr = datetime.time(6, 0)
+        end = datetime.time(18, 0)
+        while curr <= end:
+            time_str = curr.strftime('%H:%M')
+            display_str = curr.strftime('%I:%M %p')
+            choices.append((time_str, display_str))
+            
+            # Increment by 30 mins
+            total_mins = curr.hour * 60 + curr.minute + 30
+            if total_mins > 24 * 60: break
+            curr = datetime.time(total_mins // 60 % 24, total_mins % 60)
+            if curr > end and curr.hour != 0: break # Stop at 6 PM
+        return choices
+
+    start_time = forms.ChoiceField(choices=get_time_choices(), widget=forms.Select(attrs={'class': 'form-control'}))
+    end_time = forms.ChoiceField(choices=get_time_choices(), widget=forms.Select(attrs={'class': 'form-control'}))
+
     class Meta:
         model = MaintenanceAssignment
         fields = ['engineer', 'maintenance_request', 'date', 'start_time', 'end_time', 'notes']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'start_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
-            'end_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
             'maintenance_request': forms.HiddenInput(),
             'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional instructions for the engineer...'}),
             'engineer': forms.Select(attrs={'class': 'form-control'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Handle date restrictions based on MaintenanceRequest
+        mr_id = self.initial.get('maintenance_request') or (self.instance.maintenance_request.id if self.instance and self.instance.pk and self.instance.maintenance_request else None)
+        if mr_id:
+            try:
+                mr = MaintenanceRequest.objects.get(pk=mr_id)
+                if mr.availability_start:
+                    self.fields['date'].widget.attrs['min'] = mr.availability_start.strftime('%Y-%m-%d')
+                if mr.availability_end:
+                    self.fields['date'].widget.attrs['max'] = mr.availability_end.strftime('%Y-%m-%d')
+            except MaintenanceRequest.DoesNotExist:
+                pass
+
     def clean(self):
         cleaned_data = super().clean()
         engineer = cleaned_data.get('engineer')
         date = cleaned_data.get('date')
-        start_time = cleaned_data.get('start_time')
-        end_time = cleaned_data.get('end_time')
+        
+        # Convert choice strings back to time objects
+        start_time_raw = cleaned_data.get('start_time')
+        end_time_raw = cleaned_data.get('end_time')
+        
+        if isinstance(start_time_raw, str):
+            start_time = datetime.datetime.strptime(start_time_raw, '%H:%M').time()
+            cleaned_data['start_time'] = start_time
+        else:
+            start_time = start_time_raw
+
+        if isinstance(end_time_raw, str):
+            end_time = datetime.datetime.strptime(end_time_raw, '%H:%M').time()
+            cleaned_data['end_time'] = end_time
+        else:
+            end_time = end_time_raw
 
         if engineer and date and start_time and end_time:
             if start_time >= end_time:
@@ -335,5 +380,13 @@ class MaintenanceAssignmentForm(forms.ModelForm):
             for overlap in overlaps:
                 if (start_time < overlap.end_time) and (end_time > overlap.start_time):
                     raise forms.ValidationError(f"{engineer.name} is already scheduled during this time window.")
+            
+            # Maintenance Request Date Range Validation
+            mr = cleaned_data.get('maintenance_request')
+            if mr and date:
+                if mr.availability_start and date < mr.availability_start:
+                    raise forms.ValidationError(f"Date must be after the request starts ({mr.availability_start.strftime('%d/%m/%Y')})")
+                if mr.availability_end and date > mr.availability_end:
+                    raise forms.ValidationError(f"Date must be before the request ends ({mr.availability_end.strftime('%d/%m/%Y')})")
         
         return cleaned_data

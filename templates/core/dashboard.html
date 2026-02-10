@@ -100,7 +100,10 @@
                 <div class="trip-card" onclick="location.href='{% url 'request_detail' req.pk %}';">
                     <div class="trip-header">
                         <span class="trip-id">ID: #MR-{{ req.id }}</span>
-                        <span class="trip-status urgency-{{ req.urgency|lower }}">{{ req.urgency }} PRIORITY</span>
+                        <span class="trip-status urgency-{{ req.urgency|lower }}">
+                            {% if req.status != 'Open' %}{{ req.status|upper }} | {% endif %}
+                            {{ req.urgency }} PRIORITY
+                        </span>
                     </div>
                     <div class="trip-route">
                         <span class="route-city">{{ req.facility_name }}</span>
@@ -192,14 +195,18 @@
                 
                 <div class="mini-visit-list">
                     {% for visit in upcoming_visits %}
-                    <div class="mini-visit-item" onclick="location.href='{% url 'request_detail' visit.pk %}';" style="cursor: pointer;">
+                    <div class="mini-visit-item" onclick="location.href='{% url 'request_detail' visit.maintenance_request.pk %}';" style="cursor: pointer;">
                         <div class="mini-visit-date">
-                            <span class="d">{{ visit.availability_start|date:"d" }}</span>
-                            <span class="m">{{ visit.availability_start|date:"M" }}</span>
+                            <span class="d">{{ visit.date|date:"d" }}</span>
+                            <span class="m">{{ visit.date|date:"M" }}</span>
                         </div>
                         <div class="mini-visit-info">
-                            <span class="v-title">{{ visit.facility_name|default:"Unknown Facility"|truncatechars:20 }}</span>
-                            <span class="v-sub">{{ visit.get_location_display|default:visit.location }}</span>
+                            <span class="v-title">{{ visit.maintenance_request.facility_name|default:"Unknown Facility"|truncatechars:20 }}</span>
+                            <span class="v-sub">
+                                {{ visit.maintenance_request.get_location_display|default:visit.maintenance_request.location }}
+                                <br>
+                                <small style="color: #64748b;">{{ visit.start_time|time:"H:i" }} - {{ visit.end_time|time:"H:i" }}</small>
+                            </span>
                         </div>
                     </div>
                     {% empty %}
