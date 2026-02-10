@@ -449,6 +449,15 @@ class MaintenanceRequestListView(LoginRequiredMixin, ListView):
             
         return queryset
 
+    def get(self, request, *args, **kwargs):
+        self.object_list = self.get_queryset()
+        
+        # Check if it's an AJAX request
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+            self.template_name = 'core/partials/request_cards_partial.html'
+        
+        return self.render_to_response(self.get_context_data())
+
 class MaintenanceRequestCreateView(LoginRequiredMixin, CreateView):
     model = MaintenanceRequest
     form_class = MaintenanceRequestForm
@@ -657,6 +666,15 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
             'month_requests_json': json.dumps(serialized_requests), # Pass as JSON string
         })
         return context
+
+    def get(self, request, *args, **kwargs):
+        self.object_list = self.get_queryset()
+        
+        # Check if it's an AJAX request (either via header or param)
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+            self.template_name = 'core/partials/driver_scheduling_partial.html'
+            
+        return self.render_to_response(self.get_context_data())
 
 class DriverRequestCreateView(LoginRequiredMixin, CreateView):
     model = DriverRequest

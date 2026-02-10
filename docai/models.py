@@ -26,6 +26,19 @@ class TenderSummary(models.Model):
     killer_clauses = models.TextField(blank=True, null=True, help_text="Unusual or high-risk clauses")
     document_checklist = models.TextField(blank=True, null=True, help_text="List of all required submission files")
     
+    # Filtering fields
+    donor = models.CharField(max_length=255, blank=True, null=True)
+    continent = models.CharField(max_length=100, blank=True, null=True)
+    category = models.CharField(max_length=50, choices=[
+        ('medical', 'Medical'),
+        ('lab', 'Lab'),
+        ('agricultural', 'Agricultural'),
+        ('industrial', 'Industrial'),
+        ('educational', 'Educational'),
+        ('research', 'Research'),
+        ('mix', 'Mix')
+    ], blank=True, null=True)
+    
     # Smart Agent Enhancements
     local_presence_required = models.BooleanField(default=False, help_text="Is a local partner or office mandatory?")
     currency_code = models.CharField(max_length=100, blank=True, null=True, help_text="Currency code (e.g., USD, EUR, LBP)")

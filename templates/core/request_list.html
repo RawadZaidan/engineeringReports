@@ -3,13 +3,13 @@
 {% block title %}Maintenance Requests - Medilab{% endblock %}
 
 {% block content %}
-<div class="page-header-actions dashboard-header" style="margin-bottom: 2rem; border: none; display: flex; justify-content: space-between; align-items: flex-start;">
-    <div class="header-content" style="display: flex; flex-direction: column;">
-        <h1 class="page-title" style="font-size: 2.25rem; font-weight: 800; margin-bottom: 0.5rem;">Maintenance Requests</h1>
-        <p class="text-muted" style="font-size: 1.1rem; margin: 0;">Manage and track facility upkeep tasks.</p>
+<div class="page-header-actions maintenance-header">
+    <div class="header-content">
+        <h1 class="page-title">Maintenance Requests</h1>
+        <p class="text-muted">Manage and track facility upkeep tasks.</p>
     </div>
     <div class="action-btn-group">
-        <a href="{% url 'request_create' %}" class="btn btn-primary create-btn" style="padding: 0.85rem 1.75rem; border-radius: 12px; font-weight: 700; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);">
+        <a href="{% url 'request_create' %}" class="btn btn-primary create-btn">
             <i class="fas fa-plus-circle"></i> NEW REQUEST
         </a>
     </div>
@@ -41,10 +41,10 @@
             </div>
         </div>
 
-        <form method="get" class="search-form" style="margin-bottom: 0; flex: 1; max-width: 400px;">
+        <form method="get" class="search-form">
             <div class="search-input-wrapper">
                 <span class="search-icon"><i class="fas fa-search"></i></span>
-                <input type="text" name="q" placeholder="Search by facility, location..." class="form-control" value="{{ request.GET.q }}" style="height: 44px; border-radius: 12px; border-color: #e2e8f0;">
+                <input type="text" name="q" placeholder="Search by facility, location..." class="form-control" value="{{ request.GET.q }}">
             </div>
             {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
             {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
@@ -52,58 +52,8 @@
     </div>
 </div>
 
-<div class="request-modern-grid">
-    {% for request_item in requests %}
-    <div class="request-modern-card" 
-         onclick="window.location='{% url 'request_detail' request_item.pk %}';" 
-         style="cursor: pointer;">
-        <div class="request-card-header">
-            <span class="card-id-badge">#MR-{{ request_item.id }}</span>
-            <span class="status-badge urgency-{{ request_item.urgency|lower }}" style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; min-width: auto; padding: 0.35rem 0.75rem;">
-                {{ request_item.urgency }}
-                {% if request_item.urgency != 'Low' and request_item.urgency != 'Medium' %}Urgency{% endif %}
-            </span>
-        </div>
-
-        <h3 class="request-card-title">{{ request_item.facility_name|default:request_item.service_type|default:"Maintenance Request" }}</h3>
-        <div class="request-card-location">
-            <i class="fas fa-map-marker-alt" style="color: var(--primary-color);"></i>
-            {{ request_item.get_location_display|default:"On-site" }}
-        </div>
-
-        <div class="request-card-info-grid">
-            <div>
-                <span class="info-label">Requested By</span>
-                <div style="display: flex; align-items: center; gap: 0.6rem;">
-                    <div class="engineer-avatar" style="width: 28px; height: 28px; font-size: 0.8rem; border-radius: 8px;">
-                        {{ request_item.created_by.username|make_list|first|upper }}
-                    </div>
-                    <span style="font-size: 0.85rem; font-weight: 700; color: #334155;">{{ request_item.created_by.get_full_name|default:request_item.created_by.username }}</span>
-                </div>
-            </div>
-            <div>
-                <span class="info-label">Due Date</span>
-                <span style="font-size: 0.85rem; font-weight: 700; color: #334155;">{{ request_item.customer_contact_date|date:"M d, Y" }}</span>
-            </div>
-        </div>
-
-        <div class="request-card-footer">
-            <a href="{% url 'request_detail' request_item.pk %}" class="footer-link">View Details</a>
-            {% if user.is_staff or request_item.created_by == user %}
-            <a href="{% url 'request_update' request_item.pk %}" class="footer-edit-link" onclick="event.stopPropagation();">
-                <i class="fas fa-pen" style="font-size: 0.75rem;"></i> Edit
-            </a>
-            {% endif %}
-        </div>
-    </div>
-    {% empty %}
-    <div style="grid-column: 1/-1; text-align: center; padding: 5rem 2rem; background: #f8fafc; border-radius: 30px; border: 2px dashed #e2e8f0;">
-        <i class="fas fa-clipboard-check" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 1.5rem;"></i>
-        <h2 style="color: #64748b;">No maintenance tasks found</h2>
-        <p class="text-muted">Adjust your filters or start a new request.</p>
-        <a href="{% url 'request_create' %}" class="btn btn-primary" style="margin-top: 2rem; border-radius: 12px;">+ Create New Request</a>
-    </div>
-    {% endfor %}
+<div class="request-modern-grid" id="request-grid-container">
+    {% include 'core/partials/request_cards_partial.html' %}
 </div>
 
 {% if is_paginated %}
@@ -111,4 +61,114 @@
     <!-- Pagination remains functional -->
 </div>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const gridContainer = document.getElementById('request-grid-container');
+    const filterContainer = document.querySelector('.premium-filter-container');
+
+    if (!gridContainer || !filterContainer) return;
+
+    const searchForm = document.querySelector('.search-form');
+
+    filterContainer.addEventListener('click', function(e) {
+        const link = e.target.closest('a');
+        if (!link) return;
+
+        // Don't intercept if it's the "New Request" button (though it's outside this container now)
+        if (link.classList.contains('create-btn')) return;
+
+        e.preventDefault();
+        const url = new URL(link.href);
+        fetchRequests(url);
+    });
+
+    if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(searchForm);
+            const params = new URLSearchParams(formData);
+            const url = new URL(window.location.href);
+            
+            // Clear existing but relevant params and set new ones
+            for (const [key, value] of params) {
+                if (value) url.searchParams.set(key, value);
+                else url.searchParams.delete(key);
+            }
+            
+            fetchRequests(url);
+        });
+    }
+
+    // Handle card clicks via event delegation
+    gridContainer.addEventListener('click', function(e) {
+        const card = e.target.closest('.request-modern-card');
+        if (card && !e.target.closest('a')) {
+            const url = card.getAttribute('data-url');
+            if (url) window.location.href = url;
+        }
+    });
+
+    async function fetchRequests(url) {
+        // Add loading state
+        gridContainer.style.opacity = '0.5';
+        gridContainer.style.pointerEvents = 'none';
+
+        try {
+            // Append ajax param
+            url.searchParams.set('ajax', '1');
+            
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) throw new Error('Network response was not ok');
+
+            const html = await response.text();
+            gridContainer.innerHTML = html;
+            
+            // Update URL in browser
+            url.searchParams.delete('ajax');
+            window.history.pushState({}, '', url.toString());
+
+            // Update active states for status pills
+            const status = url.searchParams.get('status') || '';
+            document.querySelectorAll('.status-pill').forEach(pill => {
+                const pillUrl = new URL(pill.href);
+                const pillStatus = pillUrl.searchParams.get('status') || '';
+                if (pillStatus === status) {
+                    pill.classList.add('active');
+                } else {
+                    pill.classList.remove('active');
+                }
+            });
+
+            // Update active states for sort buttons
+            const sort = url.searchParams.get('sort') || 'timeline';
+            document.querySelectorAll('.sort-toggle-btn').forEach(btn => {
+                const btnUrl = new URL(btn.href);
+                const btnSort = btnUrl.searchParams.get('sort') || 'timeline';
+                if (btnSort === sort) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+        } catch (error) {
+            console.error('Fetch error:', error);
+        } finally {
+            gridContainer.style.opacity = '1';
+            gridContainer.style.pointerEvents = 'auto';
+        }
+    }
+
+    // Handle back/forward browser buttons
+    window.addEventListener('popstate', function() {
+        fetchRequests(new URL(window.location.href));
+    });
+});
+</script>
 {% endblock %}

@@ -23,8 +23,39 @@ if settings.OPENAI_API_KEY:
 
 @login_required
 def docai_home(request):
-    summaries = TenderSummary.objects.filter(user=request.user)
-    return render(request, 'docai/home.html', {'summaries': summaries})
+    summaries = TenderSummary.objects.all()
+    
+    # Filtering logic
+    donor = request.GET.get('donor')
+    continent = request.GET.get('continent')
+    category = request.GET.get('category')
+    
+    if donor:
+        summaries = summaries.filter(donor__icontains=donor)
+    if continent:
+        summaries = summaries.filter(continent=continent)
+    if category:
+        summaries = summaries.filter(category=category)
+    
+    # Get unique values for filters
+    donors = TenderSummary.objects.values_list('donor', flat=True).distinct()
+    donors = [d for d in donors if d]
+    
+    continents = TenderSummary.objects.values_list('continent', flat=True).distinct()
+    continents = [c for c in continents if c]
+    
+    context = {
+        'summaries': summaries,
+        'donors': sorted(donors),
+        'continents': sorted(continents),
+        'categories': dict(TenderSummary._meta.get_field('category').choices),
+        'current_filters': {
+            'donor': donor,
+            'continent': continent,
+            'category': category
+        }
+    }
+    return render(request, 'docai/home.html', context)
 
 @login_required
 def summarize_document(request):
@@ -120,8 +151,11 @@ Return ONLY a JSON object with this schema. CRITICAL: Always extract the country
     "title": "Full tender title exactly as written",
     "id_reference": "Tender reference number or ID",
     "country": "MANDATORY - The country where the tender is located (e.g., Lebanon, Jordan, Iraq, Egypt, etc.)",
+    "continent": "The continent of the country (Africa, Asia, Europe, North America, South America, Oceania)",
     "location": "MANDATORY - City, region, or specific project location",
     "procuring_entity": "MANDATORY - The FULL NAME of the organization issuing the tender (Ministry, Agency, Company, NGO, etc.)",
+    "donor_entity": "The organization or donor funding the tender (e.g., USAID, EU, World Bank, etc.)",
+    "category": "Pick ONE exactly from: medical, lab, agricultural, industrial, educational, research, mix",
     "submission_deadline": "Exact date and time for bid submission",
     "clarification_deadline": "Deadline for asking questions",
     "currency_code": "Currency code (USD/EUR/LBP/etc)",
@@ -220,6 +254,16 @@ IMPORTANT EXTRACTION RULES:
             summary_obj.location = location_detail
         
         summary_obj.tenderer = summary_data.get('procuring_entity', 'Not specified')
+        summary_obj.donor = summary_data.get('donor_entity', 'Not specified')
+        summary_obj.continent = summary_data.get('continent', 'Not specified')
+        
+        # Validate category
+        raw_category = summary_data.get('category', '').lower()
+        valid_categories = ['medical', 'lab', 'agricultural', 'industrial', 'educational', 'research', 'mix']
+        if raw_category in valid_categories:
+            summary_obj.category = raw_category
+        else:
+            summary_obj.category = 'mix' # Default if invalid or not specified
         
         lots_data = bid.get('lot_hierarchy', [])
         summary_obj.lots = json.dumps(lots_data)
@@ -262,7 +306,7 @@ IMPORTANT EXTRACTION RULES:
 @login_required
 def analysis_progress_api(request, summary_id):
     """API endpoint to get the current progress of an analysis."""
-    summary = get_object_or_404(TenderSummary, id=summary_id, user=request.user)
+    summary = get_object_or_404(TenderSummary, id=summary_id)
     return JsonResponse({
         'status': summary.status,
         'progress': summary.analysis_progress,
@@ -287,14 +331,19 @@ def delete_summary(request, summary_id):
 
 @login_required
 def summary_detail(request, summary_id):
-    summary = get_object_or_404(TenderSummary, id=summary_id, user=request.user)
+    summary = get_object_or_404(TenderSummary, id=summary_id)
     return render(request, 'docai/detail.html', {'summary': summary})
 
 @login_required
 @require_POST
 def edit_summary(request, summary_id):
     """View to manually edit tender summary info."""
-    summary = get_object_or_404(TenderSummary, id=summary_id, user=request.user)
+    summary = get_object_or_404(TenderSummary, id=summary_id)
+    
+    # Permission check: Creator or Admin
+    if not (summary.user == request.user or request.user.is_staff):
+        messages.error(request, "You do not have permission to edit this summary.")
+        return redirect('docai:detail', summary_id=summary.id)
     
     # Update fields from POST data
     summary.title = request.POST.get('title', summary.title)
@@ -315,6 +364,11 @@ def edit_summary(request, summary_id):
     summary.killer_clauses = request.POST.get('killer_clauses', summary.killer_clauses)
     summary.document_checklist = request.POST.get('document_checklist', summary.document_checklist)
     summary.quality_certificates = request.POST.get('quality_certificates', summary.quality_certificates)
+    
+    # Filtering fields
+    summary.donor = request.POST.get('donor', summary.donor)
+    summary.continent = request.POST.get('continent', summary.continent)
+    summary.category = request.POST.get('category', summary.category)
     
     # Update lots if provided (it's stored as JSON string)
     lots_json = request.POST.get('lots')

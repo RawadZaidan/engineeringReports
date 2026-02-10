@@ -17,6 +17,18 @@
                 <span class="badge badge-{{ summary.status }}">{{ summary.status|title }}</span>
                 {% endif %}
                 
+                {% if summary.category %}
+                <span class="version-badge ai" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;">
+                    <i class="fas fa-tag"></i> {{ summary.get_category_display }}
+                </span>
+                {% endif %}
+                
+                {% if summary.continent %}
+                <span class="version-badge ai" style="background: #f0fdf4; color: #166534; border: 1px solid #dcfce7;">
+                    <i class="fas fa-globe"></i> {{ summary.continent }}
+                </span>
+                {% endif %}
+                
                 {% if summary.is_human_enhanced %}
                 <span class="version-badge human" title="Edited by human">👤 Human Enhanced</span>
                 {% else %}
@@ -144,6 +156,11 @@
                 <div class="data-icon">🛡️</div>
                 <div class="data-label">Bid Security/Bond</div>
                 <div class="data-value">{{ summary.bid_security }}</div>
+            </div>
+            <div class="card data-card">
+                <div class="data-icon">🤝</div>
+                <div class="data-label">Donor</div>
+                <div class="data-value">{{ summary.donor|default:"N/A" }}</div>
             </div>
         </div>
 
@@ -277,6 +294,29 @@
                         <div class="form-group">
                             <label>Currency</label>
                             <input type="text" name="currency_code" value="{{ summary.currency_code|default:'' }}" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-grid-three">
+                        <div class="form-group">
+                            <label>Donor</label>
+                            <input type="text" name="donor" value="{{ summary.donor|default:'' }}" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Continent</label>
+                            <input type="text" name="continent" value="{{ summary.continent|default:'' }}" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select name="category" class="form-control">
+                                <option value="">Select Category</option>
+                                <option value="medical" {% if summary.category == 'medical' %}selected{% endif %}>Medical</option>
+                                <option value="lab" {% if summary.category == 'lab' %}selected{% endif %}>Lab</option>
+                                <option value="agricultural" {% if summary.category == 'agricultural' %}selected{% endif %}>Agricultural</option>
+                                <option value="industrial" {% if summary.category == 'industrial' %}selected{% endif %}>Industrial</option>
+                                <option value="educational" {% if summary.category == 'educational' %}selected{% endif %}>Educational</option>
+                                <option value="research" {% if summary.category == 'research' %}selected{% endif %}>Research</option>
+                                <option value="mix" {% if summary.category == 'mix' %}selected{% endif %}>Mix</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-grid-two">
