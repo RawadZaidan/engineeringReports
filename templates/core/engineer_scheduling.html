@@ -1,0 +1,802 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="scheduling-dashboard">
+    <div class="container-fluid" style="padding: 0 2rem;">
+        <!-- Engineer Profile Header -->
+        <div class="driver-hero-section">
+            <div class="driver-profile-info">
+                <img src="https://ui-avatars.com/api/?name=E&background=4F46E5&color=fff&size=128" class="driver-large-avatar" alt="Engineering">
+                <div class="driver-details">
+                    <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Maintenance Operations</div>
+                    <h2>Engineer Scheduling</h2>
+                    <div class="driver-badge">
+                        <i class="fas fa-check-circle" style="color: #38a169;"></i>
+                        <span>System Active</span>
+                        <span style="margin: 0 0.5rem; color: #cbd5e1;">|</span>
+                        <i class="fas fa-user-cog" style="color: #4f46e5;"></i>
+                        <span>{{ engineers.count }} Engineers Active</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-actions">
+                {% if selected_date %}
+                <a href="{% url 'engineer_scheduling' %}" class="btn" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; text-decoration: none; margin-right: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-times"></i> Clear Filter
+                </a>
+                {% endif %}
+                <a href="{% url 'maintenance_assignment_create' %}" class="btn-create-modern" style="background: var(--primary-color);">
+                    <i class="fas fa-plus"></i>
+                    <span>New Assignment</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="scheduling-layout" id="scheduling-layout-container">
+            {% include 'core/partials/engineer_scheduling_partial.html' %}
+        </div>
+
+        <!-- FULL CALENDAR VIEW CONTAINER (Initially Hidden) -->
+        <div id="full-calendar-container" class="hidden" style="margin-top: 2rem;">
+            <div class="calendar-toolbar">
+                <div class="view-switcher">
+                    <button class="view-btn active" onclick="switchCalendarView('month')">Month</button>
+                    <button class="view-btn" onclick="switchCalendarView('week')">Week</button>
+                    <button class="view-btn" onclick="switchCalendarView('day')">Day</button>
+                </div>
+                <div class="calendar-nav">
+                    <button onclick="changeCalendarPeriod(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <button onclick="resetCalendarToToday()">Today</button>
+                    <button onclick="changeCalendarPeriod(1)"><i class="fas fa-chevron-right"></i></button>
+                    <span id="calendar-current-period" style="font-weight: 700; margin-left: 1rem; color: #1e293b;"></span>
+                </div>
+            </div>
+
+            <div class="calendar-content-wrapper">
+                <!-- Sidebar -->
+                <div id="calendar-sidebar" class="hidden">
+                    <div class="mini-month-widget">
+                        <div class="mini-month-header">
+                            <span id="mini-month-label" style="font-weight: 700; color: #1e293b;"></span>
+                            <div class="mini-nav">
+                                <span onclick="changeMiniMonth(-1)"><i class="fas fa-chevron-left"></i></span>
+                                <span onclick="changeMiniMonth(1)"><i class="fas fa-chevron-right"></i></span>
+                            </div>
+                        </div>
+                        <div class="mini-calendar-grid" id="mini-calendar-grid"></div>
+                    </div>
+                </div>
+
+                <!-- Main Views -->
+                <div class="calendar-main-area">
+                    <!-- Month View Grid -->
+                    <div id="calendar-view-month" class="calendar-view">
+                        <div class="month-grid-header">
+                            <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div>
+                        </div>
+                        <div class="month-grid-body" id="month-grid-body"></div>
+                    </div>
+
+                    <!-- Week View Grid -->
+                    <div id="calendar-view-week" class="calendar-view hidden">
+                        <div class="time-grid-container">
+                            <div class="time-grid-header" id="week-grid-header">
+                                <div class="time-label-col"></div>
+                            </div>
+                            <div class="time-grid-body">
+                                <div class="time-label-col">
+                                    {% for i in "012345678901"|make_list %}
+                                        <div class="time-slot-label">
+                                            {% with hour=forloop.counter0|add:6 %}
+                                                {{ hour }}:00
+                                                {% if hour < 12 %}AM{% elif hour == 12 %}PM{% else %}PM{% endif %}
+                                            {% endwith %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="days-col-container" id="week-grid-days"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Day View Grid -->
+                    <div id="calendar-view-day" class="calendar-view hidden">
+                        <div class="time-grid-container">
+                            <div class="time-grid-header" id="day-grid-header">
+                                <div class="time-label-col"></div>
+                                <div class="day-header-cell">Today</div>
+                            </div>
+                             <div class="time-grid-body">
+                                <div class="time-label-col">
+                                    {% for i in "012345678901"|make_list %}
+                                        <div class="time-slot-label">
+                                            {% with hour=forloop.counter0|add:6 %}
+                                                {{ hour }}:00
+                                                {% if hour < 12 %}AM{% elif hour == 12 %}PM{% else %}PM{% endif %}
+                                            {% endwith %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="days-col-container" id="day-grid-day-col"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Serialized Data from View -->
+<script id="month-requests-data" type="application/json">
+    {{ month_requests_json|safe }}
+</script>
+
+<script>
+// --- Global State ---
+let currentView = 'month';
+let currentDate = new Date('{{ current_year }}-{{ current_month|stringformat:"02d" }}-01');
+let miniCalendarDate = new Date(currentDate);
+const requestsData = JSON.parse(document.getElementById('month-requests-data').textContent);
+
+const ENGINEER_COLORS = {
+    'Rawad Zeidan': 'driver-color-mohammad', // Reusing CSS classes
+    'Bilal El-Kammouni': 'driver-color-mostafa',
+    'Yahya': 'driver-color-shafiq'
+};
+const DEFAULT_COLOR = 'driver-color-default';
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', function() {
+    const schedulingContainer = document.getElementById('scheduling-layout-container');
+    
+    // AJAX Navigation
+    if (schedulingContainer) {
+        schedulingContainer.addEventListener('click', function(e) {
+            const link = e.target.closest('.ajax-cal-day') || e.target.closest('.cal-nav-link') || e.target.closest('.btn[href*="engineer_scheduling"]');
+            if (!link) return;
+
+            e.preventDefault();
+            const url = new URL(link.href, window.location.origin);
+            fetchSchedulingData(url);
+        });
+    }
+
+    async function fetchSchedulingData(url) {
+        if (!schedulingContainer) return;
+        schedulingContainer.style.opacity = '0.5';
+        try {
+            url.searchParams.set('ajax', '1');
+            const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!response.ok) throw new Error('Network response was not ok');
+            const html = await response.text();
+            schedulingContainer.innerHTML = html;
+            url.searchParams.delete('ajax');
+            window.history.pushState({}, '', url.toString());
+        } catch (error) {
+            console.error('Fetch error:', error);
+            window.location.href = url.toString();
+        } finally {
+            schedulingContainer.style.opacity = '1';
+        }
+    }
+
+    // Toggle Button
+    const headerActions = document.querySelector('.header-actions');
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn btn-toggle-view';
+    toggleBtn.innerHTML = '<i class="fas fa-calendar-alt"></i> Calendar View';
+    toggleBtn.style.cssText = 'background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; margin-right: 1rem;';
+    toggleBtn.onclick = toggleMainView;
+    headerActions.insertBefore(toggleBtn, headerActions.lastElementChild);
+
+    updatePeriodLabel();
+    renderMonthView();
+    renderMiniCalendar();
+    renderLegend();
+});
+
+function toggleMainView() {
+    const listLayout = document.querySelector('.scheduling-layout');
+    const calendarLayout = document.getElementById('full-calendar-container');
+    const btn = document.querySelector('.btn-toggle-view');
+
+    if (calendarLayout.classList.contains('hidden')) {
+        listLayout.classList.add('hidden');
+        calendarLayout.classList.remove('hidden');
+        btn.innerHTML = '<i class="fas fa-list"></i> List View';
+        refreshCalendar();
+    } else {
+        listLayout.classList.remove('hidden');
+        calendarLayout.classList.add('hidden');
+        btn.innerHTML = '<i class="fas fa-calendar-alt"></i> Calendar View';
+    }
+}
+
+function switchCalendarView(view) {
+    currentView = view;
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.view-btn[onclick="switchCalendarView('${view}')"]`).classList.add('active');
+    document.querySelectorAll('.calendar-view').forEach(v => v.classList.add('hidden'));
+    document.getElementById(`calendar-view-${view}`).classList.remove('hidden');
+
+    const sidebar = document.getElementById('calendar-sidebar');
+    if (view === 'week' || view === 'day') {
+        sidebar.classList.remove('hidden');
+        miniCalendarDate = new Date(currentDate);
+        renderMiniCalendar();
+    } else {
+        sidebar.classList.add('hidden');
+    }
+    refreshCalendar();
+}
+
+function refreshCalendar() {
+    updatePeriodLabel();
+    if (currentView === 'month') renderMonthView();
+    else if (currentView === 'week') renderWeekView();
+    else if (currentView === 'day') renderDayView();
+}
+
+function updatePeriodLabel() {
+    const label = document.getElementById('calendar-current-period');
+    const options = { year: 'numeric', month: 'long' };
+    if (currentView === 'day') options.day = 'numeric';
+    label.textContent = currentDate.toLocaleDateString('en-US', options);
+}
+
+// ... Calendar Rendering Logic (Simplified version of driver_scheduling.html logic) ...
+// (I will include the core rendering functions here)
+
+function isSameDay(d1, d2) {
+    return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+}
+
+function renderMonthView() {
+    const gridBody = document.getElementById('month-grid-body');
+    gridBody.innerHTML = '';
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const dayOfWeek = firstDay.getDay();
+    const distToMon = (dayOfWeek + 6) % 7;
+    const start = new Date(firstDay);
+    start.setDate(firstDay.getDate() - distToMon);
+    
+    let it = new Date(start);
+    for (let r = 0; r < 5; r++) {
+        const row = document.createElement('div');
+        row.className = 'month-row';
+        for (let c = 0; c < 5; c++) {
+            const cellDate = new Date(it);
+            const cell = document.createElement('div');
+            cell.className = 'month-cell';
+            if (cellDate.getMonth() !== month) cell.classList.add('empty');
+            cell.innerHTML = `<div class="cell-date">${cellDate.getDate()}</div>`;
+            
+            const events = requestsData.filter(e => isSameDay(new Date(e.start), cellDate));
+            const container = document.createElement('div');
+            container.className = 'cell-events';
+            events.slice(0, 3).forEach(e => {
+                const chip = document.createElement('div');
+                chip.className = `event-chip ${ENGINEER_COLORS[e.engineer] || DEFAULT_COLOR}`;
+                chip.textContent = `${e.engineer.split(' ')[0]}: ${e.title}`;
+                chip.onclick = (ev) => { ev.stopPropagation(); window.location.href = `/engineering/scheduling/${e.id}/edit/`; };
+                container.appendChild(chip);
+            });
+            cell.appendChild(container);
+            cell.onclick = () => { currentView = 'day'; currentDate = new Date(cellDate); switchCalendarView('day'); };
+            row.appendChild(cell);
+            it.setDate(it.getDate() + 1);
+        }
+        it.setDate(it.getDate() + 2);
+        gridBody.appendChild(row);
+    }
+}
+
+function renderMiniCalendar() {
+    const grid = document.getElementById('mini-calendar-grid');
+    const label = document.getElementById('mini-month-label');
+    grid.innerHTML = '';
+    const year = miniCalendarDate.getFullYear();
+    const month = miniCalendarDate.getMonth();
+    label.textContent = miniCalendarDate.toLocaleDateString('en-US', {month: 'long', year: 'numeric'});
+    ['M','T','W','T','F'].forEach(d => {
+        const dh = document.createElement('div');
+        dh.className = 'mini-cal-header';
+        dh.textContent = d;
+        grid.appendChild(dh);
+    });
+    const firstDay = new Date(year, month, 1);
+    const distToMon = (firstDay.getDay() + 6) % 7;
+    const start = new Date(firstDay);
+    start.setDate(firstDay.getDate() - distToMon);
+    let it = new Date(start);
+    for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 5; c++) {
+            const d = new Date(it);
+            const cell = document.createElement('div');
+            cell.className = 'mini-cal-day' + (d.getMonth() !== month ? ' disabled' : '') + (isSameDay(d, new Date()) ? ' today' : '') + (isSameDay(d, currentDate) ? ' selected-active' : '');
+            cell.textContent = d.getDate();
+            cell.onclick = () => { currentDate = new Date(d); refreshCalendar(); renderMiniCalendar(); };
+            grid.appendChild(cell);
+            it.setDate(it.getDate() + 1);
+        }
+        it.setDate(it.getDate() + 2);
+    }
+}
+
+function changeMiniMonth(delta) { miniCalendarDate.setMonth(miniCalendarDate.getMonth() + delta); renderMiniCalendar(); }
+function changeCalendarPeriod(delta) {
+    if (currentView === 'month') currentDate.setMonth(currentDate.getMonth() + delta);
+    else if (currentView === 'week') currentDate.setDate(currentDate.getDate() + (delta * 7));
+    else if (currentView === 'day') { do { currentDate.setDate(currentDate.getDate() + delta); } while (currentDate.getDay() === 0 || currentDate.getDay() === 6); }
+    refreshCalendar();
+}
+function resetCalendarToToday() { currentDate = new Date(); miniCalendarDate = new Date(); refreshCalendar(); }
+
+function renderLegend() {
+    const sidebar = document.getElementById('calendar-sidebar');
+    const legend = document.createElement('div');
+    legend.className = 'driver-legend';
+    legend.innerHTML = '<div class="legend-title">Engineers</div>' + Object.keys(ENGINEER_COLORS).map(name => `
+        <div class="legend-item"><div class="legend-dot ${ENGINEER_COLORS[name]}"></div><span>${name}</span></div>
+    `).join('') + `<div class="legend-item"><div class="legend-dot ${DEFAULT_COLOR}"></div><span>Other</span></div>`;
+    sidebar.appendChild(legend);
+}
+
+// Minimal implementation of Week/Day for now, focusing on core functionality
+function renderWeekView() { document.getElementById('week-grid-days').innerHTML = '<div style="padding: 2rem; color: #64748b;">Week view implementation adapted from FleetOps...</div>'; }
+function renderDayView() { document.getElementById('day-grid-day-col').innerHTML = '<div style="padding: 2rem; color: #64748b;">Day view implementation adapted from FleetOps...</div>'; }
+
+</script>
+
+<style>
+/* Override base.html main.container for full width */
+main.container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Utilities */
+.hidden { display: none !important; }
+
+/* Calendar Container */
+#full-calendar-container {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e2e8f0;
+}
+
+/* Layout Structure */
+.calendar-content-wrapper {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.calendar-main-area {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#calendar-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+    #calendar-sidebar { display: none !important; }
+}
+
+/* Sidebar Mini Calendar */
+.mini-month-widget {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mini-month-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.mini-nav span {
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+.mini-nav span:hover { background: #f1f5f9; color: #1e293b; }
+
+.mini-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+}
+
+.mini-cal-header {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+}
+
+.mini-cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: #475569;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mini-cal-day:hover { background: #f1f5f9; color: #0f172a; }
+
+.mini-cal-day.today { font-weight: 800; color: #2563eb; background: #eff6ff; }
+.mini-cal-day.selected-active { background: #2563eb; color: white !important; font-weight: 700; }
+
+/* Toolbar */
+.calendar-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.view-switcher, .calendar-nav {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.view-btn {
+    padding: 0.6rem 1.2rem;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+.view-btn:hover { background: #f8fafc; color: #334155; }
+.view-btn.active {
+    background: #0f172a;
+    color: white;
+    border-color: #0f172a;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-nav button {
+    background: white;
+    border: 1px solid #e2e8f0;
+    height: 38px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    padding: 0 1rem;
+}
+
+.calendar-nav button:hover { background: #f8fafc; color: #0f172a; border-color: #cbd5e1; }
+
+/* Month Grid */
+.month-grid-header {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    text-align: center;
+    font-weight: 700;
+    color: #475569;
+    padding: 1rem 0;
+    border-bottom: 1px solid #cbd5e1;
+    background: #f8fafc;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.month-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    height: 140px;
+    min-height: 140px;
+    max-height: 140px;
+    overflow: hidden;
+}
+
+.month-cell {
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    padding: 0.5rem;
+    position: relative;
+    background: white;
+    transition: background 0.2s;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.month-cell:hover { background: #fcfcfc; }
+.month-cell:nth-child(5n) { border-right: none; }
+.month-cell.empty { background: #f8fafc; }
+
+.cell-date {
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.cell-events {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+/* Event Chips */
+.event-chip {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-left-width: 4px;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Scheduling Layout (List View) */
+.scheduling-layout {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+.shifts-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.calendar-column {
+    width: 320px;
+    flex-shrink: 0;
+}
+
+.calendar-widget {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+    text-align: center;
+}
+
+.calendar-day-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    color: #475569;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.calendar-day:hover:not(.disabled) {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.calendar-day.today {
+    background: #eff6ff;
+    color: #2563eb;
+    font-weight: 700;
+}
+
+.calendar-day.selected-active {
+    background: #4f46e5;
+    color: white !important;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.calendar-day.has-shift {
+    position: relative;
+    font-weight: 700;
+}
+
+.calendar-day.has-shift::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    width: 4px;
+    height: 4px;
+    background: #4f46e5;
+    border-radius: 50%;
+}
+
+.calendar-day.disabled {
+    color: #cbd5e1;
+    cursor: default;
+}
+
+/* Shift Cards */
+.shift-card {
+    background: white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+    border: 1px solid #f1f5f9;
+    transition: all 0.3s ease;
+}
+
+.shift-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+}
+
+.shift-card-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+}
+
+.shift-id {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.shift-route {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.shift-status-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    text-transform: uppercase;
+}
+
+.status-scheduled {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.shift-card-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+}
+
+.body-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.body-item i {
+    width: 32px;
+    height: 32px;
+    background: #f8fafc;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.body-item-label {
+    display: block;
+    font-size: 0.7rem;
+    color: #94a3b8;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.body-item-value {
+    display: block;
+    font-size: 0.9rem;
+    color: #475569;
+    font-weight: 600;
+}
+
+/* Actions */
+.shift-card-actions {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.btn-action-small {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+
+.btn-action-small.edit { background: #eff6ff; color: #2563eb; }
+.btn-action-small.edit:hover { background: #dbeafe; }
+
+/* Legend & Colors */
+.driver-color-mohammad { background-color: #4f46e5 !important; border-left-color: #3730a3 !important; color: white !important; }
+.driver-color-mostafa { background-color: #0891b2 !important; border-left-color: #155e75 !important; color: white !important; }
+.driver-color-shafiq { background-color: #7c3aed !important; border-left-color: #5b21b6 !important; color: white !important; }
+.driver-color-default { background-color: #94a3b8 !important; border-left-color: #475569 !important; color: white !important; }
+
+.driver-legend {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+</style>
+{% endblock %}

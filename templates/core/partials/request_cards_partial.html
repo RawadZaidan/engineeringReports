@@ -1,7 +1,15 @@
 {% for request_item in requests %}
-<div class="request-modern-card" data-url="{% url 'request_detail' request_item.pk %}" style="cursor: pointer;">
+<div class="request-modern-card card-status-{{ request_item.status|lower|slugify }}" data-url="{% url 'request_detail' request_item.pk %}" style="cursor: pointer;">
     <div class="request-card-header">
-        <span class="card-id-badge">#MR-{{ request_item.id }}</span>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <span class="card-id-badge">#MR-{{ request_item.id }}</span>
+            <span class="ticket-type-tag">
+                {% if request_item.status == 'Open' %}Open (Requires Scheduling)
+                {% elif request_item.status == 'Scheduled' %}Scheduled (Scheduled)
+                {% elif request_item.status == 'Completed' %}Completed (Completed)
+                {% else %}{{ request_item.status }} ({{ request_item.status }}){% endif %}
+            </span>
+        </div>
         <span class="status-badge urgency-{{ request_item.urgency|lower }}" style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; min-width: auto; padding: 0.35rem 0.75rem;">
             {{ request_item.urgency }}
             {% if request_item.urgency != 'Low' and request_item.urgency != 'Medium' %}Urgency{% endif %}

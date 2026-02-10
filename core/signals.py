@@ -15,6 +15,8 @@ def send_maintenance_notification(sender, instance, created, **kwargs):
         }
         
         # Send to all Engineers
-        # Assuming there is a Group called 'Engineer', otherwise we might target all staff or specific users.
-        # webpush's send_group_notification sends to a group name.
-        send_group_notification(group_name="Engineer", payload=payload, ttl=1000)
+        try:
+            send_group_notification(group_name="Engineer", payload=payload, ttl=1000)
+        except Exception as e:
+            # Avoid crashing the entire request creation if notification fails
+            print(f"Webpush notification failed: {e}")

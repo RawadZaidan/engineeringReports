@@ -15,10 +15,11 @@ from datetime import timedelta
 from django.utils import timezone
 from django.core.cache import cache
 
-from .models import ServiceReport, Product, Equipment, ReportItem, ReportImage, MaintenanceRequest, MaintenanceRequestEquipment, Driver, DriverRequest
+from .models import ServiceReport, Product, Equipment, ReportItem, ReportImage, MaintenanceRequest, MaintenanceRequestEquipment, Driver, DriverRequest, Engineer, MaintenanceAssignment
 from .forms import (
     ServiceReportForm, ProductForm, EquipmentForm, ReportItemFormSet, 
-    MaintenanceRequestForm, MaintenanceRequestEquipmentFormSet, DriverRequestForm
+    MaintenanceRequestForm, MaintenanceRequestEquipmentFormSet, DriverRequestForm,
+    MaintenanceAssignmentForm
 )
 
 class DashboardView(LoginRequiredMixin, ListView):
@@ -696,7 +697,132 @@ class DriverRequestUpdateView(LoginRequiredMixin, UpdateView):
         # Users can edit their own, staff can edit any
         if self.request.user.is_staff:
             return DriverRequest.objects.all()
+        return queryset
         return DriverRequest.objects.filter(requester=self.request.user)
+
+# --- ENGINEER SCHEDULING ---
+
+class EngineerSchedulingView(LoginRequiredMixin, ListView):
+    model = MaintenanceAssignment
+    template_name = 'core/engineer_scheduling.html'
+    context_object_name = 'assignments'
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        selected_date = self.request.GET.get('date')
+        if selected_date:
+            try:
+                queryset = queryset.filter(date=selected_date)
+            except (ValueError, TypeError):
+                pass
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        import calendar
+        from datetime import date, timedelta
+        
+        today = date.today()
+        year = int(self.request.GET.get('year', today.year))
+        month = int(self.request.GET.get('month', today.month))
+        
+        cal = calendar.Calendar(firstweekday=0)
+        month_days_raw = cal.monthdayscalendar(year, month)
+        
+        calendar_weeks = []
+        for week in month_days_raw:
+            week_data = []
+            for day in week:
+                if day == 0:
+                    week_data.append({'day': 0, 'iso': None})
+                else:
+                    iso_str = f"{year}-{month:02d}-{day:02d}"
+                    week_data.append({
+                        'day': day,
+                        'iso': iso_str,
+                        'is_today': today.year == year and today.month == month and today.day == day
+                    })
+            calendar_weeks.append(week_data)
+        
+        shift_days = MaintenanceAssignment.objects.filter(
+            date__year=year, 
+            date__month=month
+        ).values_list('date__day', flat=True).distinct()
+        
+        month_assignments_qs = MaintenanceAssignment.objects.filter(
+            date__year=year,
+            date__month=month
+        ).select_related('engineer', 'maintenance_request')
+        
+        serialized_assignments = []
+        for ass in month_assignments_qs:
+            start_dt = datetime.datetime.combine(ass.date, ass.start_time)
+            end_dt = datetime.datetime.combine(ass.date, ass.end_time)
+            
+            serialized_assignments.append({
+                'id': ass.id,
+                'title': f"{ass.maintenance_request.facility_name or 'Request'} (#MR-{ass.maintenance_request.id})",
+                'start': start_dt.isoformat(),
+                'end': end_dt.isoformat(),
+                'engineer': ass.engineer.name,
+                'location': ass.maintenance_request.get_location_display() or "On-site",
+                'details': ass.notes or "",
+                'day': ass.date.day,
+                'request_id': ass.maintenance_request.id,
+            })
+        
+        context.update({
+            'engineers': Engineer.objects.filter(is_active=True),
+            'is_admin': self.request.user.is_staff,
+            'calendar_weeks': calendar_weeks,
+            'shift_days': list(shift_days),
+            'current_month': month,
+            'current_year': year,
+            'month_name': calendar.month_name[month],
+            'selected_date': self.request.GET.get('date'),
+            'month_requests_json': json.dumps(serialized_assignments),
+        })
+        return context
+
+    def get(self, request, *args, **kwargs):
+        self.object_list = self.get_queryset()
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+            self.template_name = 'core/partials/engineer_scheduling_partial.html'
+        return self.render_to_response(self.get_context_data())
+
+class MaintenanceAssignmentCreateView(LoginRequiredMixin, CreateView):
+    model = MaintenanceAssignment
+    form_class = MaintenanceAssignmentForm
+    template_name = 'core/maintenance_assignment_form.html'
+    success_url = reverse_lazy('engineer_scheduling')
+
+    def get_initial(self):
+        initial = super().get_initial()
+        request_id = self.request.GET.get('request_id')
+        if request_id:
+            initial['maintenance_request'] = request_id
+        return initial
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # Turn request status to 'Scheduled'
+        mr = form.instance.maintenance_request
+        if mr.status == 'Open':
+            mr.status = 'Scheduled'
+            mr.save()
+        return response
+
+class MaintenanceAssignmentUpdateView(LoginRequiredMixin, UpdateView):
+    model = MaintenanceAssignment
+    form_class = MaintenanceAssignmentForm
+    template_name = 'core/maintenance_assignment_form.html'
+    success_url = reverse_lazy('engineer_scheduling')
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return MaintenanceAssignment.objects.all()
+        # For engineers, maybe they can only see their own? For now, allow staff to edit any.
+        return MaintenanceAssignment.objects.all()
 
     def form_valid(self, form):
         # If a non-staff user edits, revert to pending for re-approval

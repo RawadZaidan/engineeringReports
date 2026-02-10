@@ -318,6 +318,47 @@ body {
 .bottom-nav-icon { font-size: 1.25rem; margin-bottom: 2px; }
 .bottom-nav-label { font-size: 0.75rem; font-weight: 600; }
 
+/* Navigation Badges */
+.nav-badge {
+    background-color: var(--danger-color);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0 0.4rem;
+    border-radius: 9999px;
+    margin-left: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.bottom-nav-link { 
+    position: relative; 
+}
+
+.bottom-nav-badge {
+    position: absolute;
+    top: 5px;
+    right: calc(50% - 22px);
+    background: var(--danger-color);
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 800;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    line-height: 1;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 /* Product List specific */
 .product-mobile-card:last-child {
     border-bottom: none !important;
@@ -562,6 +603,55 @@ body {
     box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.1);
     border-color: var(--primary-soft);
 }
+
+/* Status Tints */
+.card-status-open {
+    background: #fff5f5 !important; /* Soft Pink/Red */
+    border-color: #feb2b2 !important;
+}
+.card-status-open:hover {
+    border-color: #f56565 !important;
+}
+
+.card-status-scheduled {
+    background: #ebf8ff !important; /* Soft Blue */
+    border-color: #bee3f8 !important;
+}
+.card-status-scheduled:hover {
+    border-color: #4299e1 !important;
+}
+
+.card-status-completed {
+    background: #f0fff4 !important; /* Soft Green */
+    border-color: #c6f6d5 !important;
+}
+.card-status-completed:hover {
+    border-color: #48bb78 !important;
+}
+
+.card-status-in-progress {
+    background: #fffaf0 !important; /* Soft Amber */
+    border-color: #fbeed7 !important;
+}
+
+.ticket-type-tag {
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+}
+
+.card-status-open .ticket-type-tag { border-color: #feb2b2; color: #9b2c2c; }
+.card-status-scheduled .ticket-type-tag { border-color: #bee3f8; color: #2c5282; }
+.card-status-completed .ticket-type-tag { border-color: #c6f6d5; color: #22543d; }
+.card-status-in-progress .ticket-type-tag { border-color: #fbeed7; color: #744210; }
 
 .card-id-badge {
     background: #f1f5f9;

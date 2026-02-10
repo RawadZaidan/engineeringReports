@@ -45,8 +45,14 @@
             <i class="fas fa-print"></i> Print Details
         </button>
         
+        {% if request.status == 'Open' and user.is_staff %}
+        <a href="{% url 'maintenance_assignment_create' %}?request_id={{ request.pk }}" class="detail-action-btn btn-premium-primary">
+            <i class="fas fa-calendar-check"></i> Schedule Request
+        </a>
+        {% endif %}
+
         <a href="{% url 'request_list' %}" class="detail-action-btn btn-premium-outline">
-            <i class="fas fa-arrow-left"></i> Back to Fleet
+            <i class="fas fa-arrow-left"></i> Back to Requests
         </a>
     </div>
 

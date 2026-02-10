@@ -1,6 +1,6 @@
 from django import forms
 import datetime
-from .models import ServiceReport, Product, Equipment, ReportItem, MaintenanceRequest, MaintenanceRequestEquipment, DriverRequest, Driver
+from .models import ServiceReport, Product, Equipment, ReportItem, MaintenanceRequest, MaintenanceRequestEquipment, DriverRequest, Driver, MaintenanceAssignment
 from django.forms import inlineformset_factory
 
 SERVICE_TYPE_CHOICES = [
@@ -35,7 +35,15 @@ class MaintenanceRequestForm(forms.ModelForm):
         user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         if user and not user.is_staff:
-            restricted_fields = ['status', 'billing_status', 'estimated_cost']
+            # Everyone can set Billing Status
+            # Only staff can change the official Status
+            # Engineers and Staff can set Estimated Cost (Desired Pricing)
+            is_engineer = user.groups.filter(name='Engineer').exists()
+            
+            restricted_fields = ['status']
+            if not is_engineer:
+                restricted_fields.append('estimated_cost')
+                
             for field in restricted_fields:
                 if field in self.fields:
                     del self.fields[field]
@@ -292,4 +300,40 @@ class DriverRequestForm(forms.ModelForm):
                             f"Driver {driver.name} is already reserved from "
                             f"{conflict.start_time.strftime('%H:%M')} to {conflict.end_time.strftime('%H:%M')}."
                         )
+        return cleaned_data
+
+class MaintenanceAssignmentForm(forms.ModelForm):
+    class Meta:
+        model = MaintenanceAssignment
+        fields = ['engineer', 'maintenance_request', 'date', 'start_time', 'end_time', 'notes']
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'start_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'end_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'maintenance_request': forms.HiddenInput(),
+            'notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Optional instructions for the engineer...'}),
+            'engineer': forms.Select(attrs={'class': 'form-control'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        engineer = cleaned_data.get('engineer')
+        date = cleaned_data.get('date')
+        start_time = cleaned_data.get('start_time')
+        end_time = cleaned_data.get('end_time')
+
+        if engineer and date and start_time and end_time:
+            if start_time >= end_time:
+                raise forms.ValidationError("End time must be after start time.")
+            
+            # Simplified overlap check for engineers
+            overlaps = MaintenanceAssignment.objects.filter(
+                engineer=engineer,
+                date=date
+            ).exclude(pk=self.instance.pk if self.instance else None)
+            
+            for overlap in overlaps:
+                if (start_time < overlap.end_time) and (end_time > overlap.start_time):
+                    raise forms.ValidationError(f"{engineer.name} is already scheduled during this time window.")
+        
         return cleaned_data

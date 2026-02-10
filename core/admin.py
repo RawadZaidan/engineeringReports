@@ -2,7 +2,8 @@ from django.contrib import admin
 from .models import (
     Product, Equipment, ServiceReport, ReportItem,
     ReportImage, SavedFilter, MaintenanceRequest,
-    MaintenanceRequestEquipment, Driver, DriverRequest
+    MaintenanceRequestEquipment, Driver, DriverRequest,
+    Engineer, MaintenanceAssignment
 )
 
 class ReportItemInline(admin.TabularInline):
@@ -63,4 +64,15 @@ class MaintenanceRequestAdmin(admin.ModelAdmin):
     search_fields = ('facility_name', 'request_details')
     inlines = [MaintenanceRequestEquipmentInline]
     readonly_fields = ('created_at', 'updated_at')
+
+@admin.register(Engineer)
+class EngineerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', 'is_active')
+    search_fields = ('name', 'user__username')
+
+@admin.register(MaintenanceAssignment)
+class MaintenanceAssignmentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'engineer', 'maintenance_request', 'date', 'start_time')
+    list_filter = ('date', 'engineer')
+    search_fields = ('engineer__name', 'maintenance_request__facility_name')
 

@@ -1,0 +1,155 @@
+<!-- Left Side: Assignment Cards -->
+<div class="shifts-column" id="shifts-column">
+    <div class="shift-section-title">
+        <span>
+            {% if selected_date %}
+                Assignments for {{ selected_date }}
+            {% else %}
+                Active & Upcoming Assignments
+            {% endif %}
+        </span>
+        <i class="fas fa-filter" style="color: #94a3b8; font-size: 1rem; cursor: pointer;"></i>
+    </div>
+
+    {% for assignment in assignments %}
+    <div class="shift-card" data-assignment-id="{{ assignment.id }}">
+        <div class="shift-card-header">
+            <div>
+                <span class="shift-id">ID: #AS-{{ assignment.id|stringformat:"04d" }}</span>
+                <h3 class="shift-route">{{ assignment.maintenance_request.facility_name }}</h3>
+                <div style="font-size: 0.85rem; color: #64748b;">
+                    <i class="fas fa-tools" style="margin-right: 0.4rem;"></i>
+                    {{ assignment.maintenance_request.service_type|default:"Maintenance Request" }}
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="shift-status-tag status-scheduled">
+                    Scheduled
+                </span>
+                <div style="margin-top: 0.5rem; font-weight: 700; font-size: 0.9rem; color: #1e293b;">
+                    {{ assignment.date|date:"D, M d" }}
+                </div>
+            </div>
+        </div>
+
+        <div class="shift-card-body">
+            <div class="body-item">
+                <i class="fas fa-clock"></i>
+                <div>
+                    <span class="body-item-label">Time Window</span>
+                    <span class="body-item-value">{{ assignment.start_time|time:"H:i" }} - {{ assignment.end_time|time:"H:i" }}</span>
+                </div>
+            </div>
+            <div class="body-item">
+                <i class="fas fa-user-cog"></i>
+                <div>
+                    <span class="body-item-label">Engineer Assigned</span>
+                    <span class="body-item-value">{{ assignment.engineer.name }}</span>
+                </div>
+            </div>
+            <div class="body-item">
+                <i class="fas fa-map-marker-alt"></i>
+                <div>
+                    <span class="body-item-label">Location</span>
+                    <span class="body-item-value">{{ assignment.maintenance_request.get_location_display }}</span>
+                </div>
+            </div>
+            <div class="body-item">
+                <i class="fas fa-id-badge"></i>
+                <div>
+                    <span class="body-item-label">Requested By</span>
+                    <span class="body-item-value">{{ assignment.maintenance_request.created_by.get_full_name|default:assignment.maintenance_request.created_by.username }}</span>
+                </div>
+            </div>
+            {% if assignment.notes %}
+            <div class="body-item" style="grid-column: span 2;">
+                <i class="fas fa-sticky-note"></i>
+                <div>
+                    <span class="body-item-label">Notes</span>
+                    <span class="body-item-value">{{ assignment.notes }}</span>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="shift-card-actions">
+            {% if user.is_staff %}
+            <a href="{% url 'maintenance_assignment_update' assignment.pk %}" class="btn-action-small edit" title="Edit Assignment">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <a href="{% url 'request_detail' assignment.maintenance_request.pk %}" class="btn-action-small view" style="background: #f8fafc; color: #64748b;">
+                <i class="fas fa-eye"></i> View Request
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state-card" style="background: white; border-radius: 16px; padding: 3rem; text-align: center; border: 2px dashed #e2e8f0;">
+        <i class="fas fa-calendar-times" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem; display: block;"></i>
+        <h3 style="color: #64748b;">No assignments scheduled</h3>
+        <p style="color: #94a3b8;">
+            {% if selected_date %}
+                There are no engineer assignments for {{ selected_date }}.
+            {% else %}
+                New assignments will appear here once scheduled.
+            {% endif %}
+        </p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Right Side: Mini Calendar -->
+<div class="calendar-column" id="mini-calendar-column">
+    <div class="calendar-widget" id="mini-calendar-widget">
+        <div class="calendar-header">
+            <span style="font-weight: 700; color: #1e293b;">{{ month_name }} {{ current_year }}</span>
+            <div style="display: flex; gap: 0.8rem;">
+                {% with prev_m=current_month|add:"-1" next_m=current_month|add:"1" %}
+                <a href="?month={% if current_month == 1 %}12{% else %}{{ prev_m }}{% endif %}&year={% if current_month == 1 %}{{ current_year|add:"-1" }}{% else %}{{ current_year }}{% endif %}{% if selected_date %}&date={{ selected_date }}{% endif %}" class="cal-nav-link" style="color: #94a3b8; text-decoration: none;">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                <a href="?month={% if current_month == 12 %}1{% else %}{{ next_m }}{% endif %}&year={% if current_month == 12 %}{{ current_year|add:"1" }}{% else %}{{ current_year }}{% endif %}{% if selected_date %}&date={{ selected_date }}{% endif %}" class="cal-nav-link" style="color: #94a3b8; text-decoration: none;">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                {% endwith %}
+            </div>
+        </div>
+        <div class="calendar-grid">
+            <div class="calendar-day-label">M</div>
+            <div class="calendar-day-label">T</div>
+            <div class="calendar-day-label">W</div>
+            <div class="calendar-day-label">T</div>
+            <div class="calendar-day-label">F</div>
+            <div class="calendar-day-label">S</div>
+            <div class="calendar-day-label">S</div>
+            
+            {% for week in calendar_weeks %}
+                {% for day in week %}
+                    {% if day.day == 0 %}
+                        <div class="calendar-day disabled"></div>
+                    {% else %}
+                        <a href="?date={{ day.iso }}{% if current_month != today_month or current_year != today_year %}&month={{ current_month }}&year={{ current_year }}{% endif %}" 
+                           class="calendar-day ajax-cal-day {% if day.is_today %}today{% endif %} {% if selected_date == day.iso %}selected-active{% endif %} {% if day.day in shift_days %}has-shift{% endif %}"
+                           title="{{ day.iso }}">
+                            {{ day.day }}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="calendar-widget" style="margin-top: 1.5rem;">
+        <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: #1e293b;">Engineer Summary</h4>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.85rem; color: #64748b;"><i class="fas fa-calendar-check" style="color: #38a169; margin-right: 0.5rem;"></i> Total Assignments</span>
+                <span style="font-weight: 700; color: #1e293b;">{{ assignments.count }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.85rem; color: #64748b;"><i class="fas fa-user-check" style="color: #3b82f6; margin-right: 0.5rem;"></i> Active Engineers</span>
+                <span style="font-weight: 700; color: #1e293b;">{{ engineers.count }}</span>
+            </div>
+        </div>
+    </div>
+</div>
