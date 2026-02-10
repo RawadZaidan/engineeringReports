@@ -18,33 +18,28 @@ This document is designed to help AI agents (like Antigravity) navigate, underst
 
 ## 📂 Directory Structure Highlights
 
+> **See [CODE_MAP.md](CODE_MAP.md) for a detailed breakdown of models, views, and functions.**
+
 ### `config/`
-- `settings.py`: Core configuration, including `MEDIA_URL` and `STATIC_URL`.
-- `urls.py`: Main routing. Includes `core.urls` and media serving configuration.
+- `settings.py`: Core configuration.
+- `urls.py`: Main routing.
 
 ### `core/` (Main App)
-- `models.py`:
-  - `Product`: (Catalogue) Stores templates/blueprints (Manufacturer, Model).
-  - `Equipment`: (Registry) Stores specific physical units (FK to Product + Serial Number).
-  - `ServiceReport`: Main report model (linked to engineer/user).
-  - `ReportItem`: Intersection linking Report to a specific `Equipment` instance.
-  - `ReportImage`: Associated photos.
-  - `MaintenanceRequest`: High-level service requests.
-  - `MaintenanceRequestEquipment`: Links requests to specific `Equipment` instances.
-- `views.py`: Class-based views for most CRUD operations. 
-  - *Note:* Base64 signature processing happens in `form_valid` of `ServiceReportCreateView` and `ServiceReportUpdateView`.
-- `forms.py`: Custom Django forms and formsets (`ReportItemFormSet`, `MaintenanceRequestEquipmentFormSet`).
+- Contains the primary business logic for Reports, Equipment, and Requests.
+- Key files: `models.py`, `views.py`, `forms.py`, `urls.py`.
+
+### `docai/` (Document AI)
+- Handles AI-powered document summarization (Gemini/OpenAI).
+- Key files: `views.py` (Analysis logic), `utils.py` (Text extraction).
 
 ### `templates/`
-- `base.html`: Global layout, navigation, and sidebar.
-- `core/`:
-  - `dashboard.html`: Analytics and recent reports.
-  - `report_form.html`: Complex form with Signature Pad (Canvas API) and Inline Formsets.
-  - `report_detail.html`: Final rendered report with signature and image gallery.
+- `base.html`: Global layout.
+- `core/`: Dashboard and Report forms.
+- `docai/`: Document upload and summary views.
 
 ### `static/`
-- `css/`: Custom styling. Look here for design tokens and "premium" look logic.
-- `js/`: Utility scripts (e.g., `service-worker.js` for PWA capabilities).
+- `css/`: Custom styling.
+- `js/`: Utility scripts (e.g., `service-worker.js`).
 
 ---
 
@@ -103,6 +98,11 @@ This document is designed to help AI agents (like Antigravity) navigate, underst
 - **Session Security**: Secure cookies enabled in production.
 - **HTTPS**: SSL redirect and HSTS enabled in production.
 - **Authentication**: AJAX endpoints protected with `@login_required`.
+
+### 8. Document AI Analysis
+- **Workflow:** User uploads a document (PDF, DOCX, etc.) → Backend extracts text (`docai/utils.py`) → Background Thread (`perform_analysis_task`) calls LLM → Result saved to `TenderSummary`.
+- **Text Extraction:** Uses `pdfplumber`, `python-docx`, `pandas`, and `striprtf` to normalize text from various formats.
+- **LLM Integration:** Uses OpenAI/Gemini API (via `openai` client) to structure the tender data which is then saved as JSON.
 
 ---
 
