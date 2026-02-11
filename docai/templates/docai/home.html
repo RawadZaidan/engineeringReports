@@ -9,23 +9,12 @@
     <aside class="docai-sidebar">
         <div class="sidebar-header">
             <h3><i class="fas fa-filter"></i> Filters</h3>
-            {% if current_filters.donor or current_filters.continent or current_filters.category %}
+            {% if current_filters.continent or current_filters.category %}
             <a href="{% url 'docai:home' %}" class="clear-filters">Clear All</a>
             {% endif %}
         </div>
         
         <form method="get" class="filter-form">
-            <!-- Donor Filter -->
-            <div class="filter-group">
-                <label>Donor</label>
-                <select name="donor" onchange="this.form.submit()">
-                    <option value="">All Donors</option>
-                    {% for d in donors %}
-                    <option value="{{ d }}" {% if current_filters.donor == d %}selected{% endif %}>{{ d }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
             <!-- Continent Filter -->
             <div class="filter-group">
                 <label>Continent</label>
@@ -106,8 +95,8 @@
 
                         <div class="summary-info-grid">
                             <div class="info-item">
-                                <span class="info-label">Donor:</span>
-                                <span class="info-value">{{ summary.donor|default:summary.tenderer|default:"Processing..." }}</span>
+                                <span class="info-label">Procuring Entity:</span>
+                                <span class="info-value">{{ summary.tenderer|default:"Processing..." }}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Location:</span>

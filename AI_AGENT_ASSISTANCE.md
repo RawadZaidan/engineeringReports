@@ -101,7 +101,13 @@ This document is designed to help AI agents (like Antigravity) navigate, underst
 
 ### 8. Document AI Analysis
 - **Workflow:** User uploads a document (PDF, DOCX, etc.) → Backend extracts text (`docai/utils.py`) → Background Thread (`perform_analysis_task`) calls LLM → Result saved to `TenderSummary`.
-- **Text Extraction:** Uses `pdfplumber`, `python-docx`, `pandas`, and `striprtf` to normalize text from various formats.
+- **Text Extraction:** Uses `PyPDF2` (memory-efficient), `python-docx`, `pandas`, and `striprtf` to normalize text from various formats.
+- **Memory Optimization:** 
+    - **Full Document Processing:** Processes entire documents without page/sheet limits
+    - **Incremental Processing:** Page-by-page (PDF) and sheet-by-sheet (Excel) to minimize memory footprint
+    - **Explicit Memory Cleanup:** Uses `del` to free memory after processing each page/sheet
+    - **Progress Logging:** Logs progress every 10 pages (PDF) or 5 sheets (Excel) for large documents
+    - **Graceful Error Handling:** Catches MemoryError with user-friendly messages
 - **LLM Integration:** Uses OpenAI/Gemini API (via `openai` client) to structure the tender data which is then saved as JSON.
 
 ---

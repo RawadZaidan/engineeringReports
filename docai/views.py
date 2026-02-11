@@ -134,276 +134,74 @@ def perform_analysis_task(summary_id, pre_extracted_text, image_attachments):
         summary_obj.save()
 
         EXTRACTION_PROMPT = """
-ROLE: Senior Procurement Auditor with 15+ years analyzing tender documents
+You are extracting tender information. Be fast and accurate.
 
-TASK: Extract structured data with 99%+ accuracy. Every field matters for bid/no-bid decisions.
+CRITICAL RULES:
+1. Procuring Entity = The buyer organization (e.g., "Ministry of Health", "UNICEF")
+2. Donor = Same as procuring entity (no separate donor field needed)
+3. Certificates: ONLY extract if you see "required", "must", "mandatory", "shall"
+   Examples: ISO 9001, ISO 13485, CE Marking, FDA Approval, Certificate of Origin, Manufacturer Authorization
+4. Multi-sheet Excel: If you see "SHEET 1 of X", read ALL sheets and combine ALL lots
 
-═══════════════════════════════════════════════════════════════════════
+EXTRACT:
+- Title, deadline, location, country, continent
+- Procuring entity (the buyer/issuing organization)
+- Lots with items (if Excel has multiple sheets, combine ALL lots from ALL sheets)
+- Quality certificates (ISO 9001, CE, FDA, COO, etc.) - ONLY if explicitly required
+- Bid security, financial thresholds, evaluation method
+- Important notes and killer clauses
 
-CARDINAL RULES (READ TWICE):
-✓ Extract ONLY what is explicitly written - zero assumptions
-✓ "Not specified" is better than guessing
-✓ Cross-reference all pages/documents before marking "Not specified"
-✓ Preserve exact numbers, dates, and terminology from source
-✓ When multiple values exist (e.g., multiple deadlines), capture ALL of them
-✓ When in doubt about a requirement being mandatory, mark it as present (false positive safer than false negative)
-
-═══════════════════════════════════════════════════════════════════════
-
-### 1. TARGET DOCUMENTS CHECKLIST
-For EACH category below, search for these terms AND their variations throughout ALL documents:
-
-**Legal/Identity Documents:**
-- Commercial Registry: also search "business registration", "company registration", "certificate of incorporation", "trade license"
-- Tax Compliance: also search "tax clearance", "tax certificate", "fiscal compliance", "IRS clearance", "tax good standing"
-- VAT Registration: also search "value added tax", "sales tax registration", "TIN certificate", "tax identification"
-- Power of Attorney: also search "authorization letter", "signatory authority", "legal representative", "notarized authorization"
-
-**International Registrations:**
-- UNGM Vendor ID: also search "UN Global Marketplace", "UNGM registration", "UN vendor number"
-- Portal Registrations: search "UNOPS registered", "GIZ portal", "World Bank registration", "e-procurement registration"
-
-**Quality/Technical Certifications:**
-- Certificate of Origin: **CRITICAL** - search "COO", "C.O.O.", "country of origin", "manufacturing origin", "goods origin certificate", "origin declaration"
-- ISO Certifications: search "quality management", "ISO-9001", "ISO 9001", "ISO9001", "environmental certification", "ISO-14001", "ISO 13485", "quality certification"
-- Manufacturer Authorization: search "OEM letter", "brand authorization", "dealership certificate", "authorized distributor", "manufacturer's letter", "authorization from principal"
-
-**Financial Documents:**
-- Audited Financial Statements: also search "audited accounts", "financial reports", "balance sheet", "P&L statement", "annual accounts"
-- Credit Facilities: also search "bank credit line", "credit letter", "banking facilities", "financial capacity letter"
-
-═══════════════════════════════════════════════════════════════════════
-
-### 2. EXTRACTION REQUIREMENTS
-
-**A. ENTITY IDENTIFICATION**
-Search order: Cover page → Header → Footer → "About the Buyer" section → Signature blocks
-
-- **procuring_entity**: Full official legal name (not abbreviations unless only abbreviation provided)
-  * Search terms: "procuring entity", "buyer", "purchaser", "contracting authority", "client", "employer"
-  
-- **donor_entity**: Funding organization
-  * Search terms: "Funded by", "Financial Support from", "Grant from", "Donor", "Financing by"
-  * Check: Header logos, footer text, cover page acknowledgments
-
-- **Country & Location**: 
-  * Country: Search tender header, address blocks, "country" field
-  * Location: City, region, or province where buyer is located
-  * Continent: Derive from country (Africa/Asia/Europe/Americas/Oceania/Middle East)
-
-**B. CRITICAL DATES & TIMES**
-Search terms: "closing date", "deadline", "last date for submission", "submit by", "no later than", "due date"
-
-- **submission_deadline**: EXACT format required
-  * Format: "YYYY-MM-DD HH:MM timezone" OR "YYYY-MM-DD 23:59 local time" if no time specified
-  * If multiple deadlines mentioned (technical vs financial), specify: "Technical: [date], Financial: [date]"
-  
-- **clarification_deadline**: Date for submitting questions
-  * Search: "questions by", "clarifications deadline", "queries deadline", "RFI deadline"
-  * Same format as submission_deadline
-
-**C. FINANCIAL GATEKEEPERS**
-Search for amounts, percentages, and thresholds:
-
-- **Bid Security/Bid Bond**: 
-  * Search: "bid security", "earnest money", "EMD", "proposal guarantee", "tender security"
-  * Format examples: "2% of bid value", "USD 50,000", "EUR 10,000 or equivalent", "As per JV formula"
-  * Capture: Amount, format (bank guarantee/cashier's check/etc), validity period
-  
-- **Financial Vitals/Turnover Requirements**:
-  * Search: "annual turnover", "revenue", "sales volume", "financial capacity", "minimum turnover"
-  * Look for: Minimum thresholds, time period (last 3 years, etc.), currency
-  * Example: "Minimum USD 500,000 average annual turnover in last 3 years"
-  
-- **Liquidated Damages**:
-  * Search: "LD", "liquidated damages", "penalty", "delay damages", "late delivery penalty", "damages for delay"
-  * Capture percentage/amount per day/week of delay
-
-**D. ELIGIBILITY & RESTRICTIONS**
-Critical auto-disqualification criteria:
-
-- **Local Presence Required**: true/false
-  * Search: "local office required", "must have presence in", "established in [country]", "registered locally"
-  * Mark true if explicitly required, false otherwise
-  
-- **Killer Clauses/Gatekeepers**:
-  * Search: "shall be rejected", "will be disqualified", "mandatory requirement", "failure to provide", "non-compliance will result"
-  * Examples: Blacklist status, litigation history, specific certifications, country restrictions
-
-**E. QUALITY CERTIFICATIONS**
-In the "quality_certificates" field, list ONLY the high-level certificate names found:
-- Format: ["ISO 9001", "Certificate of Origin", "GMP Certificate", "CE Marking"]
-- Do NOT include descriptions or explanations
-- Search entire document for certification requirements
-
-═══════════════════════════════════════════════════════════════════════
-
-### 3. LOT & ITEM STRUCTURE
-
-**LOTS EXTRACTION RULES:**
-- If document explicitly has "Lot 1, Lot 2, Lot 3" structure → parse each separately
-- If document lists items without lot divisions → create single lot: {"lot_number": "Single Lot", "items": [...]}
-- If items are in a table/schedule → extract each row as separate item
-- Preserve item numbering exactly as in source (1.1, 1.2 or A, B, etc.)
-- If no items listed (framework/service tender) → return empty array []
-
-**Item Extraction:**
-For each item capture:
-- item_number: Line/Item number if specified in document
-- name: Complete item description (don't abbreviate)
-- quantity: Numeric value + unit (e.g., "50 units", "100 kg", "5 lots")
-- specifications: Key technical specs if mentioned inline
-
-═══════════════════════════════════════════════════════════════════════
-
-### 4. EVALUATION & COMMERCIAL TERMS
-
-- **Evaluation Method**: 
-  * Search: "evaluation criteria", "scoring", "technical and financial", "QCBS", "weight"
-  * Example: "70% Technical, 30% Financial" or "Quality-Cost Based Selection" or "Lowest Price Technically Compliant"
-
-- **Partial Bids**:
-  * Search: "partial bid", "bid for one or more lots", "all lots mandatory", "package bidding"
-  * Return: "Yes - can bid on individual lots" OR "No - must bid all lots" OR "Not specified"
-
-- **Maintenance/Warranty**:
-  * Search: "warranty period", "guarantee", "maintenance", "after-sales service", "defect liability"
-  * Capture duration and terms
-
-- **Past Performance/Experience**:
-  * Search: "similar projects", "experience required", "past performance", "reference projects", "track record"
-  * Capture: Number of similar contracts, time period, value thresholds
-
-- **Key Experts/Personnel**:
-  * Search: "key personnel", "experts", "CVs required", "team composition", "qualification of staff"
-  * List required roles if specified
-
-- **Site Visit**:
-  * Search: "site visit", "pre-bid meeting", "mandatory meeting", "venue", "physical inspection"
-  * Capture: Date, time, location, whether mandatory or optional
-
-═══════════════════════════════════════════════════════════════════════
-
-### 5. TAX & LEGAL CONSIDERATIONS
-
-- **Tax and VAT Rules**:
-  * Search: "VAT", "tax exemption", "customs duty", "import duty", "tax treatment", "withholding tax"
-  * Note: Who bears tax burden, any exemptions, tax certificates needed
-
-- **Currency**:
-  * Extract: ISO currency code (USD, EUR, GBP, etc.)
-  * Search: Bid pricing section, budget section, payment terms
-  * If multiple currencies mentioned, list primary one for bid submission
-
-═══════════════════════════════════════════════════════════════════════
-
-### 6. SPECIAL CASES TO HANDLE
-
-- **Multiple Deadlines**: If separate technical and financial deadlines exist, specify both clearly
-- **JV/Consortium Bids**: Note different requirements in financial_vitals (e.g., "Combined turnover of JV partners")
-- **Framework Agreements**: Mark in overall_summary if this is multi-year or call-off contract
-- **Amendments/Addenda**: If present, use LATEST information and note "As per Addendum X dated Y"
-- **Two-Stage/Pre-qualification**: If EOI or pre-qualification stage, note in overall_summary
-
-═══════════════════════════════════════════════════════════════════════
-
-### 7. CATEGORY CLASSIFICATION LOGIC
-
-Assign ONE category based on majority of items:
-- **medical**: >50% items are medical/hospital equipment, surgical instruments, pharmaceuticals
-- **lab**: >50% are laboratory/scientific instruments, testing equipment, research tools
-- **agricultural**: >50% are farming equipment, irrigation, seeds, fertilizers, agri-machinery
-- **industrial**: >50% are machinery, manufacturing equipment, construction materials, industrial supplies
-- **educational**: >50% are school furniture, teaching aids, stationery, educational materials
-- **research**: Primarily R&D equipment, academic/scientific research tools
-- **mix**: No single category >50% OR highly diverse item types OR services/consulting
-
-═══════════════════════════════════════════════════════════════════════
-
-### 8. PRE-SUBMISSION VALIDATION CHECKS
-
-BEFORE returning JSON, verify these self-checks:
-
-□ Is "title" longer than 10 characters and descriptive?
-□ Is "procuring_entity" an actual organization name (not "Not specified")?
-□ Does "submission_deadline" contain an actual date?
-□ If any amounts mentioned in documents, is "currency_code" filled?
-□ Does "document_checklist" have at least 3 items?
-□ Are "quality_certificates" actual certificate names (not descriptions)?
-□ If lots/items exist in document, is "lot_hierarchy" populated?
-
-If ANY check fails, re-scan the document for that specific field before finalizing.
-
-═══════════════════════════════════════════════════════════════════════
-
-### 9. OUTPUT STRUCTURE (JSON ONLY - NO MARKDOWN, NO EXPLANATIONS)
-
-Return this exact JSON structure:
-
+RETURN ONLY THIS JSON (no markdown):
 {
   "summary": {
-    "title": "Full tender title exactly as written",
-    "id_reference": "Tender ID/Reference Number",
-    "country": "Country name",
+    "title": "...",
+    "id_reference": "...",
+    "country": "...",
     "continent": "Africa/Asia/Europe/Americas/Oceania/Middle East",
-    "location": "City, Region, or Province",
-    "procuring_entity": "Full official buyer organization name",
-    "donor_entity": "Funding organization (e.g., EU, USAID, World Bank) or 'Not specified'",
-    "category": "One of: medical/lab/agricultural/industrial/educational/research/mix",
-    "submission_deadline": "YYYY-MM-DD HH:MM timezone format or 'Not specified'",
-    "clarification_deadline": "YYYY-MM-DD HH:MM timezone format or 'Not specified'",
-    "currency_code": "ISO code (USD/EUR/GBP/etc) or 'Not specified'",
-    "overall_summary": "1-2 sentence overview of what is being procured and key context"
-  },
-  "compliance": {
-    "local_presence_required": true or false,
-    "bid_security": "Amount, format, and validity (e.g., '2% of bid value as bank guarantee valid 90 days') or 'Not specified'",
-    "financial_vitals": "Turnover/liquidity requirements with amounts and timeframes or 'Not specified'",
-    "quality_certificates": ["ISO 9001", "Certificate of Origin", "CE Marking"]
+    "location": "City/Region",
+    "category": "medical/lab/agricultural/industrial/educational/research/mix",
+    "procuring_entity": "The buyer organization",
+    "donor_entity": "Same as procuring_entity",
+    "submission_deadline": "Date and time",
+    "clarification_deadline": "...",
+    "currency_code": "USD/EUR/etc",
+    "overall_summary": "Brief summary"
   },
   "logic": {
-    "evaluation_method": "Evaluation criteria and weighting (e.g., '70% Technical, 30% Financial') or 'Not specified'",
-    "allow_partial_bids": "Yes - description/No - description/Not specified",
     "lot_hierarchy": [
       {
-        "lot_number": "Lot identifier or 'Single Lot'",
-        "lot_name": "Descriptive name if provided or omit this field",
+        "lot_number": "Lot 1",
+        "lot_name": "Description",
         "items": [
-          {
-            "item_number": "Line number if specified or omit this field",
-            "name": "Complete item description",
-            "quantity": "Number and unit",
-            "specifications": "Key specs if mentioned inline or omit this field"
-          }
+          {"item_number": "1", "name": "Item name", "quantity": "10 units", "specifications": "..."}
         ]
       }
-    ]
+    ],
+    "evaluation_method": "Technical/Financial split"
+  },
+  "compliance": {
+    "local_presence_required": true/false,
+    "quality_certificates": ["ISO 9001", "CE Marking", "FDA Approval", "Certificate of Origin", "Manufacturer Authorization"],
+    "bid_security": "Amount and format",
+    "financial_vitals": "Minimum turnover requirements"
   },
   "risks": {
-    "tax_and_vat": "Tax rules, exemptions, who bears tax burden or 'Not specified'",
-    "penalties": "Liquidated damages terms and amounts or 'Not specified'",
-    "killer_clauses": ["List each critical mandatory requirement that causes auto-disqualification"],
-    "maintenance_warranty": "Warranty duration and terms or 'Not specified'",
-    "key_experts": "Required personnel/roles or 'Not specified'",
-    "past_performance": "Experience requirements and criteria or 'Not specified'",
-    "site_visit": "Date, time, location, mandatory/optional status or 'Not specified'"
+    "tax_and_vat": "...",
+    "penalties": "...",
+    "killer_clauses": ["Critical requirements"],
+    "maintenance_warranty": "...",
+    "key_experts": "...",
+    "past_performance": "...",
+    "site_visit": "..."
   },
-  "document_checklist": [
-    "List every mandatory document/certificate mentioned",
-    "Use exact terminology from tender",
-    "Include submission format if specified (original, certified copy, notarized, etc.)",
-    "Minimum 3 items if any documents required"
-  ]
+  "document_checklist": ["List of required documents"]
 }
 
-═══════════════════════════════════════════════════════════════════════
-
-REMEMBER: 
-- Return ONLY the JSON object above
-- No markdown code blocks (```json```)
-- No explanatory text before or after
-- "Not specified" is always acceptable when information is genuinely absent
-- Accuracy over completeness - never fabricate data
+REMEMBER:
+- For multi-sheet Excel: Extract lots from EVERY sheet
+- Certificates: Only if explicitly required (not just mentioned)
+  Common certificates: ISO 9001, ISO 13485, CE Marking, FDA Approval, Certificate of Origin, Manufacturer Authorization Letter
+- Return ONLY JSON, no explanations
 """
         
         messages_list = [
@@ -428,7 +226,7 @@ REMEMBER:
              raise Exception("AI client not initialized")
 
         response = client.chat.completions.create(
-            model="gpt-5-nano",
+            model="gpt-5-mini",
             messages=messages_list,
             response_format={"type": "json_object"}
         )
@@ -439,6 +237,11 @@ REMEMBER:
         summary_obj.save()
 
         data = json.loads(response.choices[0].message.content.strip())
+        
+        # DEBUG: Log what AI returned
+        logger.info(f"AI Response parsed successfully")
+        logger.info(f"Lots data: {data.get('logic', {}).get('lot_hierarchy', [])}")
+        logger.info(f"Certificates data: {data.get('compliance', {}).get('quality_certificates', [])}")
         
         # Update summary object fields
         summary_data = data.get('summary', {})
@@ -475,6 +278,7 @@ REMEMBER:
         
         lots_data = logic.get('lot_hierarchy', [])
         summary_obj.lots = json.dumps(lots_data)
+        logger.info(f"Saving lots to database: {summary_obj.lots[:200]}...")  # Log first 200 chars
         summary_obj.technical_financial_split = logic.get('evaluation_method', 'Not specified')
         
         # Ensure boolean and handle potential nulls from AI
@@ -487,6 +291,7 @@ REMEMBER:
         # Store high-level certificates
         certs = compliance.get('quality_certificates', [])
         summary_obj.quality_certificates = ", ".join(certs) if isinstance(certs, list) else str(certs)
+        logger.info(f"Saving certificates to database: {summary_obj.quality_certificates}")
         
         summary_obj.killer_clauses = ", ".join(risks.get('killer_clauses', [])) if isinstance(risks.get('killer_clauses'), list) else str(risks.get('killer_clauses', ''))
         summary_obj.maintenance_warranty = risks.get('maintenance_warranty', 'Not specified')

@@ -158,9 +158,9 @@
                 <div class="data-value">{{ summary.bid_security }}</div>
             </div>
             <div class="card data-card">
-                <div class="data-icon">🤝</div>
-                <div class="data-label">Donor</div>
-                <div class="data-value">{{ summary.donor|default:"N/A" }}</div>
+                <div class="data-icon">🏢</div>
+                <div class="data-label">Procuring Entity</div>
+                <div class="data-value">{{ summary.tenderer|default:"N/A" }}</div>
             </div>
         </div>
 
@@ -308,11 +308,7 @@
                             <input type="text" name="currency_code" value="{{ summary.currency_code|default:'' }}" class="form-control">
                         </div>
                     </div>
-                    <div class="form-grid-three">
-                        <div class="form-group">
-                            <label>Donor</label>
-                            <input type="text" name="donor" value="{{ summary.donor|default:'' }}" class="form-control">
-                        </div>
+                    <div class="form-grid-two">
                         <div class="form-group">
                             <label>Continent</label>
                             <input type="text" name="continent" value="{{ summary.continent|default:'' }}" class="form-control">

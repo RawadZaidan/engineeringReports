@@ -6,7 +6,7 @@ python-dotenv
 gunicorn
 whitenoise
 google-generativeai
-pdfplumber
+PyPDF2
 python-docx
 pandas
 openpyxl

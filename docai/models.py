@@ -67,45 +67,58 @@ class TenderSummary(models.Model):
         if not self.lots:
             return []
         try:
+            import json
             # Handle if it's already a list/dict
             if isinstance(self.lots, (list, dict)):
                 data = self.lots
             else:
-                # Use json.loads with some cleanup for single quotes
-                content = self.lots.replace("'", '"')
-                import json
-                data = json.loads(content)
+                # Parse JSON string
+                data = json.loads(self.lots)
             
-            # Normalize data: ensure it's a list of lots, and each lot has an 'items' list
-            if isinstance(data, dict): # Sometimes AI returns a single dict instead of list
+            # Handle lot_hierarchy structure from AI response
+            if isinstance(data, dict) and 'lot_hierarchy' in data:
+                data = data['lot_hierarchy']
+            
+            # Normalize data: ensure it's a list
+            if isinstance(data, dict):
                 data = [data]
             
-            return data
-        except:
-            # Fallback for old/malformed data
-            return [{'lot_number': '-', 'items': [{'name': self.lots, 'quantity': '-'}]}]
+            return data if isinstance(data, list) else []
+        except Exception as e:
+            # Log error for debugging
+            print(f"Error parsing lots: {e}")
+            print(f"Lots data: {self.lots[:200]}...")  # Print first 200 chars
+            return []
 
     def get_flattened_items(self):
         """Helper to get a flat list of items across all lots for the table."""
         lots = self.get_lots()
         flat_list = []
+        
         for lot in lots:
             lot_num = lot.get('lot_number', '-')
-            # Handle the old structure if it exists
-            if 'items' in lot:
+            lot_name = lot.get('lot_name', '')
+            
+            # Handle items array
+            if 'items' in lot and isinstance(lot['items'], list):
                 for item in lot['items']:
                     flat_list.append({
                         'lot_number': lot_num,
+                        'lot_name': lot_name,
                         'name': item.get('name', '-'),
-                        'quantity': item.get('quantity', '-')
+                        'quantity': item.get('quantity', '-'),
+                        'specifications': item.get('specifications', '')
                     })
             else:
-                # Fallback for the intermediate structure we just had
+                # Fallback: treat the lot itself as an item
                 flat_list.append({
                     'lot_number': lot_num,
-                    'name': lot.get('description', '-'),
-                    'quantity': lot.get('quantities', '-')
+                    'lot_name': lot_name,
+                    'name': lot.get('description', lot.get('name', '-')),
+                    'quantity': lot.get('quantity', lot.get('quantities', '-')),
+                    'specifications': ''
                 })
+        
         return flat_list
 
     def get_financial_thresholds(self):
