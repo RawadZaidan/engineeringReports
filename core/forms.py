@@ -222,10 +222,13 @@ class DriverRequestForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Only show active drivers
         self.fields['driver'].queryset = Driver.objects.filter(is_active=True)
-        # Apply form-control class to all fields
-        for field in self.fields.values():
+        # Apply form-control class to all fields and set min date
+        for field_name, field in self.fields.items():
             if not isinstance(field.widget, forms.CheckboxSelectMultiple):
                 field.widget.attrs.update({'class': 'form-control'})
+            
+        # Set min date to today for date field
+        self.fields['date'].widget.attrs['min'] = datetime.date.today().isoformat()
 
     # Generate 30-minute increments for time fields (6 AM to 6 PM)
     TIME_CHOICES = [
@@ -236,6 +239,12 @@ class DriverRequestForm(forms.ModelForm):
 
     start_time = forms.ChoiceField(choices=TIME_CHOICES, required=True)
     end_time = forms.ChoiceField(choices=TIME_CHOICES, required=True)
+
+    def clean_date(self):
+        date = self.cleaned_data.get('date')
+        if date and date < datetime.date.today():
+            raise forms.ValidationError("You cannot schedule a trip in the past.")
+        return date
 
     class Meta:
         model = DriverRequest

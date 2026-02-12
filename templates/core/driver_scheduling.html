@@ -228,9 +228,9 @@ const DEFAULT_DRIVER_COLOR = 'driver-color-default';
 
 // --- Filtering State ---
 // Normalize driver names to keys (First name or specific key)
-// Normalize driver names to keys (First name or specific key)
 const ALL_FILTERS = ['Mohammad', 'Mostafa', 'Shafiq', 'Samer'];
 let activeDriverFilters = new Set(ALL_FILTERS);
+let activeRequestFilter = '{{ active_filter|default:"approved" }}';
 
 function normalizeDriverName(fullName) {
     if (!fullName) return null;
@@ -266,18 +266,11 @@ function toggleDriverFilter(key) {
 function filterListView() {
     const cards = document.querySelectorAll('.shift-card');
     cards.forEach(card => {
-        // Driver name is in the 2nd body-item usually, but let's be robust
-        // We can find the body-item that has "User" icon or label "Driver Assigned"
-        // Or cleaner: check the text content of the driver value span
-        // But the partial doesn't strictly label them with classes. 
-        // Let's look for the body-item with fa-user-tie
         const driverRow = card.querySelector('.fa-user-tie')?.closest('.body-item');
         if (driverRow) {
             const driverName = driverRow.querySelector('.body-item-value')?.textContent.trim();
             const key = normalizeDriverName(driverName);
-            // If key is null (not in our main 4), and we removed Unassigned, we should hide it?
-            // Re-read requirement: "remove the other/unassigned... We only have these 4 drivers"
-            // So if key is null, it shouldn't show.
+           
             if (activeDriverFilters.has(key)) {
                 card.style.display = 'block';
             } else {
@@ -286,6 +279,44 @@ function filterListView() {
         }
     });
 }
+
+// --- Request Type / Status Filtering ---
+function toggleFilterMenu(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('filter-dropdown-menu');
+    if (menu) {
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+}
+
+function setRequestFilter(filterType) {
+    activeRequestFilter = filterType;
+    // Hide menu
+    const menu = document.getElementById('filter-dropdown-menu');
+    if(menu) menu.style.display = 'none';
+    
+    // Fetch data with new filter
+    // We need to reload the partial which contains the 'requests' list
+    // We can reuse fetchSchedulingData logic but we need to construct the URL
+    const url = new URL(window.location.href);
+    url.searchParams.set('filter', activeRequestFilter);
+    
+    // If we are "clearing" a date filter effectively by switching to global filter?
+    // User usage: "New" -> Show all new. "Archived" -> Show all past.
+    // Ensure we keep month/year if set, or date if set.
+    // fetchSchedulingData handles the fetching.
+    fetchSchedulingData(url);
+}
+
+// Close Dropdown on outside click
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('filter-dropdown-menu');
+    if (menu && menu.style.display === 'block') {
+         if (!e.target.closest('.filter-dropdown-wrapper')) {
+             menu.style.display = 'none';
+         }
+    }
+});
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', function() {
@@ -303,36 +334,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    async function fetchSchedulingData(url) {
-        if (!schedulingContainer) return;
-        
-        // Add loading state
-        schedulingContainer.style.opacity = '0.5';
-        schedulingContainer.style.pointerEvents = 'none';
-
-        try {
-            url.searchParams.set('ajax', '1');
-            const response = await fetch(url, {
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-            });
-
-            if (!response.ok) throw new Error('Network response was not ok');
-
-            const html = await response.text();
-            schedulingContainer.innerHTML = html;
-
-            // Update URL in browser
-            url.searchParams.delete('ajax');
-            window.history.pushState({}, '', url.toString());
-            
-        } catch (error) {
-            console.error('Fetch error:', error);
-            // Fallback to full reload if AJAX fails
-            window.location.href = url.toString();
-        } finally {
-            schedulingContainer.style.opacity = '1';
-            schedulingContainer.style.pointerEvents = 'auto';
-        }
+    // fetchSchedulingData is now global
+    if (schedulingContainer) {
+        // Initial fetch logic if needed here, but usually page load handles it.
+        // We handle popstate here if we want to support back/forward for AJAX
+        window.addEventListener('popstate', function() {
+            if (!document.getElementById('full-calendar-container').classList.contains('hidden')) return;
+            const link = document.createElement('a'); // dummy
+            link.href = window.location.href;
+            const url = new URL(link.href, window.location.origin);
+            fetchSchedulingData(url);
+        });
     }
 
     // Handle back/forward browser buttons
@@ -398,6 +410,39 @@ function toggleMainView() {
         // Ensure legend is rendered and list is filtered
         renderDriverLegend();
         filterListView();
+    }
+}
+
+async function fetchSchedulingData(url) {
+    const schedulingContainer = document.getElementById('scheduling-layout-container');
+    if (!schedulingContainer) return;
+    
+    // Add loading state
+    schedulingContainer.style.opacity = '0.5';
+    schedulingContainer.style.pointerEvents = 'none';
+
+    try {
+        url.searchParams.set('ajax', '1');
+        const response = await fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        if (!response.ok) throw new Error('Network response was not ok');
+
+        const html = await response.text();
+        schedulingContainer.innerHTML = html;
+
+        // Update URL in browser
+        url.searchParams.delete('ajax');
+        window.history.pushState({}, '', url.toString());
+        
+    } catch (error) {
+        console.error('Fetch error:', error);
+        // Fallback to full reload if AJAX fails
+        window.location.href = url.toString();
+    } finally {
+        schedulingContainer.style.opacity = '1';
+        schedulingContainer.style.pointerEvents = 'auto';
     }
 }
 

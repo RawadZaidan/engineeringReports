@@ -682,13 +682,30 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         queryset = super().get_queryset()
+        
+        # Date Filter (Specific Day)
         selected_date = self.request.GET.get('date')
         if selected_date:
             try:
                 queryset = queryset.filter(date=selected_date)
             except (ValueError, TypeError):
                 pass
-        return queryset
+            return queryset # specific date usually overrides status filters
+
+        # Status/Time Filters
+        filter_type = self.request.GET.get('filter', 'approved') # Default to 'approved' (Active/Schedule)
+        today = timezone.now().date()
+        
+        if filter_type == 'pending':
+            queryset = queryset.filter(status__in=['Pending', 'Edit Requested'])
+        elif filter_type == 'approved': # "Approved, Schedule"
+            queryset = queryset.filter(status='Approved', date__gte=today)
+        elif filter_type == 'archived': # "Completed, Archived" (Past)
+            queryset = queryset.filter(date__lt=today)
+        else: # Fallback or 'active' -> Approved
+            queryset = queryset.filter(status='Approved', date__gte=today)
+            
+        return queryset.order_by('date', 'start_time')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -759,7 +776,9 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
             'current_year': year,
             'month_name': calendar.month_name[month],
             'selected_date': self.request.GET.get('date'),
+            'active_filter': self.request.GET.get('filter', 'approved'),
             'month_requests_json': json.dumps(serialized_requests), # Pass as JSON string
+            'today': timezone.now().date(),
         })
         return context
 

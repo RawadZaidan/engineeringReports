@@ -2,13 +2,27 @@
 <div class="shifts-column" id="shifts-column">
     <div class="shift-section-title">
         <span>
+        <span>
             {% if selected_date %}
                 Trips for {{ selected_date }}
             {% else %}
-                Active & Upcoming Trips
+                {% if active_filter == 'pending' %}
+                    Pending (Require Approval)
+                {% elif active_filter == 'archived' %}
+                    Completed & Archived
+                {% else %}
+                    Approved & Scheduled
+                {% endif %}
             {% endif %}
         </span>
-        <i class="fas fa-filter" style="color: #94a3b8; font-size: 1rem; cursor: pointer;"></i>
+        <div class="filter-dropdown-wrapper" style="position: relative;">
+            <i class="fas fa-filter" onclick="toggleFilterMenu(event)" style="color: #94a3b8; font-size: 1rem; cursor: pointer;"></i>
+            <div id="filter-dropdown-menu" class="shadow-sm" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid #e2e8f0; border-radius: 8px; min-width: 200px; z-index: 1000; overflow: hidden;">
+                <div onclick="setRequestFilter('approved')" class="filter-option" style="padding: 0.5rem 1rem; cursor: pointer; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #f1f5f9;">Approved, Schedule</div>
+                <div onclick="setRequestFilter('pending')" class="filter-option" style="padding: 0.5rem 1rem; cursor: pointer; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #f1f5f9;">Pending (Require Approval)</div>
+                <div onclick="setRequestFilter('archived')" class="filter-option" style="padding: 0.5rem 1rem; cursor: pointer; font-size: 0.85rem; color: #475569;">Completed, Archived</div>
+            </div>
+        </div>
     </div>
 
     {% for request in requests %}
@@ -72,6 +86,25 @@
                 <div>
                     <span class="body-item-label">Vehicle</span>
                     <span class="body-item-value">{{ request.vehicle_type }}</span>
+                </div>
+            </div>
+            <div class="body-item">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                    <span class="body-item-label">Status</span>
+                    {% if request.status == 'Pending' or request.status == 'Edit Requested' %}
+                        <span class="badge bg-warning text-dark">Pending Approval</span>
+                    {% elif request.status == 'Approved' %}
+                        {% if request.date >= today %}
+                            <span class="badge bg-success">Scheduled</span>
+                        {% else %}
+                            <span class="badge bg-info text-dark">Completed</span>
+                        {% endif %}
+                    {% elif request.status == 'Cancelled' %}
+                        <span class="badge bg-secondary">Archived</span>
+                    {% else %}
+                        <span class="badge bg-secondary">{{ request.status }}</span>
+                    {% endif %}
                 </div>
             </div>
             <div class="body-item">
