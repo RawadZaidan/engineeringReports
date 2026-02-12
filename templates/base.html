@@ -4,29 +4,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Medilab{% endblock %}</title>
+    <title>{% block title %}MEDILab{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'img/medilab_logo.png' %}">
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="Medical Equipment Service Report Management System">
     <meta name="theme-color" content="#0891b2">
     <link rel="manifest" href="{% static 'manifest.json' %}">
-    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'icons/icon-192x192.png' %}">
-    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'icons/icon-512x512.png' %}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'img/medilab_logo.png' %}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'img/medilab_logo.png' %}">
     
     <!-- iOS specific meta tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Medilab">
-    <link rel="apple-touch-icon" href="{% static 'icons/icon-192x192.png' %}">
+    <meta name="apple-mobile-web-app-title" content="MEDILab">
+    <link rel="apple-touch-icon" href="{% static 'img/medilab_logo.png' %}">
     
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=3.1">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}?v=3.5">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body>
     <header class="app-header">
         <div class="container header-container">
             <div class="logo-section">
-                <h1 class="logo"><a href="{% url 'dashboard' %}">Medilab</a></h1>
+                <a href="{% url 'dashboard' %}">
+                    <img src="{% static 'img/header.jpg' %}" alt="MEDILab" class="header-logo">
+                </a>
             </div>
             <button class="menu-toggle" aria-label="Toggle Menu">
                 <span class="bar"></span>
@@ -109,7 +114,7 @@
 
     <footer class="app-footer">
         <div class="container">
-            <p>&copy; 2026 Medilab Engineering</p>
+            <p>&copy; 2026 MEDILab Engineering</p>
         </div>
     </footer>
 
@@ -119,7 +124,7 @@
             <i class="fas fa-mobile-alt"></i>
         </div>
         <div class="banner-text">
-            <span class="banner-title">Install Medilab App</span>
+            <span class="banner-title">Install MEDILab App</span>
             <span class="banner-desc">Add to home screen for a full-screen experience.</span>
         </div>
         <div class="banner-actions">

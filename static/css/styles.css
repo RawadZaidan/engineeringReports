@@ -137,7 +137,7 @@ body {
 
 .user-avatar {
     width: 32px;
-    height: 32px;
+    height: 2rem;
     border-radius: 50%;
     background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     display: flex;
@@ -269,7 +269,7 @@ body {
     justify-content: center;
     gap: 6px;
     width: 32px;
-    height: 32px;
+    height: 2rem;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -1765,7 +1765,7 @@ body {
 
 .engineer-avatar {
     width: 28px;
-    height: 28px;
+    height: 1.75rem;
     border-radius: 50%;
     background-color: var(--primary-color);
     display: flex;
@@ -2398,7 +2398,7 @@ body {
     
     .analytics-icon-circle {
         width: 32px;
-        height: 32px;
+        height: 2rem;
         border-radius: 8px;
     }
     
@@ -2990,4 +2990,22 @@ body {
     font-weight: 800;
     font-size: 0.85rem;
     cursor: pointer;
+}
+
+/* Header Logo */
+.header-logo {
+    height: 5rem;
+    width: auto;
+    display: block;
+    transition: transform 0.2s ease;
+}
+
+.header-logo:hover {
+    transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+    .header-logo {
+        height: 5rem;
+    }
 }
