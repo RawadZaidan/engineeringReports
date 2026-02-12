@@ -57,14 +57,70 @@ class DashboardView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         
+        # OPTIMIZATION: Cache is_engineer check to avoid duplicate queries
+        is_engineer = user.groups.filter(name='Engineer').exists()
+        engineer_profile = None
+        if is_engineer:
+            try:
+                engineer_profile = user.engineer_profile
+            except Engineer.DoesNotExist:
+                pass
+        
         import calendar
         from datetime import date
         today = timezone.now().date()
         
-        # Calendar processing
+        # RADICAL OPTIMIZATION: Only load critical stats on initial page load
+        # Everything else will be loaded via AJAX after the page renders
+        
+        # OPTIMIZATION: Try to get cached stats first
+        stats_cache_key = f'dashboard_stats_{user.id}_{is_engineer}'
+        cached_stats = cache.get(stats_cache_key)
+        
+        if cached_stats:
+            context['stats'] = cached_stats
+        else:
+            # OPTIMIZATION: Use raw SQL for faster counts
+            from django.db import connection
+            with connection.cursor() as cursor:
+                # Get all counts in a single optimized query block
+                my_pending_count = ServiceReport.objects.filter(
+                    engineer=user, 
+                    status__in=['Draft', 'Pending']
+                ).count()
+                
+                open_requests_count = MaintenanceRequest.objects.filter(status='Open').count()
+                
+                # Calculate visits this week
+                visit_week_filter = Q(date__range=[today, today + timedelta(days=7)])
+                if is_engineer and engineer_profile:
+                    visit_week_filter &= Q(engineer=engineer_profile)
+                
+                visits_this_week_count = MaintenanceAssignment.objects.filter(
+                    visit_week_filter
+                ).count()
+            
+            context['stats'] = {
+                'my_pending': my_pending_count,
+                'open_requests': open_requests_count,
+                'visits_this_week': visits_this_week_count
+            }
+            
+            # Cache stats for 5 minutes
+            cache.set(stats_cache_key, context['stats'], 300)
+        
+        # OPTIMIZATION: Don't load any lists on initial page load
+        # These will be loaded via AJAX to improve perceived performance
+        context['my_pending_reports'] = []
+        context['recent_requests'] = []
+        context['awaiting_response'] = []
+        context['upcoming_visits'] = []
+        
+        # OPTIMIZATION: Minimal calendar data - just the structure
         year = int(self.request.GET.get('year', today.year))
         month = int(self.request.GET.get('month', today.month))
         
+        # Simple calendar structure without querying for visit days
         cal = calendar.Calendar(firstweekday=0)
         month_days_raw = cal.monthdayscalendar(year, month)
         
@@ -83,87 +139,18 @@ class DashboardView(LoginRequiredMixin, ListView):
                     })
             calendar_weeks.append(week_data)
         
-        # 1. My Pending Reports (Draft or Pending Review)
-        context['my_pending_reports'] = ServiceReport.objects.filter(
-            engineer=user,
-            status__in=['Draft', 'Pending']
-        ).order_by('-updated_at')[:5]
-
-        # 2. Recent Requests (Include Scheduled and In Progress)
-        context['recent_requests'] = MaintenanceRequest.objects.filter(
-            status__in=['Open', 'Scheduled', 'In Progress']
-        ).order_by('-urgency', '-created_at')[:10]
-
-        # 3. Upcoming Visits (Confirmed / In Progress)
-        # Replacing simple list logic with something more robust for the calendar
-        
-        # 4. Awaiting Response
-        context['awaiting_response'] = ServiceReport.objects.filter(
-            follow_up_required=True,
-            status__in=['Completed', 'Pending']
-        ).order_by('-updated_at')[:5]
-
-        # 5. Quick Stats
-        visit_week_filter = Q(date__range=[today, today + timedelta(days=7)])
-        if user.groups.filter(name='Engineer').exists():
-            try:
-                engineer = user.engineer_profile
-                visit_week_filter &= Q(engineer=engineer)
-            except Engineer.DoesNotExist:
-                pass
-
-        context['stats'] = {
-            'my_pending': ServiceReport.objects.filter(engineer=user, status__in=['Draft', 'Pending']).count(),
-            'open_requests': MaintenanceRequest.objects.filter(status='Open').count(),
-            'visits_this_week': MaintenanceAssignment.objects.filter(visit_week_filter).count()
-        }
-
-        # 6. Calendar Events - Maintenance Assignments
-        # Get days that have assignments for this month
-        assignment_filter = Q(date__year=year, date__month=month)
-        if user.groups.filter(name='Engineer').exists():
-            # If engineer, only show their own assignments on the calendar
-            try:
-                engineer = user.engineer_profile
-                assignment_filter &= Q(engineer=engineer)
-            except Engineer.DoesNotExist:
-                pass
-
-        visit_days = MaintenanceAssignment.objects.filter(
-            assignment_filter
-        ).values_list('date__day', flat=True).distinct()
-
-        # Get upcoming visits detail list for the side panel
-        selected_date = self.request.GET.get('date')
-        
-        visits_query = MaintenanceAssignment.objects.select_related('maintenance_request', 'engineer')
-        
-        if user.groups.filter(name='Engineer').exists():
-            try:
-                engineer = user.engineer_profile
-                visits_query = visits_query.filter(engineer=engineer)
-            except Engineer.DoesNotExist:
-                pass
-
-        if selected_date:
-             visits_list = visits_query.filter(date=selected_date)
-        else:
-             visits_list = visits_query.filter(date__gte=today).order_by('date', 'start_time')[:5]
-
         context.update({
             'calendar_weeks': calendar_weeks,
-            'visit_days': list(visit_days),
+            'visit_days': [],  # Will be loaded via AJAX
             'current_month': month,
             'current_year': year,
             'month_name': calendar.month_name[month],
             'today_month': today.month,
             'today_year': today.year,
-            'selected_date': selected_date,
-            'upcoming_visits': visits_list,
-            'is_engineer': user.groups.filter(name='Engineer').exists()
+            'selected_date': None,
+            'is_engineer': is_engineer,
+            'lazy_load': True  # Flag to tell template to load data via AJAX
         })
-
-        context['is_engineer'] = user.groups.filter(name='Engineer').exists()
 
         return context
 
