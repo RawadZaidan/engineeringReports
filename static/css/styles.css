@@ -1,7 +1,7 @@
 :root {
-    --primary-color: #2563eb;
-    --primary-dark: #1d4ed8;
-    --primary-soft: #eff6ff;
+    --primary-color: #dc2626;
+    --primary-dark: #991b1b;
+    --primary-soft: #fef2f2;
     --secondary-color: #475569;
     --text-color: #0f172a;
     --text-muted: #64748b;
@@ -13,8 +13,8 @@
     --warning-soft: #fffbeb;
     --danger-color: #ef4444;
     --danger-soft: #fef2f2;
-    --info-color: #06b6d4;
-    --info-soft: #ecfeff;
+    --info-color: #dc2626;
+    --info-soft: #fef2f2;
     --background-color: #f8fafc;
     --font-family: 'Inter', system-ui, -apple-system, sans-serif;
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -139,7 +139,7 @@ body {
     width: 32px;
     height: 2rem;
     border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2718,7 +2718,7 @@ body {
     right: 20px;
     width: 60px;
     height: 60px;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
     border-radius: 30px;
     align-items: center;
@@ -3005,6 +3005,10 @@ body {
 }
 
 @media (max-width: 768px) {
+    .container {
+        padding: 0 1rem;
+    }
+    
     .header-logo {
         height: 5rem;
     }

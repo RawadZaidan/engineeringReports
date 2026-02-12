@@ -49,7 +49,9 @@
     <main class="docai-main">
         <div class="page-header-minimal">
             <div style="display: flex; align-items: center; gap: 1rem;">
-                <img src="{% static 'img/medilab_logo.png' %}" alt="MEDILab" style="height: 3rem; width: auto;">
+                <div style="width: 3rem; height: 3rem; background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+                    <i class="fas fa-brain" style="font-size: 1.5rem; color: white;"></i>
+                </div>
                 <div>
                     <h1>Analysis Dashboard</h1>
                     <p>Manage and filter your analyzed tender documents.</p>
@@ -306,7 +308,7 @@
         align-items: center;
         gap: 0.25rem;
     }
-    .tag-category { background: #eff6ff; color: #3b82f6; }
+    .tag-category { background: #fef2f2; color: #dc2626; }
     .tag-continent { background: #f0fdf4; color: #22c55e; }
 
     .summary-card-body {
@@ -352,7 +354,7 @@
     .btn-view-summary {
         font-size: 0.85rem;
         font-weight: 700;
-        color: #3b82f6;
+        color: #dc2626;
         text-decoration: none;
         display: flex;
         align-items: center;
@@ -369,7 +371,7 @@
         transition: border-color 0.3s;
     }
     .upload-card-modern:hover {
-        border-color: #3b82f6;
+        border-color: #dc2626;
     }
     .file-drop-zone {
         padding: 3rem;
@@ -380,8 +382,8 @@
     .upload-icon-wrapper {
         width: 60px;
         height: 60px;
-        background: #eff6ff;
-        color: #3b82f6;
+        background: #fef2f2;
+        color: #dc2626;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -416,8 +418,105 @@
     }
 
     @media (max-width: 992px) {
-        .docai-layout { flex-direction: column; }
-        .docai-sidebar { width: 100%; position: static; }
+        .docai-layout { 
+            flex-direction: column; 
+            margin: 1rem 0;
+            gap: 1rem;
+        }
+        .docai-sidebar { 
+            width: calc(100% - 0.5rem);
+            max-width: 100%;
+            position: static; 
+            padding: 0.75rem;
+            border-radius: 12px;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        .sidebar-header {
+            margin-bottom: 1rem;
+        }
+        .sidebar-header h3 {
+            font-size: 0.95rem;
+        }
+        .filter-group {
+            margin-bottom: 1rem;
+        }
+        .filter-group label {
+            font-size: 0.7rem;
+            margin-bottom: 0.35rem;
+        }
+        .filter-group select {
+            padding: 0.6rem;
+            font-size: 0.85rem;
+            border-radius: 8px;
+        }
+        .sidebar-footer {
+            margin-top: 1rem;
+            padding-top: 1rem;
+        }
+        .sidebar-footer .btn {
+            padding: 0.65rem;
+            font-size: 0.9rem;
+        }
+        .docai-main {
+            padding: 0;
+        }
+        .page-header-minimal {
+            margin-bottom: 1.5rem;
+        }
+        .page-header-minimal h1 {
+            font-size: 1.5rem;
+        }
+        .summaries-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .summary-card {
+            margin: 0;
+        }
+        .summary-card-header {
+            padding: 1rem;
+            flex-wrap: wrap;
+        }
+        .summary-id-title {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+        .summary-header-actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+        .info-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.25rem;
+        }
+        .info-value {
+            text-align: left;
+        }
+        .upload-card-modern {
+            padding: 0.75rem;
+            margin: 0;
+        }
+        .file-drop-zone {
+            padding: 2rem 1rem;
+        }
+        .file-list-grid {
+            grid-template-columns: 1fr;
+            padding: 0.5rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .docai-layout {
+            margin: 0.5rem 0;
+        }
+        .page-header-minimal h1 {
+            font-size: 1.25rem;
+        }
+        .page-header-minimal p {
+            font-size: 0.875rem;
+        }
     }
 </style>
 
