@@ -36,10 +36,15 @@
                 <!-- Filter Bar -->
                 <div class="filter-bar">
                     <div class="filter-groups">
-                        <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}" class="filter-tab {% if not request.GET.status %}active{% endif %}">All</a>
-                        <a href="?status=Draft{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="filter-tab {% if request.GET.status == 'Draft' %}active{% endif %}">Draft</a>
-                        <a href="?status=Pending{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="filter-tab {% if request.GET.status == 'Pending' %}active{% endif %}">Pending</a>
-                        <a href="?status=Completed{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="filter-tab {% if request.GET.status == 'Completed' %}active{% endif %}">Completed</a>
+                        <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.for_me %}&for_me=1{% endif %}" class="filter-tab {% if not request.GET.status %}active{% endif %}">All</a>
+                        <a href="?status=Draft{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.for_me %}&for_me=1{% endif %}" class="filter-tab {% if request.GET.status == 'Draft' %}active{% endif %}">Draft</a>
+                        <a href="?status=Pending{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.for_me %}&for_me=1{% endif %}" class="filter-tab {% if request.GET.status == 'Pending' %}active{% endif %}">Pending</a>
+                        <a href="?status=Completed{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.for_me %}&for_me=1{% endif %}" class="filter-tab {% if request.GET.status == 'Completed' %}active{% endif %}">Completed</a>
+                        <span style="border-left: 1px solid #cbd5e1; margin: 0 0.5rem; height: 20px; align-self: center;"></span>
+                        <a href="?for_me={% if not request.GET.for_me %}1{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                           class="filter-tab {% if request.GET.for_me %}active{% endif %}" style="color: var(--primary-blue);">
+                            <i class="fas fa-user-circle"></i> For Me
+                        </a>
                     </div>
                     <form method="get" class="search-form">
                         {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}

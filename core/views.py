@@ -70,9 +70,6 @@ class DashboardView(LoginRequiredMixin, ListView):
         from datetime import date
         today = timezone.now().date()
         
-        # RADICAL OPTIMIZATION: Only load critical stats on initial page load
-        # Everything else will be loaded via AJAX after the page renders
-        
         # OPTIMIZATION: Try to get cached stats first
         stats_cache_key = f'dashboard_stats_{user.id}_{is_engineer}'
         cached_stats = cache.get(stats_cache_key)
@@ -80,25 +77,21 @@ class DashboardView(LoginRequiredMixin, ListView):
         if cached_stats:
             context['stats'] = cached_stats
         else:
-            # OPTIMIZATION: Use raw SQL for faster counts
-            from django.db import connection
-            with connection.cursor() as cursor:
-                # Get all counts in a single optimized query block
-                my_pending_count = ServiceReport.objects.filter(
-                    engineer=user, 
-                    status__in=['Draft', 'Pending']
-                ).count()
-                
-                open_requests_count = MaintenanceRequest.objects.filter(status='Open').count()
-                
-                # Calculate visits this week
-                visit_week_filter = Q(date__range=[today, today + timedelta(days=7)])
-                if is_engineer and engineer_profile:
-                    visit_week_filter &= Q(engineer=engineer_profile)
-                
-                visits_this_week_count = MaintenanceAssignment.objects.filter(
-                    visit_week_filter
-                ).count()
+            # Calculate stats with optimized queries
+            visit_week_filter = Q(date__range=[today, today + timedelta(days=7)])
+            if is_engineer and engineer_profile:
+                visit_week_filter &= Q(engineer=engineer_profile)
+            
+            my_pending_count = ServiceReport.objects.filter(
+                engineer=user, 
+                status__in=['Draft', 'Pending']
+            ).count()
+            
+            open_requests_count = MaintenanceRequest.objects.filter(status='Open').count()
+            
+            visits_this_week_count = MaintenanceAssignment.objects.filter(
+                visit_week_filter
+            ).count()
             
             context['stats'] = {
                 'my_pending': my_pending_count,
@@ -109,18 +102,36 @@ class DashboardView(LoginRequiredMixin, ListView):
             # Cache stats for 5 minutes
             cache.set(stats_cache_key, context['stats'], 300)
         
-        # OPTIMIZATION: Don't load any lists on initial page load
-        # These will be loaded via AJAX to improve perceived performance
-        context['my_pending_reports'] = []
-        context['recent_requests'] = []
-        context['awaiting_response'] = []
-        context['upcoming_visits'] = []
-        
-        # OPTIMIZATION: Minimal calendar data - just the structure
+        # OPTIMIZATION: Use only() to fetch only needed fields for pending reports
+        context['my_pending_reports'] = ServiceReport.objects.filter(
+            engineer=user,
+            status__in=['Draft', 'Pending']
+        ).only(
+            'id', 'client_name', 'status', 'updated_at', 'location'
+        ).order_by('-updated_at')[:5]
+
+        # OPTIMIZATION: Add select_related and prefetch_related to avoid N+1 queries
+        context['recent_requests'] = MaintenanceRequest.objects.filter(
+            status__in=['Open', 'Scheduled', 'In Progress']
+        ).select_related('created_by').prefetch_related(
+            'equipment_items__equipment__product'
+        ).only(
+            'id', 'facility_name', 'status', 'urgency', 'created_at', 
+            'location', 'service_type', 'created_by__username', 'created_by__first_name'
+        ).order_by('-urgency', '-created_at')[:10]
+
+        # OPTIMIZATION: Use only() for awaiting response
+        context['awaiting_response'] = ServiceReport.objects.filter(
+            follow_up_required=True,
+            status__in=['Completed', 'Pending']
+        ).only(
+            'id', 'client_name', 'status', 'updated_at'
+        ).order_by('-updated_at')[:5]
+
+        # Calendar data
         year = int(self.request.GET.get('year', today.year))
         month = int(self.request.GET.get('month', today.month))
         
-        # Simple calendar structure without querying for visit days
         cal = calendar.Calendar(firstweekday=0)
         month_days_raw = cal.monthdayscalendar(year, month)
         
@@ -139,17 +150,45 @@ class DashboardView(LoginRequiredMixin, ListView):
                     })
             calendar_weeks.append(week_data)
         
+        # Get days that have assignments for this month
+        assignment_filter = Q(date__year=year, date__month=month)
+        if is_engineer and engineer_profile:
+            assignment_filter &= Q(engineer=engineer_profile)
+
+        visit_days = MaintenanceAssignment.objects.filter(
+            assignment_filter
+        ).values_list('date__day', flat=True).distinct()
+
+        # Get upcoming visits detail list for the side panel
+        selected_date = self.request.GET.get('date')
+        
+        visits_query = MaintenanceAssignment.objects.select_related(
+            'maintenance_request', 'engineer'
+        ).only(
+            'id', 'date', 'start_time', 'end_time', 'notes',
+            'maintenance_request__id', 'maintenance_request__facility_name',
+            'maintenance_request__location', 'engineer__name'
+        )
+        
+        if is_engineer and engineer_profile:
+            visits_query = visits_query.filter(engineer=engineer_profile)
+
+        if selected_date:
+             visits_list = visits_query.filter(date=selected_date)
+        else:
+             visits_list = visits_query.filter(date__gte=today).order_by('date', 'start_time')[:5]
+
         context.update({
             'calendar_weeks': calendar_weeks,
-            'visit_days': [],  # Will be loaded via AJAX
+            'visit_days': list(visit_days),
             'current_month': month,
             'current_year': year,
             'month_name': calendar.month_name[month],
             'today_month': today.month,
             'today_year': today.year,
-            'selected_date': None,
-            'is_engineer': is_engineer,
-            'lazy_load': True  # Flag to tell template to load data via AJAX
+            'selected_date': selected_date,
+            'upcoming_visits': visits_list,
+            'is_engineer': is_engineer
         })
 
         return context
@@ -180,15 +219,50 @@ class EquipmentListView(LoginRequiredMixin, ListView):
     model = Equipment
     template_name = 'core/equipment_list.html'
     context_object_name = 'equipments'
+    paginate_by = 10
+
+    def get_queryset(self):
+        queryset = Equipment.objects.select_related('product').annotate(
+            report_count=Count('service_history')
+        )
+        
+        # Filter by Search (Name or Serial)
+        query = self.request.GET.get('q')
+        if query:
+            queryset = queryset.filter(
+                Q(product__name__icontains=query) | 
+                Q(serial_number__icontains=query) |
+                Q(product__model__icontains=query)
+            )
+            
+        # Filter by Location
+        location = self.request.GET.get('location')
+        if location:
+            queryset = queryset.filter(current_facility=location)
+            
+        # Filter by Warranty
+        warranty = self.request.GET.get('warranty')
+        today = timezone.now().date()
+        if warranty == 'active':
+            queryset = queryset.filter(warranty_expiration_date__gte=today)
+        elif warranty == 'expired':
+            queryset = queryset.filter(warranty_expiration_date__lt=today)
+            
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         today = timezone.now().date()
         context['today'] = today
-        # Under Warranty items
-        context['under_warranty'] = Equipment.objects.filter(
-            warranty_expiration_date__gte=today
-        ).order_by('warranty_expiration_date')
+        
+        # Get all unique locations for the filter dropdown
+        context['locations'] = Equipment.objects.values_list('current_facility', flat=True).distinct().order_by('current_facility')
+        
+        # Pass current filter values to context
+        context['current_q'] = self.request.GET.get('q', '')
+        context['current_location'] = self.request.GET.get('location', '')
+        context['current_warranty'] = self.request.GET.get('warranty', '')
+        
         return context
 
 @login_required
@@ -297,7 +371,9 @@ class ServiceReportUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVie
     success_url = reverse_lazy('dashboard')
 
     def test_func(self):
-        return self.request.user.groups.filter(name='Engineer').exists()
+        obj = self.get_object()
+        # Allow if Admin OR if the user is the engineer who created the report
+        return self.request.user.is_staff or obj.engineer == self.request.user
 
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
@@ -389,6 +465,14 @@ class ServiceReportListView(LoginRequiredMixin, ListView):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
             
+        # "For Me" Filter (Toggle)
+        if self.request.GET.get('for_me'):
+            # Filter reports assigned to the user (engineer) or created by the user
+            queryset = queryset.filter(
+                Q(engineer__user=self.request.user) |
+                Q(engineer__user__isnull=True, engineer__name__icontains=self.request.user.first_name) # Fallback if no user link
+            ).distinct()
+            
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -422,6 +506,13 @@ class MaintenanceRequestListView(LoginRequiredMixin, ListView):
         if not self.request.user.is_staff:
             queryset = queryset.filter(created_by=self.request.user)
         
+        # "For Me" Filter (Toggle)
+        if self.request.GET.get('for_me'):
+            queryset = queryset.filter(
+                Q(created_by=self.request.user) |
+                Q(assignments__engineer__user=self.request.user)
+            ).distinct()
+
         status = self.request.GET.get('status')
         if status: 
             queryset = queryset.filter(status=status)
@@ -496,7 +587,7 @@ class MaintenanceRequestCreateView(LoginRequiredMixin, CreateView):
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form))
 
-class MaintenanceRequestDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+class MaintenanceRequestDetailView(LoginRequiredMixin, DetailView):
     model = MaintenanceRequest
     template_name = 'core/request_detail.html'
     context_object_name = 'request'
@@ -506,10 +597,6 @@ class MaintenanceRequestDetailView(LoginRequiredMixin, UserPassesTestMixin, Deta
         context['is_engineer'] = self.request.user.groups.filter(name='Engineer').exists()
         return context
 
-    def test_func(self):
-        obj = self.get_object()
-        return self.request.user.is_staff or obj.created_by == self.request.user
-
 class MaintenanceRequestUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = MaintenanceRequest
     form_class = MaintenanceRequestForm
@@ -518,7 +605,12 @@ class MaintenanceRequestUpdateView(LoginRequiredMixin, UserPassesTestMixin, Upda
 
     def test_func(self):
         obj = self.get_object()
-        return self.request.user.is_staff or obj.created_by == self.request.user
+        # Allow if Admin OR Creator OR Assigned Engineer
+        is_admin = self.request.user.is_staff
+        is_creator = obj.created_by == self.request.user
+        is_assigned = obj.assignments.filter(engineer__user=self.request.user).exists()
+        
+        return is_admin or is_creator or is_assigned
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs(); kwargs['user'] = self.request.user
@@ -700,7 +792,6 @@ class DriverRequestUpdateView(LoginRequiredMixin, UpdateView):
         # Users can edit their own, staff can edit any
         if self.request.user.is_staff:
             return DriverRequest.objects.all()
-        return queryset
         return DriverRequest.objects.filter(requester=self.request.user)
 
 # --- ENGINEER SCHEDULING ---

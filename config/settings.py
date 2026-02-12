@@ -30,7 +30,7 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY: Debug mode from environment (default False for production)
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['medilabengineering.onrender.com', 'www.medilabengineering.onrender.com', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['medilabengineering.onrender.com', 'www.medilabengineering.onrender.com', '127.0.0.1', 'localhost', '.onrender.com']
 
 # SECURITY: CSRF trusted origins for production
 CSRF_TRUSTED_ORIGINS = ['https://medilabengineering.onrender.com']

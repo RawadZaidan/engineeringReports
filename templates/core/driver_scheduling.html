@@ -220,9 +220,72 @@ const isStaff = {{ request.user.is_staff|yesno:"true,false" }};
 const DRIVER_COLORS = {
     'Mohammad': 'driver-color-mohammad',
     'Mostafa': 'driver-color-mostafa',
-    'Shafiq': 'driver-color-shafiq'
+    'Shafiq': 'driver-color-shafiq',
+    'Samer': 'driver-color-samer',
+    'Samer Youssif': 'driver-color-samer'
 };
 const DEFAULT_DRIVER_COLOR = 'driver-color-default';
+
+// --- Filtering State ---
+// Normalize driver names to keys (First name or specific key)
+// Normalize driver names to keys (First name or specific key)
+const ALL_FILTERS = ['Mohammad', 'Mostafa', 'Shafiq', 'Samer'];
+let activeDriverFilters = new Set(ALL_FILTERS);
+
+function normalizeDriverName(fullName) {
+    if (!fullName) return null;
+    if (fullName.includes('Mohammad')) return 'Mohammad';
+    if (fullName.includes('Mostafa')) return 'Mostafa';
+    if (fullName.includes('Shafiq')) return 'Shafiq';
+    if (fullName.includes('Samer')) return 'Samer';
+    return null;
+}
+
+function isEventVisible(e) {
+    const key = normalizeDriverName(e.driver);
+    return activeDriverFilters.has(key);
+}
+
+function toggleDriverFilter(key) {
+    if (activeDriverFilters.has(key)) {
+        activeDriverFilters.delete(key);
+    } else {
+        activeDriverFilters.add(key);
+    }
+    renderDriverLegend();
+    
+    // Refresh active view
+    const isListView = document.getElementById('full-calendar-container').classList.contains('hidden');
+    if (isListView) {
+        filterListView();
+    } else {
+        refreshCalendar();
+    }
+}
+
+function filterListView() {
+    const cards = document.querySelectorAll('.shift-card');
+    cards.forEach(card => {
+        // Driver name is in the 2nd body-item usually, but let's be robust
+        // We can find the body-item that has "User" icon or label "Driver Assigned"
+        // Or cleaner: check the text content of the driver value span
+        // But the partial doesn't strictly label them with classes. 
+        // Let's look for the body-item with fa-user-tie
+        const driverRow = card.querySelector('.fa-user-tie')?.closest('.body-item');
+        if (driverRow) {
+            const driverName = driverRow.querySelector('.body-item-value')?.textContent.trim();
+            const key = normalizeDriverName(driverName);
+            // If key is null (not in our main 4), and we removed Unassigned, we should hide it?
+            // Re-read requirement: "remove the other/unassigned... We only have these 4 drivers"
+            // So if key is null, it shouldn't show.
+            if (activeDriverFilters.has(key)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        }
+    });
+}
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', function() {
@@ -294,6 +357,7 @@ document.addEventListener('DOMContentLoaded', function() {
     renderMonthView();
     renderMiniCalendar();
     renderDriverLegend(); // New Legend
+    filterListView(); // Ensure list is filtered initially
     
     if (savedView === 'true') {
         // Toggle immediately to show calendar
@@ -330,6 +394,10 @@ function toggleMainView() {
         calendarLayout.classList.add('hidden');
         btn.innerHTML = '<i class="fas fa-calendar-alt"></i> Calendar View';
         localStorage.setItem('calendarViewActive', 'false');
+        
+        // Ensure legend is rendered and list is filtered
+        renderDriverLegend();
+        filterListView();
     }
 }
 
@@ -357,8 +425,8 @@ function switchCalendarView(view) {
         miniCalendarDate = new Date(currentDate);
         renderMiniCalendar();
         
-        // Toggle Legend: Only for Week View
-        if (legend) legend.style.display = (view === 'week') ? 'block' : 'none';
+        // Toggle Legend: Show for both Week and Day
+        if (legend) legend.style.display = 'block';
         
     } else {
         sidebar.classList.add('hidden');
@@ -379,6 +447,12 @@ function changeCalendarPeriod(delta) {
         } while (currentDate.getDay() === 0 || currentDate.getDay() === 6);
     }
     refreshCalendar();
+
+    // Sync Mini Calendar selection if visible
+    if (currentView !== 'month') {
+        miniCalendarDate = new Date(currentDate); 
+        renderMiniCalendar();
+    }
 }
 
 function resetCalendarToToday() {
@@ -446,8 +520,8 @@ function renderMiniCalendar() {
              let classes = 'mini-cal-day';
              
              // Styles
-             if (isToday(cellDate)) classes += ' today';
-             if (isSameDay(cellDate, currentDate)) classes += ' selected-active';
+             if (isToday(cellDate)) classes += ' is-today';
+             if (isSameDay(cellDate, currentDate)) classes += ' is-selected';
              
              // Check for shifts
              const hasShift = requestsData.some(e => isSameDay(new Date(e.start), cellDate));
@@ -559,13 +633,15 @@ function renderMonthView() {
                 cell.innerHTML = `<div class="cell-date">${cellDate.getDate()}</div>`;
                 
                 // Events
-                const cellEvents = requestsData.filter(e => isSameDay(new Date(e.start), cellDate));
+                const cellEvents = requestsData.filter(e => isSameDay(new Date(e.start), cellDate) && isEventVisible(e));
                 const eventsContainer = document.createElement('div');
                 eventsContainer.className = 'cell-events';
                 
                 cellEvents.slice(0, 3).forEach(e => {
                     const chip = document.createElement('div');
-                    chip.className = `event-chip status-${e.status.toLowerCase()}`;
+                    // Use driver color instead of status color
+                    const colorClass = DRIVER_COLORS[e.driver] || DEFAULT_DRIVER_COLOR;
+                    chip.className = `event-chip ${colorClass}`;
                     chip.textContent = `${e.start.substring(11, 16)} ${e.title}`;
                     chip.onclick = (ev) => {
                         ev.stopPropagation();
@@ -657,92 +733,52 @@ function renderWeekView() {
         }
 
         // Filter events for this day
-        const dayEvents = requestsData.filter(e => isSameDay(new Date(e.start), day));
+        const dayEvents = requestsData.filter(e => isSameDay(new Date(e.start), day) && isEventVisible(e));
         
-        // --- Overlap Logic ---
-        // 1. Sort by start time, then duration desc
-        dayEvents.sort((a,b) => {
-            const startA = new Date(a.start);
-            const startB = new Date(b.start);
-            if(startA - startB !== 0) return startA - startB;
-            return (new Date(b.end) - new Date(b.start)) - (new Date(a.end) - new Date(a.start));
-        });
+        // --- Column Per Driver Logic ---
+        const activeDrivers = ALL_FILTERS.filter(d => activeDriverFilters.has(d));
+        const colCount = activeDrivers.length || 1;
+        const widthPct = 100 / colCount;
 
-        // 2. Group into overlapping clusters
-        const clusters = [];
-        let currentCluster = [];
-        
+        // Add subtle vertical styling for columns (lanes)
+        // We can add backgrounds or just borders
+        if (activeDrivers.length > 1) {
+            activeDrivers.forEach((d, idx) => {
+                 if (idx > 0) {
+                     const divider = document.createElement('div');
+                     divider.style.position = 'absolute';
+                     divider.style.top = '0';
+                     divider.style.bottom = '0';
+                     divider.style.left = `${idx * widthPct}%`;
+                     divider.style.borderLeft = '1px dashed #f1f5f9';
+                     divider.style.zIndex = '1';
+                     dayCol.appendChild(divider);
+                 }
+            });
+        }
+
         dayEvents.forEach(e => {
-            if (currentCluster.length === 0) {
-                currentCluster.push(e);
-            } else {
-                // Check if e overlaps with usage of the Cluster (defined by max end time property?)
-                // Actually we just need to know if it overlaps with ANY in the cluster?
-                // Visual packing: "If it overlaps with any currently active event"
-                // Simple approach: Overlap if start < max_end_of_cluster
-                
-                // Get max end time of current cluster
-                let maxEnd = 0;
-                currentCluster.forEach(c => {
-                    const end = new Date(c.end).getTime();
-                    if(end > maxEnd) maxEnd = end;
-                });
-                
-                const start = new Date(e.start).getTime();
-                if (start < maxEnd) {
-                    currentCluster.push(e);
-                } else {
-                    clusters.push(currentCluster);
-                    currentCluster = [e];
-                }
-            }
-        });
-        if(currentCluster.length > 0) clusters.push(currentCluster);
-
-        // 3. Process clusters
-        clusters.forEach(cluster => {
-             // Assign columns
-             const columns = []; // array of end times
-             const placements = []; // { event, colIdx }
-             
-             cluster.forEach(e => {
-                 const start = new Date(e.start).getTime();
-                 const end = new Date(e.end).getTime();
-                 let placed = false;
+             const el = createEventElement(e);
+             if(el) {
+                 const drvKey = normalizeDriverName(e.driver);
+                 let colIdx = activeDrivers.indexOf(drvKey);
                  
-                 for(let c=0; c<columns.length; c++) {
-                     if(start >= columns[c]) {
-                         columns[c] = end;
-                         placements.push({event: e, colIdx: c});
-                         placed = true;
-                         break;
-                     }
-                 }
-                 if(!placed) {
-                     columns.push(end);
-                     placements.push({event: e, colIdx: columns.length - 1});
-                 }
-             });
-             
-             const widthPct = 100 / columns.length;
-             
-             placements.forEach(p => {
-                 const el = createEventElement(p.event);
-                 if(el) {
-                     // Add Color
-                     const colorClass = DRIVER_COLORS[p.event.driver] || DEFAULT_DRIVER_COLOR;
-                     el.classList.add(colorClass);
-                     
-                     // Layout
-                     if (columns.length > 1) {
-                         el.style.width = `calc(${widthPct}% - 2px)`; // -2px for margin
-                         el.style.left = `${p.colIdx * widthPct}%`;
-                         el.classList.add('compact');
-                         el.title = `${p.event.title} \nDriver: ${p.event.driver}`;
-                     }
-                     dayCol.appendChild(el);
-                 }
-             });
+                 // If Unassigned is active and this is unassigned
+                 if (colIdx === -1) return; // Should be filtered out by isEventVisible, but safety
+
+                 // Apply Driver Color
+                 const colorClass = DRIVER_COLORS[drvKey] || DEFAULT_DRIVER_COLOR;
+                 el.classList.add(colorClass);
+                 
+                 // Position in Driver Lane
+                 el.style.width = `calc(${widthPct}% - 4px)`;
+                 el.style.left = `calc(${colIdx * widthPct}% + 2px)`;
+                 
+                 // Add specific styling for this view
+                 el.style.fontSize = '0.7rem';
+                 
+                 dayCol.appendChild(el);
+             }
         });
         
         container.appendChild(dayCol);
@@ -750,50 +786,64 @@ function renderWeekView() {
 }
 
 function renderDriverLegend() {
-    const parent = document.getElementById('calendar-sidebar');
-    if(!parent) return;
-    
-    // Check if legend already exists
-    if(document.getElementById('driver-legend-box')) return;
-    
-    const legendBox = document.createElement('div');
-    legendBox.id = 'driver-legend-box';
-    legendBox.className = 'driver-legend';
-    
-    legendBox.innerHTML = `
-        <div class="legend-title">Drivers</div>
-        <div class="legend-item">
-            <div class="legend-dot driver-color-mohammad"></div>
-            <span>Mohammad</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot driver-color-mostafa"></div>
-            <span>Mostafa</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot driver-color-shafiq"></div>
-            <span>Shafiq</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-dot driver-color-default"></div>
-            <span>Other/Unassigned</span>
-        </div>
-    `;
-    
-    // Insert after mini calendar
-    const miniWidget = parent.querySelector('.mini-month-widget');
-    if(miniWidget) {
-        miniWidget.parentNode.insertBefore(legendBox, miniWidget.nextSibling);
-    } else {
-        parent.appendChild(legendBox);
-    }
+    // Targets: Full Calendar Sidebar AND List View Sidebar
+    const targets = [
+        document.getElementById('calendar-sidebar'),
+        document.getElementById('mini-calendar-column')
+    ];
+
+    targets.forEach(parent => {
+        if(!parent) return;
+        
+        // Check if legend already exists in this parent
+        // Use a class for identifying the legend box, but unique ID per instance
+        let legendBox = parent.querySelector('.driver-legend');
+        
+        if(!legendBox) {
+            legendBox = document.createElement('div');
+            legendBox.className = 'driver-legend'; // Class handles styling
+            
+            // Insert after mini calendar widget or at end
+            const miniWidget = parent.querySelector('.mini-month-widget') || parent.querySelector('#mini-calendar-widget');
+            if(miniWidget && miniWidget.nextSibling) {
+                parent.insertBefore(legendBox, miniWidget.nextSibling);
+            } else {
+                parent.appendChild(legendBox);
+            }
+        }
+        
+        legendBox.innerHTML = `<div class="legend-title" style="margin-bottom:0.5rem; font-weight:700; color:#1e293b;">Filter Drivers</div>`;
+        
+        ALL_FILTERS.forEach(key => {
+            const item = document.createElement('div');
+            item.className = `legend-item ${activeDriverFilters.has(key) ? '' : 'inactive'}`;
+            item.onclick = () => toggleDriverFilter(key);
+            
+            // Determine color class
+            let colorClass = DEFAULT_DRIVER_COLOR;
+            // Since Unassigned is gone from filters, we just match keys
+            if (DRIVER_COLORS[key]) {
+                 colorClass = DRIVER_COLORS[key];
+            } else if (key === 'Unassigned') {
+                 // Fallback if it somehow remains
+            }
+            
+            item.innerHTML = `
+                <div class="legend-dot ${colorClass}"></div>
+                <span>${key}</span>
+            `;
+            legendBox.appendChild(item);
+        });
+    });
 }
 
 function renderDayView() {
     const container = document.getElementById('day-grid-day-col');
     const headerDateEl = document.querySelector('#day-grid-header .day-header-cell');
     
-    const drivers = ['Mohammad', 'Mostafa', 'Shafiq'];
+    // Filter columns based on active selection
+    // Use global ALL_FILTERS to ensure consistency
+    const drivers = ALL_FILTERS.filter(d => activeDriverFilters.has(d));
 
     // Update Header Date & Add Driver Labels
     if (headerDateEl) {
@@ -1597,34 +1647,36 @@ main.container {
 
 /* Legend Styles */
 .driver-legend {
-    margin-top: 1.5rem;
-    padding: 1rem;
-    background: #f8fafc;
-    border-radius: 12px;
+    margin-top: 1rem;
+    background: white;
     border: 1px solid #e2e8f0;
-}
-.legend-title {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #475569;
-    margin-bottom: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    border-radius: 12px;
+    padding: 1rem;
 }
 .legend-item {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.5rem;
-    font-size: 0.85rem;
-    color: #1e293b;
-    font-weight: 500;
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
 }
-.legend-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
+.legend-item:hover {
+    background: #f8fafc;
 }
+.legend-item.inactive {
+    opacity: 0.5;
+    filter: grayscale(1);
+}
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+
 
 /* Compact Overlap Style */
 .time-grid-event.compact {

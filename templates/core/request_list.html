@@ -28,13 +28,20 @@
     <!-- Sort & Search Bar -->
     <div class="premium-sort-search">
         <div class="sort-label-group">
-            <span class="sort-label">Sort by:</span>
+            <span class="sort-label">View:</span>
             <div class="sort-toggle-group">
-                <a href="?sort=timeline{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                <a href="?for_me={% if not request.GET.for_me %}1{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                   class="sort-toggle-btn {% if request.GET.for_me %}active{% endif %}">
+                    <i class="fas fa-user-circle"></i> For Me
+                </a>
+            </div>
+            <span class="sort-label" style="margin-left: 1rem;">Sort by:</span>
+            <div class="sort-toggle-group">
+                <a href="?sort=timeline{% if request.GET.for_me %}&for_me=1{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
                    class="sort-toggle-btn {% if request.GET.sort != 'urgency' %}active{% endif %}">
                     <i class="fas fa-history"></i> Timeline
                 </a>
-                <a href="?sort=urgency{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                <a href="?sort=urgency{% if request.GET.for_me %}&for_me=1{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
                    class="sort-toggle-btn {% if request.GET.sort == 'urgency' %}active{% endif %}">
                     <i class="fas fa-bolt"></i> Urgency
                 </a>

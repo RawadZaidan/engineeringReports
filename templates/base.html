@@ -43,15 +43,19 @@
                 {% if is_engineer %}
                 <a href="{% url 'report_create' %}" class="nav-link"><i class="fas fa-plus-circle nav-icon"></i> New Report</a>
                 {% endif %}
+                {% if user.is_superuser %}
                 <a href="{% url 'product_list' %}" class="nav-link"><i class="fas fa-boxes nav-icon"></i> Catalogue</a>
                 <a href="{% url 'equipment_list' %}" class="nav-link"><i class="fas fa-microscope nav-icon"></i> Asset Registry</a>
+                {% endif %}
                 <a href="{% url 'request_list' %}" class="nav-link">
                     <i class="fas fa-clipboard-list nav-icon"></i> Requests
                     {% if open_maintenance_count > 0 %}
                     <span class="nav-badge">{{ open_maintenance_count }}</span>
                     {% endif %}
                 </a>
+                {% if user.is_superuser %}
                 <a href="{% url 'docai:home' %}" class="nav-link"><i class="fas fa-robot nav-icon"></i> DocAi</a>
+                {% endif %}
                 <a href="{% url 'driver_scheduling' %}" class="nav-link">
                     <i class="fas fa-truck-loading nav-icon"></i> Scheduling
                     {% if open_driver_request_count > 0 %}
@@ -99,10 +103,12 @@
             {% endif %}
             <span class="bottom-nav-label">Requests</span>
         </a>
+        {% if user.is_superuser %}
         <a href="{% url 'docai:home' %}" class="bottom-nav-link {% if 'docai' in request.path %}active{% endif %}">
             <i class="fas fa-robot bottom-nav-icon"></i>
             <span class="bottom-nav-label">DocAi</span>
         </a>
+        {% endif %}
         <a href="{% url 'driver_scheduling' %}" class="bottom-nav-link {% if 'scheduling' in request.path %}active{% endif %}">
             <i class="fas fa-calendar-alt bottom-nav-icon"></i>
             {% if open_driver_request_count > 0 %}

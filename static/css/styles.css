@@ -1877,6 +1877,9 @@ body {
 
 .urgency-low { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
 .urgency-medium { background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; }
+.driver-color-shafiq { background-color: #8b5cf6 !important; border-left-color: #6d28d9 !important; color: white !important; }
+.driver-color-samer { background-color: #f97316 !important; border-left-color: #c2410c !important; color: white !important; }
+.driver-color-default { background-color: #94a3b8 !important; border-left-color: #475569 !important; color: white !important; }
 .urgency-high { background: #fff1f2; border: 1px solid #fecaca; color: #991b1b; }
 .urgency-emergency { background: #450a0a; border: 1px solid #450a0a; color: white; }
 

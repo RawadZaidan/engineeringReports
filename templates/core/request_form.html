@@ -92,7 +92,30 @@
         {% csrf_token %}
         
         {% if form.errors %}
-        <div class="alert alert-danger">Please correct the errors below.</div>
+        <div class="alert alert-danger" style="background-color: #fef2f2; border-color: #ef4444; color: #991b1b;">
+            <h4 class="alert-heading" style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Please correct the errors below:</h4>
+            <ul style="margin-bottom: 0; padding-left: 1.2rem;">
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% if equipment_formset.errors %}
+                <hr>
+                <p class="mb-0"><strong>Equipment Errors:</strong></p>
+                <ul>
+                {% for form_errors in equipment_formset.errors %}
+                    {% for field, errors in form_errors.items %}
+                        <li>{{ field }}: {{ errors|join:", " }}</li>
+                    {% endfor %}
+                {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
         {% endif %}
 
         <div class="form-section">
