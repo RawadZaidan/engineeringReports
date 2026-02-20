@@ -3,6 +3,13 @@ from django.dispatch import receiver
 from django.contrib.auth.models import User
 from .models import MaintenanceRequest
 from webpush import send_group_notification
+import threading
+
+def _send_push_async(payload):
+    try:
+        send_group_notification(group_name="Engineer", payload=payload, ttl=1000)
+    except Exception as e:
+        print(f"Webpush notification failed: {e}")
 
 @receiver(post_save, sender=MaintenanceRequest)
 def send_maintenance_notification(sender, instance, created, **kwargs):
@@ -14,9 +21,6 @@ def send_maintenance_notification(sender, instance, created, **kwargs):
             "url": f"/requests/{instance.id}/"
         }
         
-        # Send to all Engineers
-        try:
-            send_group_notification(group_name="Engineer", payload=payload, ttl=1000)
-        except Exception as e:
-            # Avoid crashing the entire request creation if notification fails
-            print(f"Webpush notification failed: {e}")
+        # Dispatch notification to a background thread to prevent blocking
+        # the HTTP response for 2-5 seconds while waiting for remote push servers
+        threading.Thread(target=_send_push_async, args=(payload,), daemon=True).start()

@@ -363,6 +363,12 @@
                 }
             }
         });
+        
+        // Show Global Loading Overlay on Submit (for slow S3 Image Uploads)
+        document.getElementById('reportForm').addEventListener('submit', function(e) {
+            const overlay = document.getElementById('global-loading-overlay');
+            if (overlay) overlay.classList.add('active');
+        });
     });
 
     // --- SIGNATURE PAD ---

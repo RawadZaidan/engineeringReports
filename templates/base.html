@@ -94,6 +94,15 @@
         {% endblock %}
     </main>
 
+    <!-- Global Loading Overlay for Form Submissions -->
+    <div id="global-loading-overlay">
+        <div class="spinner-border spinner-border-xl text-danger" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <h4 class="mt-4 text-slate-800 fw-bold" style="color: #1e293b;">Processing Request...</h4>
+        <p class="text-slate-500" style="color: #64748b;">Please do not close this window.</p>
+    </div>
+
     <!-- Mobile Bottom Navigation -->
     <nav class="mobile-bottom-nav mobile-only">
         <a href="{% url 'dashboard' %}" class="bottom-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">

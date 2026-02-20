@@ -32,6 +32,9 @@ DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ['medilabengineering.onrender.com', 'www.medilabengineering.onrender.com', '127.0.0.1', 'localhost', '.onrender.com']
 
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+
 # SECURITY: CSRF trusted origins for production
 CSRF_TRUSTED_ORIGINS = ['https://medilabengineering.onrender.com']
 

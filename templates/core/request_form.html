@@ -384,6 +384,12 @@
                 }
             });
         });
+        
+        // Show Global Loading Overlay on Submit
+        document.getElementById('requestForm').addEventListener('submit', function(e) {
+            const overlay = document.getElementById('global-loading-overlay');
+            if (overlay) overlay.classList.add('active');
+        });
     });
 </script>
 
