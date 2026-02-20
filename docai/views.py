@@ -94,6 +94,11 @@ def summarize_document(request):
         for idx, document in enumerate(documents, 1):
             extracted = extract_text_from_file(document)
             if extracted:
+                # Protect memory on Render free tier: limit text to ~400k characters (approx 100k tokens max for safety)
+                if len(extracted) > 400000:
+                    logger.warning(f"File {document.name} is very large. Truncating text to prevent memory issues.")
+                    extracted = extracted[:400000] + "\n... [CONTENT TRUNCATED FOR SERVER SAFETY] ..."
+                
                 if idx > 1:
                     pre_extracted_text += f"\n\n{'='*50}\n--- Document {idx}: {document.name} ---\n{'='*50}\n\n"
                 else:

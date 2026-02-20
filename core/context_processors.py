@@ -12,6 +12,8 @@ def is_engineer(request):
         
     return {'is_engineer': is_eng}
 
+from django.core.cache import cache
+
 def notification_counts(request):
     if not request.user.is_authenticated:
         return {
@@ -19,19 +21,29 @@ def notification_counts(request):
             'open_driver_request_count': 0,
         }
     
+    # Try to get from cache first
+    cache_key = f'notification_counts_{request.user.id}'
+    cached_counts = cache.get(cache_key)
+    if cached_counts:
+        return cached_counts
+
     # Maintenance Requests count (Open)
-    # Available to everyone who can see requests (engineers/staff)
     open_maintenance_count = MaintenanceRequest.objects.filter(status='Open').count()
     
     # Driver Requests count (Pending / Edit Requested)
-    # Primarily for admin/staff who handle logistics
     open_driver_request_count = 0
     if request.user.is_staff:
         open_driver_request_count = DriverRequest.objects.filter(
             status__in=['Pending', 'Edit Requested']
         ).count()
         
-    return {
+    counts = {
         'open_maintenance_count': open_maintenance_count,
         'open_driver_request_count': open_driver_request_count,
     }
+    
+    # Cache for 60 seconds
+    cache.set(cache_key, counts, 60)
+    
+    return counts
+

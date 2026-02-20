@@ -91,6 +91,12 @@ class ServiceReport(models.Model):
         # Invalidate dashboard stats cache
         cache.delete('dashboard_stats')
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['engineer', 'status'], name='core_sr_eng_status_idx'),
+            models.Index(fields=['status'], name='core_sr_status_idx'),
+        ]
+
     def __str__(self):
         return f"SR-{self.id} | {self.client_name}"
 
@@ -212,6 +218,12 @@ class MaintenanceRequest(models.Model):
         # Invalidate dashboard stats cache
         cache.delete('dashboard_stats')
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['status'], name='core_mr_status_idx'),
+            models.Index(fields=['urgency', 'created_at'], name='core_mr_urg_created_idx'),
+        ]
+
     def __str__(self):
         return f"MR-{self.id} | {self.facility_name or 'No Facility'}"
 
@@ -299,6 +311,9 @@ class DriverRequest(models.Model):
 
     class Meta:
         ordering = ['-date', '-created_at']
+        indexes = [
+            models.Index(fields=['date'], name='core_dr_date_idx'),
+        ]
 
     def __str__(self):
         return f"{self.requester.username} - {self.driver.name} ({self.date})"
@@ -324,6 +339,10 @@ class MaintenanceAssignment(models.Model):
 
     class Meta:
         ordering = ['date', 'start_time']
+        indexes = [
+            models.Index(fields=['engineer', 'date'], name='core_ma_eng_date_idx'),
+            models.Index(fields=['date'], name='core_ma_date_idx'),
+        ]
 
     def __str__(self):
         return f"{self.engineer.name} - MR-{self.maintenance_request.id} ({self.date})"

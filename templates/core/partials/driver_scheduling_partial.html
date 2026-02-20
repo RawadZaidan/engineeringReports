@@ -199,11 +199,11 @@
         <div style="display: flex; flex-direction: column; gap: 1rem;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 0.85rem; color: #64748b;"><i class="fas fa-check-circle" style="color: #38a169; margin-right: 0.5rem;"></i> Approved</span>
-                <span style="font-weight: 700; color: #1e293b;">{{ requests.count }}</span>
+                <span style="font-weight: 700; color: #1e293b;">{{ requests|length }}</span>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 0.85rem; color: #64748b;"><i class="fas fa-truck-loading" style="color: #3b82f6; margin-right: 0.5rem;"></i> Active Fleet</span>
-                <span style="font-weight: 700; color: #1e293b;">{{ drivers.count }}</span>
+                <span style="font-weight: 700; color: #1e293b;">{{ active_driver_count }}</span>
             </div>
         </div>
     </div>

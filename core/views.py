@@ -22,36 +22,10 @@ from .forms import (
     MaintenanceAssignmentForm
 )
 
-class DashboardView(LoginRequiredMixin, ListView):
-    model = ServiceReport
-    template_name = 'core/dashboard.html'
-    context_object_name = 'reports'
-    paginate_by = 20
+from django.views.generic import TemplateView
 
-    def get_queryset(self):
-        # Optimize: prefetch related data to avoid N+1 queries in template
-        queryset = super().get_queryset().select_related(
-            'engineer'
-        ).prefetch_related(
-            'items__equipment__product',
-            'images'
-        ).order_by('-created_at')
-        
-        search_query = self.request.GET.get('q')
-        status_filter = self.request.GET.get('status')
-        
-        if search_query:
-            queryset = queryset.filter(
-                Q(client_name__icontains=search_query) |
-                Q(location__icontains=search_query) |
-                Q(items__equipment__product__name__icontains=search_query) |
-                Q(items__equipment__serial_number__icontains=search_query)
-            ).distinct()
-        
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
-            
-        return queryset
+class DashboardView(LoginRequiredMixin, TemplateView):
+    template_name = 'core/dashboard.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -106,18 +80,19 @@ class DashboardView(LoginRequiredMixin, ListView):
         context['my_pending_reports'] = ServiceReport.objects.filter(
             engineer=user,
             status__in=['Draft', 'Pending']
-        ).only(
-            'id', 'client_name', 'status', 'updated_at', 'location'
+        ).select_related('engineer').only(
+            'id', 'client_name', 'status', 'updated_at', 'location', 
+            'project_reference', 'created_at', 'service_type', 
+            'engineer__username', 'engineer__first_name', 'engineer__last_name'
         ).order_by('-updated_at')[:5]
 
-        # OPTIMIZATION: Add select_related and prefetch_related to avoid N+1 queries
+        # OPTIMIZATION: Add select_related to avoid N+1 queries
         context['recent_requests'] = MaintenanceRequest.objects.filter(
             status__in=['Open', 'Scheduled', 'In Progress']
-        ).select_related('created_by').prefetch_related(
-            'equipment_items__equipment__product'
-        ).only(
+        ).select_related('created_by').only(
             'id', 'facility_name', 'status', 'urgency', 'created_at', 
-            'location', 'service_type', 'created_by__username', 'created_by__first_name'
+            'location', 'request_details', 'contact_name', 
+            'created_by__username', 'created_by__first_name', 'created_by__last_name'
         ).order_by('-urgency', '-created_at')[:10]
 
         # OPTIMIZATION: Use only() for awaiting response
@@ -495,11 +470,13 @@ class MaintenanceRequestListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        # Optimize: prefetch related equipment data
+        # Optimize: prefetch only created_by user and limit selected columns to what the template actually uses
         queryset = super().get_queryset().select_related(
             'created_by'
-        ).prefetch_related(
-            'equipment_items__equipment__product'
+        ).only(
+            'id', 'status', 'urgency', 'facility_name', 'service_type', 
+            'location', 'customer_contact_date', 'created_by__username', 
+            'created_by__first_name', 'created_by__last_name'
         )
         
         # Filtering
@@ -681,7 +658,8 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
     context_object_name = 'requests'
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # OPTIMIZATION: Prevent N+1 queries when rendering driver and requester names
+        queryset = super().get_queryset().select_related('driver', 'requester')
         
         # Date Filter (Specific Day)
         selected_date = self.request.GET.get('date')
@@ -735,17 +713,16 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
                     })
             calendar_weeks.append(week_data)
         
-        # Get days that have shifts (for mini-calendar dots)
-        shift_days = DriverRequest.objects.filter(
-            date__year=year, 
-            date__month=month
-        ).values_list('date__day', flat=True).distinct()
-        
         # --- NEW: Fetch and serialize ALL requests for the month for Full Calendar ---
         month_requests_qs = DriverRequest.objects.filter(
             date__year=year,
             date__month=month
         ).select_related('driver', 'requester')
+        
+        # --- PHASE 2 OPTIMIZATION ---
+        # Instead of asking the database for distinct days (which takes a 250ms round trip), 
+        # compute it instantly in Python from the requests already fetched for the month loop.
+        shift_days = set(req.date.day for req in month_requests_qs)
         
         serialized_requests = []
         for req in month_requests_qs:
@@ -767,8 +744,13 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
                 'requester_id': req.requester.id,
             })
         
+        # --- OPTIMIZATION (Phase 2) ---
+        # The template only needs the COUNT of active drivers. Calling Driver.objects.all()
+        # triggers redundant queries. Cache the count for 1 hour to drop DB pings.
+        active_driver_count = cache.get_or_set('active_drivers_count', Driver.objects.filter(is_active=True).count, 3600)
+        
         context.update({
-            'drivers': Driver.objects.filter(is_active=True),
+            'active_driver_count': active_driver_count,
             'is_admin': self.request.user.is_staff,
             'calendar_weeks': calendar_weeks,
             'shift_days': list(shift_days),
