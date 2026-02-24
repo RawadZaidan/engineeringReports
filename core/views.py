@@ -569,10 +569,19 @@ class MaintenanceRequestDetailView(LoginRequiredMixin, DetailView):
     template_name = 'core/request_detail.html'
     context_object_name = 'request'
 
+    def get_queryset(self):
+        return super().get_queryset().select_related(
+            'created_by', 'pricing_set_by'
+        ).prefetch_related(
+            'equipment_items__equipment__product',
+            'service_reports',
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['is_engineer'] = self.request.user.groups.filter(name='Engineer').exists()
         return context
+
 
 class MaintenanceRequestUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = MaintenanceRequest

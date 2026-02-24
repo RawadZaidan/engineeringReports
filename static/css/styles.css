@@ -592,16 +592,24 @@ body {
     box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
     padding: 1.5rem;
     position: relative;
+    overflow: hidden;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
     height: 100%;
+    box-sizing: border-box;
+}
+
+.request-modern-card {
+    position: relative;
+    z-index: 1;
 }
 
 .request-modern-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.1);
     border-color: var(--primary-soft);
+    z-index: 2;
 }
 
 /* Status Tints */
@@ -666,8 +674,37 @@ body {
 .request-card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     margin-bottom: 1.25rem;
+}
+
+/* Urgency badge colours */
+.urgency-emergency {
+    background: #1a0a0a !important;
+    color: #ffffff !important;
+    border-radius: 6px;
+}
+.urgency-high {
+    background: #c05621 !important;
+    color: #ffffff !important;
+    border-radius: 6px;
+}
+.urgency-medium {
+    background: #d97706 !important;
+    color: #ffffff !important;
+    border-radius: 6px;
+}
+.urgency-low {
+    background: #10b981 !important;
+    color: #ffffff !important;
+    border-radius: 6px;
+}
+.urgency-standard {
+    background: #3b82f6 !important;
+    color: #ffffff !important;
+    border-radius: 6px;
 }
 
 .request-card-title {
@@ -704,6 +741,22 @@ body {
     color: #94a3b8;
     display: block;
     margin-bottom: 0.5rem;
+}
+
+/* Engineer avatar circles on request cards */
+.engineer-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    line-height: 1;
 }
 
 .request-card-footer {
@@ -3016,3 +3069,24 @@ body {
         height: 5rem;
     }
 }
+
+/* =============================================
+   Global Loading Overlay
+   ============================================= */
+#global-loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+#global-loading-overlay.active {
+    display: flex;
+}
+

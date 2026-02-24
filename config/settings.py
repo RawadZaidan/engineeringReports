@@ -107,6 +107,11 @@ DATABASES = {
     )
 }
 
+# Supabase uses PgBouncer (transaction pooling) which does not support
+# server-side cursors. This setting tells Django to use client-side cursors.
+DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True
+
+
 # Caching Configuration (for dashboard stats performance)
 CACHES = {
     'default': {
