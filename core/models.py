@@ -7,6 +7,17 @@ import os
 from django.utils import timezone
 from django.core.cache import cache
 
+
+def _invalidate_dashboard_caches():
+    """
+    Clears per-user dashboard stats and notification-count caches for ALL users.
+    Called whenever a MaintenanceRequest or ServiceReport changes so the next
+    page load gets fresh data.  The team is small so iterating users is cheap.
+    """
+    for uid in User.objects.values_list('id', flat=True):
+        cache.delete(f'dashboard_stats_{uid}')
+        cache.delete(f'notification_counts_{uid}')
+
 class Product(models.Model):
     """Product Catalogue - Blueprints/Templates (Manufacturer + Model)"""
     name = models.CharField(max_length=255)
@@ -88,8 +99,7 @@ class ServiceReport(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Invalidate dashboard stats cache
-        cache.delete('dashboard_stats')
+        _invalidate_dashboard_caches()
 
     class Meta:
         indexes = [
@@ -215,8 +225,7 @@ class MaintenanceRequest(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # Invalidate dashboard stats cache
-        cache.delete('dashboard_stats')
+        _invalidate_dashboard_caches()
 
     class Meta:
         indexes = [
@@ -274,6 +283,7 @@ class DriverRequest(models.Model):
         ('Approved', 'Approved'),
         ('Denied', 'Denied'),
         ('Edit Requested', 'Edit Requested'),
+        ('Completed', 'Completed'),
         ('Cancelled', 'Cancelled'),
     ]
 

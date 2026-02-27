@@ -31,8 +31,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
         
-        # OPTIMIZATION: Cache is_engineer check to avoid duplicate queries
-        is_engineer = user.groups.filter(name='Engineer').exists()
+        # Read is_engineer from session — the is_engineer context processor already
+        # populated it (and cached it in the session) so we NEVER need a DB query here.
+        is_engineer = self.request.session.get('is_engineer', False)
         engineer_profile = None
         if is_engineer:
             try:
@@ -44,14 +45,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         from datetime import date
         today = timezone.now().date()
         
-        # OPTIMIZATION: Try to get cached stats first
-        stats_cache_key = f'dashboard_stats_{user.id}_{is_engineer}'
+        # Cache key matching what notification_counts processor uses so we can
+        # reuse its cached open_maintenance_count without a second DB hit.
+        notif_cache_key = f'notification_counts_{user.id}'
+        
+        # Per-user stats cache key (was previously broken: invalidated under
+        # 'dashboard_stats' but cached under 'dashboard_stats_{user.id}_{is_engineer}')
+        stats_cache_key = f'dashboard_stats_{user.id}'
         cached_stats = cache.get(stats_cache_key)
         
         if cached_stats:
             context['stats'] = cached_stats
         else:
-            # Calculate stats with optimized queries
             visit_week_filter = Q(date__range=[today, today + timedelta(days=7)])
             if is_engineer and engineer_profile:
                 visit_week_filter &= Q(engineer=engineer_profile)
@@ -61,7 +66,13 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 status__in=['Draft', 'Pending']
             ).count()
             
-            open_requests_count = MaintenanceRequest.objects.filter(status='Open').count()
+            # Reuse notification_counts cache to avoid double-querying open requests.
+            # If cache is cold we fall back to a fresh query.
+            cached_notif = cache.get(notif_cache_key)
+            if cached_notif:
+                open_requests_count = cached_notif['open_maintenance_count']
+            else:
+                open_requests_count = MaintenanceRequest.objects.filter(status='Open').count()
             
             visits_this_week_count = MaintenanceAssignment.objects.filter(
                 visit_week_filter
@@ -73,10 +84,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 'visits_this_week': visits_this_week_count
             }
             
-            # Cache stats for 5 minutes
+            # Cache for 5 minutes
             cache.set(stats_cache_key, context['stats'], 300)
         
-        # OPTIMIZATION: Use only() to fetch only needed fields for pending reports
+        # Use only() to fetch only needed fields for pending reports
         context['my_pending_reports'] = ServiceReport.objects.filter(
             engineer=user,
             status__in=['Draft', 'Pending']
@@ -86,7 +97,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             'engineer__username', 'engineer__first_name', 'engineer__last_name'
         ).order_by('-updated_at')[:5]
 
-        # OPTIMIZATION: Add select_related to avoid N+1 queries
+        # select_related prevents N+1 queries on created_by
         context['recent_requests'] = MaintenanceRequest.objects.filter(
             status__in=['Open', 'Scheduled', 'In Progress']
         ).select_related('created_by').only(
@@ -95,13 +106,17 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             'created_by__username', 'created_by__first_name', 'created_by__last_name'
         ).order_by('-urgency', '-created_at')[:10]
 
-        # OPTIMIZATION: Use only() for awaiting response
         context['awaiting_response'] = ServiceReport.objects.filter(
             follow_up_required=True,
             status__in=['Completed', 'Pending']
         ).only(
             'id', 'client_name', 'status', 'updated_at'
         ).order_by('-updated_at')[:5]
+
+        # Fetch 3 most recent reports for the dashboard section
+        context['recent_reports'] = ServiceReport.objects.select_related('maintenance_request').only(
+            'id', 'client_name', 'status', 'created_at', 'maintenance_request__id'
+        ).order_by('-created_at')[:3]
 
         # Calendar data
         year = int(self.request.GET.get('year', today.year))
@@ -281,10 +296,15 @@ class ServiceReportCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateVie
 
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
-        data['equipments'] = Equipment.objects.all()
         data['products'] = Product.objects.all()
+        
+        equipments_qs = Equipment.objects.select_related('product').all()
+        list(equipments_qs)  # evaluate and cache
+        data['equipments'] = equipments_qs
+        form_kwargs = {'equipment_qs': equipments_qs}
+        
         if self.request.POST:
-            data['items'] = ReportItemFormSet(self.request.POST, prefix='items')
+            data['items'] = ReportItemFormSet(self.request.POST, prefix='items', form_kwargs=form_kwargs)
         else:
             request_id = self.request.GET.get('request_id')
             initial_items = []
@@ -296,7 +316,7 @@ class ServiceReportCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateVie
                             initial_items.append({'equipment': eq.equipment})
                 except MaintenanceRequest.DoesNotExist: pass
             
-            data['items'] = ReportItemFormSet(initial=initial_items, prefix='items')
+            data['items'] = ReportItemFormSet(initial=initial_items, prefix='items', form_kwargs=form_kwargs)
             data['items'].extra = len(initial_items)
         return data
 
@@ -352,12 +372,17 @@ class ServiceReportUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVie
 
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
-        data['equipments'] = Equipment.objects.all()
         data['products'] = Product.objects.all()
+        
+        equipments_qs = Equipment.objects.select_related('product').all()
+        list(equipments_qs)  # evaluate
+        data['equipments'] = equipments_qs
+        form_kwargs = {'equipment_qs': equipments_qs}
+        
         if self.request.POST:
-            data['items'] = ReportItemFormSet(self.request.POST, instance=self.object, prefix='items')
+            data['items'] = ReportItemFormSet(self.request.POST, instance=self.object, prefix='items', form_kwargs=form_kwargs)
         else:
-            data['items'] = ReportItemFormSet(instance=self.object, prefix='items')
+            data['items'] = ReportItemFormSet(instance=self.object, prefix='items', form_kwargs=form_kwargs)
             data['items'].extra = 0
         return data
 
@@ -538,14 +563,25 @@ class MaintenanceRequestCreateView(LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
-        data['products'] = Product.objects.all()
-        data['equipments'] = Equipment.objects.all()
-        if self.request.POST:
-            data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(self.request.POST)
-        else:
-            data['equipment_formset'] = MaintenanceRequestEquipmentFormSet()
+        # Use only() to avoid fetching heavy text columns not needed for dropdowns
+        products_qs = Product.objects.only('id', 'name', 'manufacturer', 'model').order_by('manufacturer', 'model')
+        list(products_qs)
+        data['products'] = products_qs
         
-        data['is_engineer'] = self.request.user.groups.filter(name='Engineer').exists()
+        equipments_qs = Equipment.objects.select_related('product').only(
+            'id', 'serial_number', 'current_facility', 'product__name', 'product__manufacturer', 'product__model'
+        )
+        list(equipments_qs)
+        data['equipments'] = equipments_qs
+        form_kwargs = {'equipment_qs': equipments_qs}
+
+        if self.request.POST:
+            data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(self.request.POST, form_kwargs=form_kwargs)
+        else:
+            data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(form_kwargs=form_kwargs)
+        
+        # Read from session — set by is_engineer context processor on login, no DB hit
+        data['is_engineer'] = self.request.session.get('is_engineer', False)
         return data
 
     def get_form_kwargs(self):
@@ -579,7 +615,7 @@ class MaintenanceRequestDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['is_engineer'] = self.request.user.groups.filter(name='Engineer').exists()
+        context['is_engineer'] = self.request.session.get('is_engineer', False)
         return context
 
 
@@ -604,14 +640,23 @@ class MaintenanceRequestUpdateView(LoginRequiredMixin, UserPassesTestMixin, Upda
 
     def get_context_data(self, **kwargs):
         data = super().get_context_data(**kwargs)
-        data['products'] = Product.objects.all()
-        data['equipments'] = Equipment.objects.all()
-        if self.request.POST:
-            data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(self.request.POST, instance=self.object)
-        else:
-            data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(instance=self.object)
+        products_qs = Product.objects.only('id', 'name', 'manufacturer', 'model').order_by('manufacturer', 'model')
+        list(products_qs)
+        data['products'] = products_qs
         
-        data['is_engineer'] = self.request.user.groups.filter(name='Engineer').exists()
+        equipments_qs = Equipment.objects.select_related('product').only(
+            'id', 'serial_number', 'current_facility', 'product__name', 'product__manufacturer', 'product__model'
+        )
+        list(equipments_qs)
+        data['equipments'] = equipments_qs
+        form_kwargs = {'equipment_qs': equipments_qs}
+
+        if self.request.POST:
+            data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(self.request.POST, instance=self.object, form_kwargs=form_kwargs)
+        else:
+            data['equipment_formset'] = MaintenanceRequestEquipmentFormSet(instance=self.object, form_kwargs=form_kwargs)
+        
+        data['is_engineer'] = self.request.session.get('is_engineer', False)
         return data
 
     def form_valid(self, form):
@@ -667,6 +712,14 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
     context_object_name = 'requests'
 
     def get_queryset(self):
+        today = timezone.now().date()
+        
+        # Auto-complete past approved requests
+        DriverRequest.objects.filter(
+            status='Approved', 
+            date__lt=today
+        ).update(status='Completed')
+
         # OPTIMIZATION: Prevent N+1 queries when rendering driver and requester names
         queryset = super().get_queryset().select_related('driver', 'requester')
         

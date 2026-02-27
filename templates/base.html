@@ -160,6 +160,11 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Safety net: always hide the overlay on fresh page load
+            // (prevents it getting stuck after browser back-button or failed login)
+            const overlay = document.getElementById('global-loading-overlay');
+            if (overlay) overlay.classList.remove('active');
+
             // Mobile Menu Toggle
             const menuToggle = document.querySelector('.menu-toggle');
             const mainNav = document.querySelector('.main-nav');

@@ -120,7 +120,9 @@ CACHES = {
     }
 }
 
-# Use cached_db session engine to reduce latency (avoids DB hits for sessions/users)
+# Use cached_db session engine — sessions are backed by both cache and DB,
+# so they survive server restarts. The session DB write (~496ms) remains,
+# but login sessions are fully persistent.
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 
 

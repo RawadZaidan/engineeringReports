@@ -34,10 +34,26 @@
             <!-- Section Title -->
             <div class="section-header-row">
                 <h2 class="section-title">Service Reports</h2>
-                <a href="{% url 'report_list' %}" class="btn-section-action">
+                <a href="{% url 'report_list' %}" class="btn-section-action" style="white-space: nowrap;">
                     <i class="fas fa-list-alt"></i> View Reports
                 </a>
             </div>
+            
+            <!-- Recent Reports Cards -->
+            {% if recent_reports %}
+            <div class="recent-reports-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                {% for report in recent_reports %}
+                <a href="{% url 'report_detail' report.pk %}" class="recent-report-card">
+                    <div class="card-top">
+                        <span class="card-id">SR-{{ report.id }}</span>
+                        <span class="card-status status-{{ report.status|lower }}">{{ report.status }}</span>
+                    </div>
+                    <div class="card-client"><i class="far fa-building"></i> {{ report.client_name|default:"Unknown Client"|truncatechars:25 }}</div>
+                    <div class="card-date"><i class="far fa-clock"></i> {{ report.created_at|date:"M d, Y" }}</div>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
 
             <!-- Pending Reports List -->
             {% if my_pending_reports %}
@@ -387,6 +403,64 @@
         margin: 0;
     }
     .filter-icon { color: var(--text-meta); cursor: pointer; }
+
+    /* Recent Report Cards */
+    .recent-report-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1rem;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        text-decoration: none;
+        transition: all 0.2s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .recent-report-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border-color: var(--primary-blue);
+    }
+    .recent-report-card .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .recent-report-card .card-id {
+        font-size: 0.8rem;
+        color: #64748b;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+    .recent-report-card .card-status {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+    }
+    .recent-report-card .card-client {
+        font-size: 0.95rem;
+        color: #1e293b;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .recent-report-card .card-client i { color: #94a3b8; font-size: 0.85rem; }
+    .recent-report-card .card-date {
+        font-size: 0.8rem;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .recent-report-card .card-date i { color: #94a3b8; font-size: 0.85rem; }
+    
+    .recent-report-card .status-completed { background: #ecfdf5; color: #047857; }
+    .recent-report-card .status-pending { background: #fffbeb; color: #b45309; }
+    .recent-report-card .status-draft { background: #f8fafc; color: #475569; }
 
     .card-stack {
         display: flex;

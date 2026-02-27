@@ -79,7 +79,14 @@ class MaintenanceRequestEquipmentForm(forms.ModelForm):
             'equipment': forms.Select(attrs={'class': 'form-control equipment-select'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Optional notes about this machine'}),
         }
-
+        
+    def __init__(self, *args, **kwargs):
+        equipment_qs = kwargs.pop('equipment_qs', None)
+        super().__init__(*args, **kwargs)
+        if equipment_qs is not None:
+            self.fields['equipment'].queryset = equipment_qs
+        else:
+            self.fields['equipment'].queryset = Equipment.objects.select_related('product').all()
 MaintenanceRequestEquipmentFormSet = inlineformset_factory(
     MaintenanceRequest, MaintenanceRequestEquipment,
     form=MaintenanceRequestEquipmentForm,
@@ -166,7 +173,14 @@ class ReportItemForm(forms.ModelForm):
             'equipment': forms.Select(attrs={'class': 'form-control equipment-select'}),
             'equipment_note': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional equipment-specific note'}),
         }
-
+        
+    def __init__(self, *args, **kwargs):
+        equipment_qs = kwargs.pop('equipment_qs', None)
+        super().__init__(*args, **kwargs)
+        if equipment_qs is not None:
+            self.fields['equipment'].queryset = equipment_qs
+        else:
+            self.fields['equipment'].queryset = Equipment.objects.select_related('product').all()
 class BaseReportItemFormSet(forms.BaseInlineFormSet):
     def clean(self):
         super().clean()

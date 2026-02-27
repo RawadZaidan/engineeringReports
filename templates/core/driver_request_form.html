@@ -132,7 +132,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const driverId = driverSelect.value;
         const dateValue = dateInput.value;
 
-        if (!driverId || !dateValue) return;
+        if (!driverId || !dateValue) {
+            updateEndTimeOptions(); // Still ensure start/end times are valid even without a driver
+            return;
+        }
 
         // Reset all options first
         [startTimeSelect, endTimeSelect].forEach(select => {
@@ -165,15 +168,42 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 });
+                updateEndTimeOptions(); // re-apply start/end time validation after occupancy updates
             });
+    }
+
+    function updateEndTimeOptions() {
+        const startTime = startTimeSelect.value;
+        if (!startTime) return;
+
+        Array.from(endTimeSelect.options).forEach(option => {
+            // Don't override occupancy blocks, only disable if it's before/equal to start time
+            if (option.value <= startTime) {
+                option.disabled = true;
+                option.style.backgroundColor = '#f1f5f9';
+                option.style.color = '#94a3b8';
+            } else if (!option.style.backgroundColor.includes('fee2e2')) { // If not blocked by occupancy
+                option.disabled = false;
+                option.style.backgroundColor = '';
+                option.style.color = '';
+            }
+        });
+
+        // If the currently selected end time is now invalid, clear it
+        if (endTimeSelect.value && endTimeSelect.value <= startTime) {
+            endTimeSelect.value = '';
+        }
     }
 
     driverSelect.addEventListener('change', updateOccupancy);
     dateInput.addEventListener('change', updateOccupancy);
+    startTimeSelect.addEventListener('change', updateEndTimeOptions);
 
     // Run on load if values exist
     if (driverSelect.value && dateInput.value) {
         updateOccupancy();
+    } else {
+        updateEndTimeOptions();
     }
 });
 </script>
