@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="form-page-container">
+    <div class="dashboard-header-modern">
+        <div class="header-content">
+            <h2 class="page-title-modern">Request a Driver</h2>
+            <p class="subtitle-modern">Submit a new transport request</p>
+        </div>
+        <div class="header-actions-modern">
+            <a href="{% url 'driver_scheduling' %}" class="btn-create-modern" style="background: #94a3b8;">
+                <span>⬅️ Back</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="form-card-modern">
+        <form method="post" class="modern-form">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" style="background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 1rem; border-radius: 12px; margin-bottom: 2rem;">
+                <div style="font-weight: 700; margin-bottom: 0.5rem;">Please correct the following errors:</div>
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="{{ form.driver.id_for_label }}">Select Driver</label>
+                    {{ form.driver }}
+                    {{ form.driver.errors }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.department.id_for_label }}">Department</label>
+                    {{ form.department }}
+                    {{ form.department.errors }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.maintenance_request.id_for_label }}">Link to Maintenance Job (Optional)</label>
+                    {{ form.maintenance_request }}
+                    {{ form.maintenance_request.errors }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.date.id_for_label }}">Date of Trip</label>
+                    {{ form.date }}
+                    {{ form.date.errors }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.vehicle_type.id_for_label }}">Preferred Vehicle</label>
+                    {{ form.vehicle_type }}
+                    {{ form.vehicle_type.errors }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.location.id_for_label }}">Destination</label>
+                    {{ form.location }}
+                    {{ form.location.errors }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.estimated_distance.id_for_label }}">Estimated Distance (Optional)</label>
+                    {{ form.estimated_distance }}
+                    {{ form.estimated_distance.errors }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.start_time.id_for_label }}">Start Time</label>
+                    {{ form.start_time }}
+                    {{ form.start_time.errors }}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.end_time.id_for_label }}">End Time</label>
+                    {{ form.end_time }}
+                    {{ form.end_time.errors }}
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="{{ form.client_name.id_for_label }}">End User (Client)</label>
+                    {{ form.client_name }}
+                    {{ form.client_name.errors }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.contact_person.id_for_label }}">Contact Person</label>
+                    {{ form.contact_person }}
+                    {{ form.contact_person.errors }}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.contact_number.id_for_label }}">Contact Number</label>
+                    {{ form.contact_number }}
+                    {{ form.contact_number.errors }}
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="{{ form.duration.id_for_label }}">Notes / Duration Details</label>
+                    {{ form.duration }}
+                    {{ form.duration.errors }}
+                </div>
+            </div>
+
+            <div class="form-actions-modern">
+                <button type="submit" class="btn-create-modern">
+                    <span>🚀 Submit Request</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const driverSelect = document.getElementById('id_driver');
+    const dateInput = document.getElementById('id_date');
+    const startTimeSelect = document.getElementById('id_start_time');
+    const endTimeSelect = document.getElementById('id_end_time');
+
+    function updateOccupancy() {
+        const driverId = driverSelect.value;
+        const dateValue = dateInput.value;
+
+        if (!driverId || !dateValue) {
+            updateEndTimeOptions(); // Still ensure start/end times are valid even without a driver
+            return;
+        }
+
+        // Reset all options first
+        [startTimeSelect, endTimeSelect].forEach(select => {
+            Array.from(select.options).forEach(option => {
+                option.disabled = false;
+                option.style.backgroundColor = '';
+                option.style.color = '';
+            });
+        });
+
+        // Request Occupancy
+        fetch(`{% url 'get_driver_occupancy' %}?driver_id=${driverId}&date=${dateValue}{% if form.instance.pk %}&request_id={{ form.instance.pk }}{% endif %}`)
+            .then(response => response.json())
+            .then(data => {
+                const occupied = data.occupied_slots || [];
+                
+                [startTimeSelect, endTimeSelect].forEach(select => {
+                    Array.from(select.options).forEach(option => {
+                        const optionTime = option.value;
+                        
+                        const isBlocked = occupied.some(slot => {
+                            // Slot is HH:MM strings. We can compare them directly in 24h format.
+                            return optionTime >= slot.start && optionTime <= slot.end;
+                        });
+
+                        if (isBlocked) {
+                            option.disabled = true;
+                            option.style.backgroundColor = '#fee2e2';
+                            option.style.color = '#991b1b';
+                        }
+                    });
+                });
+                updateEndTimeOptions(); // re-apply start/end time validation after occupancy updates
+            });
+    }
+
+    function updateEndTimeOptions() {
+        const startTime = startTimeSelect.value;
+        if (!startTime) return;
+
+        Array.from(endTimeSelect.options).forEach(option => {
+            // Don't override occupancy blocks, only disable if it's before/equal to start time
+            if (option.value <= startTime) {
+                option.disabled = true;
+                option.style.backgroundColor = '#f1f5f9';
+                option.style.color = '#94a3b8';
+            } else if (!option.style.backgroundColor.includes('fee2e2')) { // If not blocked by occupancy
+                option.disabled = false;
+                option.style.backgroundColor = '';
+                option.style.color = '';
+            }
+        });
+
+        // If the currently selected end time is now invalid, clear it
+        if (endTimeSelect.value && endTimeSelect.value <= startTime) {
+            endTimeSelect.value = '';
+        }
+    }
+
+    driverSelect.addEventListener('change', updateOccupancy);
+    dateInput.addEventListener('change', updateOccupancy);
+    startTimeSelect.addEventListener('change', updateEndTimeOptions);
+
+    // Run on load if values exist
+    if (driverSelect.value && dateInput.value) {
+        updateOccupancy();
+    } else {
+        updateEndTimeOptions();
+    }
+});
+</script>
+
+<style>
+/* Add styling for disabled options if needed */
+option:disabled {
+    color: #991b1b;
+    background-color: #fee2e2;
+}
+</style>
+<style>
+.form-page-container {
+    max-width: 800px;
+    margin: 2rem auto;
+}
+
+.form-card-modern {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.08);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.form-group.full-width {
+    grid-column: span 2;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.form-actions-modern {
+    margin-top: 2.5rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 600px) {
+    .form-page-container {
+        margin: 1rem;
+    }
+    .form-card-modern {
+        padding: 1.5rem;
+    }
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    .form-group.full-width {
+        grid-column: span 1;
+    }
+    .form-actions-modern, .form-actions-modern .btn-create-modern {
+        width: 100%;
+    }
+    .dashboard-header-modern {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    .header-actions-modern {
+        width: 100%;
+    }
+    .header-actions-modern .btn-create-modern {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}

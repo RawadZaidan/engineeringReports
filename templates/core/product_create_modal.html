@@ -1,0 +1,37 @@
+<!-- The Modal -->
+<div id="productModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgb(0,0,0); background-color: rgba(0,0,0,0.4);">
+
+  <!-- Modal content -->
+  <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px;">
+    <span class="close" style="color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer;">&times;</span>
+    <h3 style="margin-top: 0;">Create New Product</h3>
+    <p style="font-size: 0.9rem; color: #666;">Quickly add a new equipment type to the database.</p>
+    
+    <form id="quickProductForm">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="prod_name" class="form-label">Name</label>
+            <input type="text" name="name" id="prod_name" class="form-control" required>
+        </div>
+        <div class="form-group">
+            <label for="prod_category" class="form-label">Category</label>
+            <input type="text" name="category" id="prod_category" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="prod_manufacturer" class="form-label">Manufacturer</label>
+            <input type="text" name="manufacturer" id="prod_manufacturer" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="prod_model" class="form-label">Model</label>
+            <input type="text" name="model" id="prod_model" class="form-control" required>
+        </div>
+        
+        <div id="productError" style="color: red; font-size: 0.9rem; margin-top: 0.5rem;"></div>
+
+        <div style="text-align: right; margin-top: 1rem;">
+            <button type="submit" class="btn btn-primary">Create Product</button>
+        </div>
+    </form>
+  </div>
+
+</div>

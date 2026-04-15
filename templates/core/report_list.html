@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="report-list-dashboard">
+    <div class="container">
+        <!-- Hero / Header Section -->
+        <div class="list-hero-section">
+            <div class="hero-info">
+                <div class="hero-icon-box">
+                    <i class="fas fa-file-signature"></i>
+                </div>
+                <div class="hero-details">
+                    <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Maintenance Management</div>
+                    <h2>Service Reports</h2>
+                    <div class="hero-badges">
+                        <span class="badge-pill"><i class="fas fa-layer-group"></i> {{ status_counts.all }} Total</span>
+                        <span class="badge-pill warning"><i class="fas fa-clock"></i> {{ status_counts.pending }} Pending</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-actions">
+                {% if user.groups.all.0.name == 'Engineer' or user.is_staff %}
+                <a href="{% url 'report_create' %}" class="btn-create-modern">
+                    <i class="fas fa-plus"></i>
+                    <span>New Report</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="list-layout">
+            <!-- Left Side: Report Cards -->
+            <div class="list-column">
+                
+                <!-- Filter Bar -->
+                <div class="filter-bar">
+                    <div class="filter-groups">
+                        <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}{% if request.GET.for_me %}&for_me=1{% endif %}" class="filter-tab {% if not request.GET.status %}active{% endif %}">All</a>
+                        <a href="?status=Draft{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.for_me %}&for_me=1{% endif %}" class="filter-tab {% if request.GET.status == 'Draft' %}active{% endif %}">Draft</a>
+                        <a href="?status=Pending{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.for_me %}&for_me=1{% endif %}" class="filter-tab {% if request.GET.status == 'Pending' %}active{% endif %}">Pending</a>
+                        <a href="?status=Completed{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.for_me %}&for_me=1{% endif %}" class="filter-tab {% if request.GET.status == 'Completed' %}active{% endif %}">Completed</a>
+                        <span style="border-left: 1px solid #cbd5e1; margin: 0 0.5rem; height: 20px; align-self: center;"></span>
+                        <a href="?for_me={% if not request.GET.for_me %}1{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                           class="filter-tab {% if request.GET.for_me %}active{% endif %}" style="color: var(--primary-blue);">
+                            <i class="fas fa-user-circle"></i> For Me
+                        </a>
+                    </div>
+                    <form method="get" class="search-form">
+                        {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
+                        <div class="search-input-wrapper">
+                            <i class="fas fa-search"></i>
+                            <input type="text" name="q" placeholder="Search client, location..." value="{{ request.GET.q|default:'' }}">
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Reports List -->
+                <div class="report-cards-stack">
+                    {% for report in reports %}
+                    <div class="report-card" onclick="location.href='{% url 'report_detail' report.pk %}';">
+                        <div class="card-head">
+                            <div class="head-primary">
+                                <span class="report-id">#SR-{{ report.id }}</span>
+                                <h3 class="client-title">{{ report.client_name }}</h3>
+                                <div class="location-sub">
+                                    <i class="fas fa-map-marker-alt"></i> {{ report.location|default:"No Location" }}
+                                </div>
+                            </div>
+                            <div class="head-status">
+                                <span class="status-tag status-{{ report.status|lower }}">{{ report.status }}</span>
+                                <span class="date-tag">{{ report.created_at|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="label">Engineer</span>
+                                    <span class="value">{{ report.engineer.get_full_name|default:report.engineer.username }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">Project Ref</span>
+                                    <span class="value">{{ report.project_reference|default:"-" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">Equipment</span>
+                                    <span class="value">{{ report.items.count }} units</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card-footer">
+                            <span class="view-link">View Details <i class="fas fa-arrow-right"></i></span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="empty-state">
+                        <i class="fas fa-folder-open"></i>
+                        <h3>No reports found</h3>
+                        <p>Try adjusting your search or filters.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                 {% if is_paginated %}
+                <div class="pagination-wrapper">
+                    <span class="step-links">
+                        {% if page_obj.has_previous %}
+                            <a href="?page=1{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">&laquo; first</a>
+                            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">previous</a>
+                        {% endif %}
+
+                        <span class="current">
+                            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+                        </span>
+
+                        {% if page_obj.has_next %}
+                            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">next</a>
+                            <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">last &raquo;</a>
+                        {% endif %}
+                    </span>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <!-- Right Side: Stats / Mini Calendar placeholder -->
+            <div class="sidebar-column">
+                <div class="sidebar-widget">
+                    <h4>Quick Stats</h4>
+                    <div class="stat-list">
+                        <div class="stat-row">
+                            <span>Drafts</span>
+                            <span class="val">{{ status_counts.draft }}</span>
+                        </div>
+                         <div class="stat-row">
+                            <span>Pending Approval</span>
+                            <span class="val">{{ status_counts.pending }}</span>
+                        </div>
+                         <div class="stat-row">
+                            <span>Completed</span>
+                            <span class="val">{{ status_counts.completed }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Scoped Styles mimicking Scheduling Page */
+    :root {
+        --bg-body: #f8f9fc;
+        --card-bg: #ffffff;
+        --primary-blue: #2563eb;
+        --text-dark: #1e293b;
+        --text-meta: #64748b;
+        --border-color: #e2e8f0;
+        --radius-lg: 16px;
+    }
+    
+    .report-list-dashboard {
+        padding: 2rem 0;
+        background-color: var(--bg-body);
+        min-height: 90vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 1rem; }
+
+    /* Hero Section */
+    .list-hero-section {
+        background: var(--card-bg);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+        flex-wrap: wrap;
+        gap: 1.5rem;
+    }
+    .hero-info { display: flex; align-items: center; gap: 1.5rem; }
+    .hero-icon-box {
+        width: 60px; height: 60px;
+        background: #eff6ff;
+        color: var(--primary-blue);
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.75rem;
+    }
+    .hero-details h2 { font-size: 1.5rem; font-weight: 800; color: var(--text-dark); margin: 0 0 0.5rem 0; line-height: 1.2; }
+    .hero-badges { display: flex; gap: 0.75rem; }
+    .badge-pill {
+        display: inline-flex; align-items: center; gap: 0.4rem;
+        background: #f1f5f9; color: var(--text-meta);
+        padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600;
+    }
+    .badge-pill.warning { background: #fffbeb; color: #d97706; }
+
+    .btn-create-modern {
+        background: var(--primary-blue);
+        color: white;
+        padding: 0.75rem 1.75rem;
+        border-radius: 8px;
+        font-weight: 600;
+        text-decoration: none;
+        display: flex; align-items: center; gap: 0.5rem;
+        transition: transform 0.2s;
+    }
+    .btn-create-modern:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
+
+    /* Layout */
+    .list-layout {
+        display: grid;
+        grid-template-columns: 2.5fr 1fr;
+        gap: 2rem;
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .filter-groups { display: flex; gap: 0.5rem; background: #e2e8f0; padding: 0.25rem; border-radius: 8px; }
+    .filter-tab {
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-meta);
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .filter-tab.active { background: white; color: var(--primary-blue); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    
+    .search-input-wrapper {
+        position: relative;
+    }
+    .search-input-wrapper i { position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+    .search-input-wrapper input {
+        padding: 0.6rem 1rem 0.6rem 2.5rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        font-size: 0.9rem;
+        width: 250px;
+    }
+
+    /* Report Cards */
+    .report-cards-stack { display: flex; flex-direction: column; gap: 1rem; }
+    .report-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .report-card:hover {
+        border-color: var(--primary-blue);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+    }
+    
+    .card-head { display: flex; justify-content: space-between; margin-bottom: 1.5rem; }
+    .report-id { font-size: 0.75rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.05em; display: block; margin-bottom: 0.25rem; }
+    .client-title { font-size: 1.1rem; font-weight: 700; color: var(--text-dark); margin: 0; }
+    .location-sub { font-size: 0.85rem; color: var(--text-meta); display: flex; align-items: center; gap: 0.4rem; margin-top: 0.25rem; }
+    
+    .head-status { text-align: right; }
+    .status-tag { display: block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.25rem; }
+    .status-draft { color: #f59e0b; }
+    .status-pending { color: #f97316; }
+    .status-completed { color: #10b981; }
+    .date-tag { font-size: 0.8rem; color: var(--text-dark); font-weight: 600; }
+
+    .card-body { padding-top: 1rem; border-top: 1px solid #f1f5f9; margin-bottom: 1rem; }
+    .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+    .info-item { display: flex; flex-direction: column; }
+    .info-item .label { font-size: 0.7rem; color: #94a3b8; margin-bottom: 2px; }
+    .info-item .value { font-size: 0.85rem; font-weight: 600; color: #334155; }
+
+    .card-footer { display: flex; justify-content: flex-end; }
+    .view-link { font-size: 0.8rem; font-weight: 700; color: var(--primary-blue); display: flex; align-items: center; gap: 0.4rem; }
+
+    /* Sidebar */
+    .sidebar-widget {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .sidebar-widget h4 { margin: 0 0 1rem 0; font-size: 0.9rem; color: var(--text-meta); text-transform: uppercase; font-weight: 700; }
+    .stat-row { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px dashed #e2e8f0; font-size: 0.9rem; color: #475569; }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-row .val { font-weight: 700; color: var(--text-dark); }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center; padding: 4rem 2rem;
+        background: white; border-radius: var(--radius-lg); border: 2px dashed #e2e8f0;
+    }
+    .empty-state i { font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem; }
+    .empty-state h3 { margin: 0; color: var(--text-dark); font-size: 1.25rem; }
+    .empty-state p { margin: 0.5rem 0 0; color: #94a3b8; }
+    
+    .pagination-wrapper { margin-top: 2rem; text-align: center; }
+
+    @media (max-width: 992px) {
+        .list-layout { grid-template-columns: 1fr; }
+        .hero-actions { width: 100%; }
+        .btn-create-modern { justify-content: center; }
+        .search-input-wrapper input { width: 100%; }
+    }
+</style>
+{% endblock %}

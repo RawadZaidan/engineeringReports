@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Product Catalogue - Medilab{% endblock %}
+
+{% block content %}
+<div class="page-header-actions">
+    <div>
+        <h1 class="page-title">Product Catalogue</h1>
+        <p class="text-muted">Master database of equipment types and models</p>
+    </div>
+    <a href="{% url 'product_create' %}" class="btn btn-primary">+ Add New Type</a>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+    <!-- Desktop Table View -->
+    <div class="table-responsive desktop-only">
+        <table class="modern-table">
+            <thead>
+                <tr>
+                    <th>Product Name</th>
+                    <th>Category</th>
+                    <th>Manufacturer & Model</th>
+                    <th class="text-center">Unified Assets</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 700; color: #0f172a;">{{ product.name }}</div>
+                    </td>
+                    <td><span class="status-badge" style="background: #f1f5f9; color: #475569;">{{ product.category }}</span></td>
+                    <td>
+                        <div style="font-weight: 500;">{{ product.manufacturer }}</div>
+                        <div style="font-size: 0.8rem; color: #64748b;">{{ product.model }}</div>
+                    </td>
+                    <td class="text-center">
+                        <span class="status-badge" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;">
+                            {{ product.instances.count }} in Registry
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center py-5">No product types found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="mobile-only">
+        {% for product in products %}
+        <div class="product-mobile-card" style="padding: 1.25rem; border-bottom: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                <div style="font-weight: 700; color: #0f172a; font-size: 1.1rem;">{{ product.name }}</div>
+                <span class="status-badge" style="background: #eff6ff; color: #1e40af; font-size: 0.65rem;">{{ product.instances.count }} Units</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem;">
+                <div>
+                    <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">Category</div>
+                    <div>{{ product.category }}</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">Model</div>
+                    <div>{{ product.model }}</div>
+                </div>
+                <div style="grid-column: span 2;">
+                    <div style="color: var(--text-muted); text-transform: uppercase; font-size: 0.7rem; font-weight: 700;">Manufacturer</div>
+                    <div>{{ product.manufacturer }}</div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div style="padding: 3rem; text-align: center; color: var(--text-muted);">No products found.</div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

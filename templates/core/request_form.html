@@ -1,0 +1,411 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Edit Request #MR-{{ form.instance.pk }}{% else %}New Maintenance Request{% endif %} - Medilab{% endblock %}
+
+{% block content %}
+<style>
+    /* --- Standard Signature Pad --- */
+    .signature-pad-container {
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+        margin-bottom: 0.5rem;
+    }
+    #signature-pad {
+        width: 100% !important;
+        height: 200px !important;
+        display: block;
+        cursor: crosshair;
+        touch-action: none;
+    }
+
+    /* --- Checkbox List Styling --- */
+
+    
+    /* The collection container (Django often wraps widgets in a div) */
+    .checkbox-list-container > div {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 10px;
+        border: none !important;
+        background: none !important;
+        padding: 0 !important;
+        width: 100%;
+    }
+
+    /* The individual items */
+    .checkbox-list-container label {
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        background: #fff;
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+        margin-bottom: 0 !important;
+        cursor: pointer;
+        font-weight: 500;
+        color: #334155;
+        width: 100%;
+        box-sizing: border-box; 
+    }
+    
+    /* Remove any default wrapper styling if Django wraps inputs in divs */
+    .checkbox-list-container > div > div {
+        display: contents; /* Let the label be the grid item */
+        border: none !important;
+        background: none !important;
+        padding: 0 !important;
+    }
+    
+    .checkbox-list-container input[type="checkbox"] {
+        width: 18px !important;
+        height: 18px !important;
+        min-width: 18px !important;
+        margin: 0 !important;
+        cursor: pointer;
+        padding: 0 !important;
+        order: -1; 
+    }
+    
+    .checkbox-list-container label:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+</style>
+<div class="page-header-actions">
+    <div>
+        <h1 class="page-title">
+            {% if form.instance.pk %}Edit Maintenance Request{% else %}Register New Request{% endif %}
+        </h1>
+        <p class="text-muted">Fill in the customer contact details and select the equipment.</p>
+    </div>
+    <a href="{% url 'request_list' %}" class="btn btn-secondary">Back to List</a>
+</div>
+
+<div class="form-container">
+    <form method="post" novalidate id="requestForm">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+        <div class="alert alert-danger" style="background-color: #fef2f2; border-color: #ef4444; color: #991b1b;">
+            <h4 class="alert-heading" style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">Please correct the errors below:</h4>
+            <ul style="margin-bottom: 0; padding-left: 1.2rem;">
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% if equipment_formset.errors %}
+                <hr>
+                <p class="mb-0"><strong>Equipment Errors:</strong></p>
+                <ul>
+                {% for form_errors in equipment_formset.errors %}
+                    {% for field, errors in form_errors.items %}
+                        <li>{{ field }}: {{ errors|join:", " }}</li>
+                    {% endfor %}
+                {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="form-section">
+            <div class="section-header"><span class="section-icon">❶</span>Customer & Facility</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Customer Contact Date</label>
+                    {{ form.customer_contact_date }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Facility Name</label>
+                    {{ form.facility_name }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Location (District)</label>
+                    {{ form.location }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Donor / Project (if any)</label>
+                    {{ form.donor }}
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Contact Person Name</label>
+                    {{ form.contact_name }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Contact Phone Number</label>
+                    {{ form.contact_number }}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="section-header"><span class="section-icon">❷</span>Service Windows & Priority</div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Availability Start</label>{{ form.availability_start }}</div>
+                <div class="form-group"><label class="form-label">Availability End</label>{{ form.availability_end }}</div>
+            </div>
+            <div class="form-row">
+                <div class="form-group" {% if not user.is_staff %}style="grid-column: span 2;"{% endif %}>
+                    <label class="form-label">Urgency Level</label>{{ form.urgency }}
+                </div>
+                {% if user.is_staff %}
+                <div class="form-group"><label class="form-label">Request Status</label>{{ form.status }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="section-header"><span class="section-icon">❸</span>Equipment & Details</div>
+            
+            {{ equipment_formset.management_form }}
+            <div id="equipment-list-container">
+                {% for eq_form in equipment_formset %}
+                <div class="equipment-request-card card" style="background: #f8fafc; margin-bottom: 1rem; padding: 1.5rem; border-style: dashed; border-color: #cbd5e1" data-index="{{ forloop.counter0 }}">
+                    {{ eq_form.id }}
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: start;">
+                        <div class="form-group">
+                            <label class="form-label">Select machine from Registry</label>
+                            {{ eq_form.equipment }}
+                            <small class="text-muted">Linked to Catalogue & S/N</small>
+                        </div>
+                        <div class="form-group">
+                            {% if equipment_formset.can_delete %}
+                                <div style="display:none;">{{ eq_form.DELETE }}</div>
+                                <button type="button" class="btn btn-outline-danger remove-eq-btn" style="padding: 0.55rem;">&times;</button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 1.5rem;">
+                <button type="button" id="add-instrument-btn" class="btn btn-outline-primary" style="flex: 1; border-style: dashed;">+ Add Registered Machine</button>
+                <button type="button" class="btn btn-outline-secondary" id="openRegistryModal">Register New machine</button>
+            </div>
+
+            <div class="form-group" style="margin-top: 1rem;">
+                <label class="form-label">Service Type Required</label>
+                <div class="checkbox-list-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; background: #fff; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    {{ form.service_type }}
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label class="form-label">Additional Request Details</label>
+                {{ form.request_details }}
+            </div>
+        </div>
+
+        <div class="form-section" style="background: #fffbeb; border: 1px solid #fef3c7;">
+            <div class="section-header"><span class="section-icon" style="background: #f59e0b;">❹</span><span style="color: #92400e;">Billing & Pricing</span></div>
+            <div class="form-row">
+                <div class="form-group"><label class="form-label">Billing Status</label>{{ form.billing_status }}</div>
+                {% if is_engineer %}
+                <div class="form-group">
+                    <label class="form-label">Estimated Cost ($)</label>{{ form.estimated_cost }}
+                    <small class="text-muted">Enter desired pricing.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">Save Request</button>
+        </div>
+    </form>
+</div>
+
+<!-- Modal for New Registry Entry -->
+{% include 'core/equipment_selector_modal.html' %}
+<!-- Modal for Catalogue (Nested) -->
+{% include 'core/product_create_modal.html' %}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var inputs = document.querySelectorAll('input, select, textarea');
+        inputs.forEach(function(input) { if (input.type !== 'submit' && input.type !== 'hidden') input.classList.add('form-control'); });
+
+        // Checkbox styling
+        document.querySelectorAll('.checkbox-list-container ul').forEach(ul => {
+            ul.style.listStyle = 'none'; ul.style.padding = '0'; ul.style.margin = '0';
+            ul.style.display = 'grid'; ul.style.gridTemplateColumns = '1fr'; ul.style.gap = '8px';
+        });
+        document.querySelectorAll('.checkbox-list-container li').forEach(li => {
+            li.style.display = 'flex'; li.style.alignItems = 'center'; li.style.gap = '10px';
+            li.style.background = '#f8fafc'; li.style.padding = '8px 12px'; li.style.borderRadius = '6px';
+            li.style.border = '1px solid #e2e8f0';
+        });
+
+        // Dynamic FormSet
+        const container = document.getElementById('equipment-list-container');
+        const addBtn = document.getElementById('add-instrument-btn');
+        const totalForms = document.getElementById('id_equipment_items-TOTAL_FORMS');
+
+        // Helper to add a new form row (used by both manual add and modal selection)
+        window.addNewFormRow = function(equipmentId = null, equipmentLabel = null) {
+            const currentCount = parseInt(totalForms.value);
+            const html = document.getElementById('empty-form-template').innerHTML.replace(/__prefix__/g, currentCount);
+            const div = document.createElement('div'); div.innerHTML = html;
+            const newRow = div.firstElementChild;
+            
+            // If we have specific equipment to select (from modal)
+            if (equipmentId) {
+                const selectInfo = newRow.querySelector('select');
+                if (selectInfo) {
+                    selectInfo.value = equipmentId;
+                    // Provide visual feedback if needed, or if the form UI is different
+                }
+            }
+
+            container.appendChild(newRow);
+            totalForms.value = currentCount + 1;
+        };
+
+        addBtn.addEventListener('click', function() {
+            window.addNewFormRow(); // Just adds an empty row for manual selection
+        });
+
+        container.addEventListener('click', function(e) {
+            if (e.target.closest('.remove-eq-btn')) {
+                const card = e.target.closest('.equipment-request-card');
+                const del = card.querySelector('input[name$="-DELETE"]');
+                if (del) { del.checked = true; card.style.display = 'none'; } else card.remove();
+            }
+        });
+
+        // --- REGISTRY MODAL LOGIC ---
+        const eqModal = document.getElementById('equipmentModal');
+        const openModalBtn = document.getElementById('openRegistryModal');
+        
+        // Open Modal
+        openModalBtn.onclick = () => {
+            eqModal.style.display = 'block';
+            document.getElementById('tab-existing').click(); // Default to existing
+        };
+
+        // Close Modal Logic (X and Cancel)
+        function closeEqModal() {
+            eqModal.style.display = "none";
+            document.getElementById("modal_equipment_select").value = "";
+            document.getElementById('quickEquipmentForm').reset();
+        }
+        document.querySelectorAll('.close-equipment, .close-equipment-btn').forEach(btn => btn.onclick = closeEqModal);
+
+        // Tab Switching
+        document.getElementById('tab-existing').onclick = function() {
+            this.style.background = '#f1f5f9'; this.style.color = '#475569';
+            document.getElementById('tab-new').style.background = 'transparent'; document.getElementById('tab-new').style.color = '#94a3b8';
+            document.getElementById('mode-registry').style.display = 'block';
+            document.getElementById('mode-new').style.display = 'none';
+        };
+        document.getElementById('tab-new').onclick = function() {
+            this.style.background = '#f1f5f9'; this.style.color = '#475569';
+            document.getElementById('tab-existing').style.background = 'transparent'; document.getElementById('tab-existing').style.color = '#94a3b8';
+            document.getElementById('mode-registry').style.display = 'none';
+            document.getElementById('mode-new').style.display = 'block';
+        };
+
+        // Main "Add" action from Modal
+        document.getElementById('saveEquipmentBtn').onclick = function() {
+            const isNewMode = document.getElementById('mode-new').style.display === 'block';
+
+            if (isNewMode) {
+                // Create new equipment via AJAX
+                const form = document.getElementById('quickEquipmentForm');
+                fetch('{% url "equipment_create_ajax" %}', {
+                    method: 'POST', body: new FormData(form), headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                })
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success) {
+                        // Update all selects on the page
+                        document.querySelectorAll('.equipment-select').forEach(s => s.add(new Option(d.name, d.id)));
+                        // Add to the form list
+                        window.addNewFormRow(d.id, d.name);
+                        closeEqModal();
+                    } else {
+                        document.getElementById('eqError').textContent = d.message;
+                    }
+                });
+            } else {
+                // Use existing selection
+                const sel = document.getElementById('modal_equipment_select');
+                if (!sel.value) { alert("Please select a machine first."); return; }
+                const eqId = sel.value;
+                const eqName = sel.options[sel.selectedIndex].text;
+                
+                window.addNewFormRow(eqId, eqName);
+                closeEqModal();
+            }
+        };
+
+        // --- NESTED PRODUCT MODAL LOGIC (for creating new Types) ---
+        const prodModal = document.getElementById('productModal');
+        // This button is inside the equipment modal
+        const openProdModalBtn = document.querySelector('#quickEquipmentForm button[onclick*="productModal"]'); 
+        if(openProdModalBtn) {
+            openProdModalBtn.onclick = (e) => {
+                e.preventDefault(); // Stop form submit
+                prodModal.style.display = 'block';
+            };
+        }
+        
+        // Close product modal
+        prodModal.querySelectorAll('.close').forEach(btn => btn.onclick = () => prodModal.style.display = 'none');
+
+        // Submit new product
+        document.getElementById('quickProductForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            fetch('{% url "product_create_ajax" %}', {
+                method: 'POST', body: new FormData(this), headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            }).then(r => r.json()).then(d => {
+                if (d.success) {
+                    const s = document.getElementById('modal_new_eq_product');
+                    s.add(new Option(d.name, d.id)); s.value = d.id;
+                    prodModal.style.display = 'none';
+                    this.reset();
+                } else {
+                    document.getElementById('productError').textContent = d.error || "Failed to create product.";
+                }
+            });
+        });
+        
+        // Show Global Loading Overlay on Submit
+        document.getElementById('requestForm').addEventListener('submit', function(e) {
+            const overlay = document.getElementById('global-loading-overlay');
+            if (overlay) overlay.classList.add('active');
+        });
+    });
+</script>
+
+<div id="hidden-templates" style="display: none;">
+    <div id="empty-form-template">
+        <div class="equipment-request-card card" style="background: #f8fafc; margin-bottom: 1rem; padding: 1.5rem; border-style: dashed; border-color: #cbd5e1" data-index="__prefix__">
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 1.5rem; align-items: start;">
+                <div class="form-group">
+                    <label class="form-label">Select machine from Registry</label>
+                    {{ equipment_formset.empty_form.equipment }}
+                </div>
+                <div class="form-group">
+                    <button type="button" class="btn btn-outline-danger remove-eq-btn" style="padding: 0.55rem;">&times;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

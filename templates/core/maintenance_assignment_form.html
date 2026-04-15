@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="form-page-container">
+    <div class="dashboard-header-modern">
+        <div class="header-content">
+            <h2 class="page-title-modern">Schedule Engineer</h2>
+            <p class="subtitle-modern">
+                Assign an engineer to maintenance request MR-{{ maintenance_request.pk }}
+                {% if maintenance_request.availability_start or maintenance_request.availability_end %}
+                    <br>
+                    <span class="small text-slate-500">
+                        Valid Range: 
+                        {% if maintenance_request.availability_start %}{{ maintenance_request.availability_start|date:"d M Y" }}{% else %}Any time{% endif %} 
+                        - 
+                        {% if maintenance_request.availability_end %}{{ maintenance_request.availability_end|date:"d M Y" }}{% else %}Any time{% endif %}
+                    </span>
+                {% endif %}
+            </p>
+        </div>
+        <div class="header-actions-modern">
+            <a href="{% url 'engineer_scheduling' %}" class="btn-create-modern" style="background: #94a3b8;">
+                <span>⬅️ Back</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="form-card-modern">
+        <form method="post" class="modern-form">
+            {% csrf_token %}
+            {{ form.maintenance_request }}
+            
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label for="{{ form.engineer.id_for_label }}">Select Engineer</label>
+                    {{ form.engineer }}
+                    {% if form.engineer.errors %}
+                        <div class="text-danger small">{{ form.engineer.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.date.id_for_label }}">Date of Assignment</label>
+                    {{ form.date }}
+                    {% if form.date.errors %}
+                        <div class="text-danger small">{{ form.date.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <!-- Spacer for layout -->
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.start_time.id_for_label }}">Start Time</label>
+                    {{ form.start_time }}
+                    {% if form.start_time.errors %}
+                        <div class="text-danger small">{{ form.start_time.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="{{ form.end_time.id_for_label }}">End Time</label>
+                    {{ form.end_time }}
+                    {% if form.end_time.errors %}
+                        <div class="text-danger small">{{ form.end_time.errors }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group full-width">
+                    <label for="{{ form.notes.id_for_label }}">Notes / Instructions</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                        <div class="text-danger small">{{ form.notes.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="form-actions-modern">
+                <button type="submit" class="btn-create-modern" style="background: var(--primary-color);">
+                    <span>🚀 Confirm Assignment</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.form-page-container {
+    max-width: 800px;
+    margin: 2rem auto;
+}
+
+.form-card-modern {
+    background: white;
+    padding: 2.5rem;
+    border-radius: 20px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.08);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.form-group.full-width {
+    grid-column: span 2;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.form-actions-modern {
+    margin-top: 2.5rem;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    outline: none;
+}
+
+@media (max-width: 600px) {
+    .form-page-container { margin: 1rem; }
+    .form-card-modern { padding: 1.5rem; }
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full-width { grid-column: span 1; }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startSelect = document.getElementById('{{ form.start_time.id_for_label }}');
+    const endSelect = document.getElementById('{{ form.end_time.id_for_label }}');
+
+    function updateEndTimeOptions() {
+        const startIndex = startSelect.selectedIndex;
+        const currentEndValue = endSelect.value;
+        let firstValidOption = null;
+
+        Array.from(endSelect.options).forEach((option, index) => {
+            if (index <= startIndex) {
+                option.disabled = true;
+                option.style.color = '#cbd5e1'; // Light grey for disabled
+            } else {
+                option.disabled = false;
+                option.style.color = '';
+                if (!firstValidOption) firstValidOption = option.value;
+            }
+        });
+
+        // If selected end time is now disabled, auto-pick the next one
+        if (endSelect.options[endSelect.selectedIndex].disabled && firstValidOption) {
+            endSelect.value = firstValidOption;
+        }
+    }
+
+    startSelect.addEventListener('change', updateEndTimeOptions);
+    
+    // Initial run to set state if start time is already picked (e.g. on page load)
+    updateEndTimeOptions();
+});
+</script>
+{% endblock %}

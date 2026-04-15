@@ -1,0 +1,210 @@
+<!-- Left Side: Shift Cards -->
+<div class="shifts-column" id="shifts-column">
+    <div class="shift-section-title">
+        <span>
+        <span>
+            {% if selected_date %}
+                Trips for {{ selected_date }}
+            {% else %}
+                {% if active_filter == 'pending' %}
+                    Pending (Require Approval)
+                {% elif active_filter == 'archived' %}
+                    Completed & Archived
+                {% else %}
+                    Approved & Scheduled
+                {% endif %}
+            {% endif %}
+        </span>
+        <div class="filter-dropdown-wrapper" style="position: relative;">
+            <i class="fas fa-filter" onclick="toggleFilterMenu(event)" style="color: #94a3b8; font-size: 1rem; cursor: pointer;"></i>
+            <div id="filter-dropdown-menu" class="shadow-sm" style="display: none; position: absolute; right: 0; top: 100%; background: white; border: 1px solid #e2e8f0; border-radius: 8px; min-width: 200px; z-index: 1000; overflow: hidden;">
+                <div onclick="setRequestFilter('approved')" class="filter-option" style="padding: 0.5rem 1rem; cursor: pointer; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #f1f5f9;">Approved, Schedule</div>
+                <div onclick="setRequestFilter('pending')" class="filter-option" style="padding: 0.5rem 1rem; cursor: pointer; font-size: 0.85rem; color: #475569; border-bottom: 1px solid #f1f5f9;">Pending (Require Approval)</div>
+                <div onclick="setRequestFilter('archived')" class="filter-option" style="padding: 0.5rem 1rem; cursor: pointer; font-size: 0.85rem; color: #475569;">Completed, Archived</div>
+            </div>
+        </div>
+    </div>
+
+    {% for request in requests %}
+    <div class="shift-card" data-request-id="{{ request.id }}">
+        <div class="shift-card-header">
+            <div>
+                <span class="shift-id">ID: #TR-{{ request.id|stringformat:"04d" }}</span>
+                <h3 class="shift-route">{{ request.get_location_display }}</h3>
+                <div style="font-size: 0.85rem; color: #64748b;">
+                    <i class="fas fa-hospital" style="margin-right: 0.4rem;"></i>
+                    {{ request.client_name|default:"General Purpose" }}
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <span class="shift-status-tag status-{{ request.status|slugify }}">
+                    {{ request.get_status_display }}
+                </span>
+                <div style="margin-top: 0.5rem; font-weight: 700; font-size: 0.9rem; color: #1e293b;">
+                    {{ request.date|date:"D, M d" }}
+                </div>
+            </div>
+        </div>
+
+        <div class="shift-card-body">
+            <div class="body-item">
+                <i class="fas fa-clock"></i>
+                <div>
+                    <span class="body-item-label">Time Window</span>
+                    <span class="body-item-value">{{ request.start_time|time:"H:i" }} - {{ request.end_time|time:"H:i" }}</span>
+                </div>
+            </div>
+            <div class="body-item">
+                <i class="fas fa-user-tie"></i>
+                <div>
+                    <span class="body-item-label">Driver Assigned</span>
+                    <span class="body-item-value">{{ request.driver.name }}</span>
+                </div>
+            </div>
+            <div class="body-item">
+                <i class="fas fa-user-circle"></i>
+                <div>
+                    <span class="body-item-label">Requested By</span>
+                    <span class="body-item-value">{{ request.requester.get_full_name|default:request.requester.username }}</span>
+                </div>
+            </div>
+            <div class="body-item">
+                <i class="fas fa-building"></i>
+                <div>
+                    <span class="body-item-label">From Dept</span>
+                    <span class="body-item-value">{{ request.department }}</span>
+                </div>
+            </div>
+            <div class="body-item">
+                {% if request.vehicle_type == 'Truck' %}
+                <i class="fas fa-truck"></i>
+                {% elif request.vehicle_type == 'Car' %}
+                <i class="fas fa-car"></i>
+                {% else %}
+                <i class="fas fa-motorcycle"></i>
+                {% endif %}
+                <div>
+                    <span class="body-item-label">Vehicle</span>
+                    <span class="body-item-value">{{ request.vehicle_type }}</span>
+                </div>
+            </div>
+            <div class="body-item">
+                <i class="fas fa-info-circle"></i>
+                <div>
+                    <span class="body-item-label">Status</span>
+                    {% if request.status == 'Pending' or request.status == 'Edit Requested' %}
+                        <span class="badge bg-warning text-dark">Pending Approval</span>
+                    {% elif request.status == 'Approved' %}
+                        {% if request.date >= today %}
+                            <span class="badge bg-success">Scheduled</span>
+                        {% else %}
+                            <span class="badge bg-info text-dark">Completed</span>
+                        {% endif %}
+                    {% elif request.status == 'Cancelled' %}
+                        <span class="badge bg-secondary">Archived</span>
+                    {% else %}
+                        <span class="badge bg-secondary">{{ request.status }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="body-item">
+                <i class="fas fa-route"></i>
+                <div>
+                    <span class="body-item-label">Distance</span>
+                    <span class="body-item-value">{{ request.estimated_distance|default:"Local" }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="shift-card-actions">
+            {% if request.requester == user or user.is_staff %}
+            {% if request.status != 'Cancelled' %}
+            <a href="{% url 'driver_request_edit' request.pk %}" class="btn-action-small edit" title="Edit Request">
+                <i class="fas fa-edit"></i> Edit
+            </a>
+            <button onclick="handleAction('{{ request.id }}', 'cancel')" class="btn-action-small cancel" title="Cancel Request">
+                <i class="fas fa-ban"></i> Cancel
+            </button>
+            {% endif %}
+            {% endif %}
+
+            {% if user.is_staff and request.status == 'Pending' or request.status == 'Edit Requested' %}
+            <button onclick="handleAction('{{ request.id }}', 'approve')" class="btn-action-small approve" title="Approve">
+                <i class="fas fa-check"></i> Approve
+            </button>
+            <button onclick="handleAction('{{ request.id }}', 'deny')" class="btn-action-small deny" title="Deny">
+                <i class="fas fa-times"></i> Deny
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state-card" style="background: white; border-radius: 16px; padding: 3rem; text-align: center; border: 2px dashed #e2e8f0;">
+        <i class="fas fa-calendar-times" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem; display: block;"></i>
+        <h3 style="color: #64748b;">No trips scheduled</h3>
+        <p style="color: #94a3b8;">
+            {% if selected_date %}
+                There are no reservations for {{ selected_date }}.
+            {% else %}
+                New logistics requests will appear here once submitted.
+            {% endif %}
+        </p>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Right Side: Mini Calendar -->
+<div class="calendar-column" id="mini-calendar-column">
+    <div class="calendar-widget" id="mini-calendar-widget">
+        <div class="calendar-header">
+            <span style="font-weight: 700; color: #1e293b;">{{ month_name }} {{ current_year }}</span>
+            <div style="display: flex; gap: 0.8rem;">
+                {% with prev_m=current_month|add:"-1" next_m=current_month|add:"1" %}
+                <a href="?month={% if current_month == 1 %}12{% else %}{{ prev_m }}{% endif %}&year={% if current_month == 1 %}{{ current_year|add:"-1" }}{% else %}{{ current_year }}{% endif %}{% if selected_date %}&date={{ selected_date }}{% endif %}" class="cal-nav-link" style="color: #94a3b8; text-decoration: none;">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+                <a href="?month={% if current_month == 12 %}1{% else %}{{ next_m }}{% endif %}&year={% if current_month == 12 %}{{ current_year|add:"1" }}{% else %}{{ current_year }}{% endif %}{% if selected_date %}&date={{ selected_date }}{% endif %}" class="cal-nav-link" style="color: #94a3b8; text-decoration: none;">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+                {% endwith %}
+            </div>
+        </div>
+        <div class="calendar-grid">
+            <div class="calendar-day-label">M</div>
+            <div class="calendar-day-label">T</div>
+            <div class="calendar-day-label">W</div>
+            <div class="calendar-day-label">T</div>
+            <div class="calendar-day-label">F</div>
+            <div class="calendar-day-label">S</div>
+            <div class="calendar-day-label">S</div>
+            
+            {% for week in calendar_weeks %}
+                {% for day in week %}
+                    {% if day.day == 0 %}
+                        <div class="calendar-day disabled"></div>
+                    {% else %}
+                        <a href="?date={{ day.iso }}{% if current_month != today_month or current_year != today_year %}&month={{ current_month }}&year={{ current_year }}{% endif %}" 
+                           class="calendar-day ajax-cal-day {% if day.is_today %}today{% endif %} {% if selected_date == day.iso %}selected-active{% endif %} {% if day.day in shift_days %}has-shift{% endif %}"
+                           title="{{ day.iso }}">
+                            {{ day.day }}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="calendar-widget" style="margin-top: 1.5rem;">
+        <h4 style="margin: 0 0 1rem 0; font-size: 0.9rem; color: #1e293b;">Logistics Summary</h4>
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.85rem; color: #64748b;"><i class="fas fa-check-circle" style="color: #38a169; margin-right: 0.5rem;"></i> Approved</span>
+                <span style="font-weight: 700; color: #1e293b;">{{ requests|length }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.85rem; color: #64748b;"><i class="fas fa-truck-loading" style="color: #3b82f6; margin-right: 0.5rem;"></i> Active Fleet</span>
+                <span style="font-weight: 700; color: #1e293b;">{{ active_driver_count }}</span>
+            </div>
+        </div>
+    </div>
+</div>

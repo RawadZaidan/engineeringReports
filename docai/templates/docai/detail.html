@@ -1,0 +1,877 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Summary: {{ summary.title|default:summary.document.name }}{% endblock %}
+
+{% block content %}
+<div class="docai-detail-container">
+    <div class="breadcrumb">
+        <a href="{% url 'docai:home' %}">← Back to DocAi</a>
+    </div>
+
+    <div class="summary-header">
+        <div class="title-section">
+            <h1 id="display-title">{{ summary.title|default:"Tender Document" }}</h1>
+            <div class="header-badges">
+                {% if summary.status != 'completed' %}
+                <span class="badge badge-{{ summary.status }}">{{ summary.status|title }}</span>
+                {% endif %}
+                
+                {% if summary.category %}
+                <span class="version-badge ai" style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe;">
+                    <i class="fas fa-tag"></i> {{ summary.get_category_display }}
+                </span>
+                {% endif %}
+                
+                {% if summary.continent %}
+                <span class="version-badge ai" style="background: #f0fdf4; color: #166534; border: 1px solid #dcfce7;">
+                    <i class="fas fa-globe"></i> {{ summary.continent }}
+                </span>
+                {% endif %}
+                
+                {% if summary.is_human_enhanced %}
+                <span class="version-badge human" title="Edited by human">👤 Human Enhanced</span>
+                {% else %}
+                <span class="version-badge ai" title="Pure AI generated">🤖 Pure AI</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="meta-section">
+            <span><strong>Date Analyzed:</strong> {{ summary.created_at|date:"M d, Y H:i" }}</span>
+            <div class="header-actions">
+                <a href="{{ summary.document.url }}" target="_blank" class="btn btn-outline btn-sm">Original File ↗</a>
+                {% if summary.user == request.user or request.user.is_staff %}
+                <button type="button" id="edit-btn" class="btn btn-primary btn-sm">Edit Summary</button>
+                <form action="{% url 'docai:delete' summary.id %}" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this summary? This action cannot be undone.');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm">Delete Summary</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if summary.status == 'processing' %}
+    <div class="processing-container card">
+        <div class="processing-content">
+            <div class="ai-pulse">
+                <div class="pulse-ring"></div>
+                <div class="pulse-icon">✨</div>
+            </div>
+            
+            <h2 id="current-step-label">{{ summary.current_step|default:"Targeting analyze..." }}</h2>
+            <p class="processing-subtitle">gpt-5-nano is deep-scanning the tender documents. High-accuracy extraction in progress.</p>
+            
+            <div class="progress-wrapper">
+                <div class="progress-bar-container">
+                    <div id="progress-bar-fill" class="progress-bar-fill" style="width: {{ summary.analysis_progress }}%;">
+                        <div class="progress-glow"></div>
+                    </div>
+                </div>
+                <div class="progress-stats">
+                    <span id="progress-percent">{{ summary.analysis_progress }}%</span>
+                    <span class="processing-tag">REAL-TIME ANALYSIS</span>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            (function() {
+                const summaryId = "{{ summary.id }}";
+                const progressApi = "{% url 'docai:progress_api' summary.id %}";
+                const barFill = document.getElementById('progress-bar-fill');
+                const percentLabel = document.getElementById('progress-percent');
+                const stepLabel = document.getElementById('current-step-label');
+                
+                let pollCount = 0;
+                
+                function pollProgress() {
+                    fetch(progressApi)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'completed') {
+                                // Smoothly transition to 100% before reload
+                                barFill.style.width = '100%';
+                                percentLabel.innerText = '100%';
+                                stepLabel.innerText = 'Success! Opening analysis...';
+                                setTimeout(() => window.location.reload(), 800);
+                                return;
+                            }
+                            
+                            if (data.status === 'failed') {
+                                window.location.reload();
+                                return;
+                            }
+                            
+                            // Update progress and step
+                            if (data.progress > parseInt(barFill.style.width)) {
+                                barFill.style.width = data.progress + '%';
+                                percentLabel.innerText = data.progress + '%';
+                            }
+                            
+                            if (data.step) {
+                                stepLabel.innerText = data.step;
+                            }
+                            
+                            // Continue polling
+                            pollCount++;
+                            setTimeout(pollProgress, 1500);
+                        })
+                        .catch(err => {
+                            console.error("Polling error:", err);
+                            setTimeout(pollProgress, 3000);
+                        });
+                }
+                
+                // Start polling
+                setTimeout(pollProgress, 1000);
+            })();
+        </script>
+    </div>
+    {% elif summary.status == 'completed' %}
+    <div class="summary-content" id="display-mode">
+        <!-- Quick Insight Stats -->
+        <div class="data-grid">
+            <div class="card data-card">
+                <div class="data-icon">📅</div>
+                <div class="data-label">Submission Deadline</div>
+                <div class="data-value">{{ summary.deadline }}</div>
+            </div>
+            <div class="card data-card {% if summary.local_presence_required %}risk-high{% endif %}">
+                <div class="data-icon">📍</div>
+                <div class="data-label">Local Presence</div>
+                <div class="data-value">{{ summary.local_presence_required|yesno:"REQUIRED,Optional/Not specified" }}</div>
+            </div>
+            <div class="card data-card">
+                <div class="data-icon">❓</div>
+                <div class="data-label">Clarif. Deadline</div>
+                <div class="data-value">{{ summary.clarification_deadline }}</div>
+            </div>
+            <div class="card data-card">
+                <div class="data-icon">💵</div>
+                <div class="data-label">Currency</div>
+                <div class="data-value">{{ summary.currency_code }}</div>
+            </div>
+            <div class="card data-card">
+                <div class="data-icon">🛡️</div>
+                <div class="data-label">Bid Security/Bond</div>
+                <div class="data-value">{{ summary.bid_security }}</div>
+            </div>
+            <div class="card data-card">
+                <div class="data-icon">🏢</div>
+                <div class="data-label">Procuring Entity</div>
+                <div class="data-value">{{ summary.tenderer|default:"N/A" }}</div>
+            </div>
+        </div>
+
+        <div class="detail-sections">
+            <div class="main-sections">
+                <div class="card detail-card">
+                    <h2><span class="icon">📜</span> Overall Summary</h2>
+                    <div class="content-text">{{ summary.raw_summary|linebreaks }}</div>
+                </div>
+
+                <div class="card detail-card">
+                    <h2><span class="icon">📦</span> Lots / Packages</h2>
+                    <div class="table-responsive">
+                        <table class="lots-table">
+                            <thead>
+                                <tr>
+                                    <th>Lot #</th>
+                                    <th>Description / Items</th>
+                                    <th style="width: 25%;">Quantity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in summary.get_flattened_items %}
+                                <tr>
+                                    <td><strong>{{ item.lot_number }}</strong></td>
+                                    <td>{{ item.name }}</td>
+                                    <td><span class="qty-badge">{{ item.quantity }}</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" style="text-align: center;">No items found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="card detail-card">
+                        <h2><span class="icon">💰</span> Financial Thresholds</h2>
+                        <div class="content-text">
+                            {% with ft=summary.get_financial_thresholds %}
+                                {% if ft %}
+                                    <div style="line-height: 1.8;">
+                                    {% for key, value in ft.items %}
+                                        <div><strong>{{ key|title }}:</strong> {{ value }}</div>
+                                    {% endfor %}
+                                    </div>
+                                {% else %}
+                                    Not specified
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </div>
+                    <div class="card detail-card">
+                        <h2><span class="icon">🔧</span> Maintenance & Warranty</h2>
+                        <div class="content-text">{{ summary.maintenance_warranty|linebreaks }}</div>
+                    </div>
+                    <div class="card detail-card">
+                        <h2><span class="icon">👥</span> Key Experts Required</h2>
+                        <div class="content-text">{{ summary.key_experts|linebreaks }}</div>
+                    </div>
+                    <div class="card detail-card">
+                        <h2><span class="icon">📈</span> Past Performance</h2>
+                        <div class="content-text">{{ summary.past_performance|linebreaks }}</div>
+                    </div>
+                    <div class="card detail-card">
+                        <h2><span class="icon">🏗️</span> Site Visit / Pre-bid</h2>
+                        <div class="content-text">{{ summary.site_visit|linebreaks }}</div>
+                    </div>
+                    <div class="card detail-card">
+                        <h2><span class="icon">🏆</span> Certificates Required</h2>
+                        <div class="content-text">{{ summary.quality_certificates|linebreaks }}</div>
+                    </div>
+                </div>
+
+                <div class="card detail-card killer-clause-card">
+                    <h2 class="text-danger"><span class="icon">🚨</span> "Killer Clause" Detector</h2>
+                    <div class="danger-box">
+                        <div class="content-text">{{ summary.killer_clauses|linebreaks }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="side-sections">
+                <div class="card detail-card checklist-card">
+                    <h2><span class="icon">✅</span> Document Checklist</h2>
+                    <div class="checklist-content">
+                        {% if summary.document_checklist %}
+                            <ul class="checklist-items">
+                            {% for item in summary.document_checklist.splitlines %}
+                                {% if item.strip %}
+                                <li>{{ item }}</li>
+                                {% endif %}
+                            {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>No document checklist specified</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card detail-card">
+                    <h2><span class="icon">📍</span> Location</h2>
+                    <div class="content-text">{{ summary.location }}</div>
+                </div>
+
+                <div class="card detail-card">
+                    <h2><span class="icon">🏢</span> Procuring Entity</h2>
+                    <div class="content-text">{{ summary.tenderer }}</div>
+                </div>
+
+                <div class="card detail-card">
+                    <h2><span class="icon">⚠️</span> Important Notes</h2>
+                    <div class="content-text">{{ summary.important_notes|linebreaks }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Mode Form -->
+    <div id="edit-mode" style="display: none;">
+        <form action="{% url 'docai:edit' summary.id %}" method="post" class="edit-form">
+            {% csrf_token %}
+            
+            <div class="card detail-card edit-header-card">
+                <h2><span class="icon">✏️</span> Basic Information</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Tender Title</label>
+                        <input type="text" name="title" value="{{ summary.title|default:'' }}" class="form-control">
+                    </div>
+                    <div class="form-grid-three">
+                        <div class="form-group">
+                            <label>Submission Deadline</label>
+                            <input type="text" name="deadline" value="{{ summary.deadline|default:'' }}" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Clarification Deadline</label>
+                            <input type="text" name="clarification_deadline" value="{{ summary.clarification_deadline|default:'' }}" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Currency</label>
+                            <input type="text" name="currency_code" value="{{ summary.currency_code|default:'' }}" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-grid-two">
+                        <div class="form-group">
+                            <label>Continent</label>
+                            <input type="text" name="continent" value="{{ summary.continent|default:'' }}" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <select name="category" class="form-control">
+                                <option value="">Select Category</option>
+                                <option value="medical" {% if summary.category == 'medical' %}selected{% endif %}>Medical</option>
+                                <option value="lab" {% if summary.category == 'lab' %}selected{% endif %}>Lab</option>
+                                <option value="agricultural" {% if summary.category == 'agricultural' %}selected{% endif %}>Agricultural</option>
+                                <option value="industrial" {% if summary.category == 'industrial' %}selected{% endif %}>Industrial</option>
+                                <option value="educational" {% if summary.category == 'educational' %}selected{% endif %}>Educational</option>
+                                <option value="research" {% if summary.category == 'research' %}selected{% endif %}>Research</option>
+                                <option value="mix" {% if summary.category == 'mix' %}selected{% endif %}>Mix</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-grid-two">
+                        <div class="form-group">
+                            <label>Location</label>
+                            <input type="text" name="location" value="{{ summary.location|default:'' }}" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label>Procuring Entity</label>
+                            <input type="text" name="tenderer" value="{{ summary.tenderer|default:'' }}" class="form-control">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-sections">
+                <div class="main-sections">
+                    <div class="card detail-card">
+                        <h2><span class="icon">📜</span> Overall Summary</h2>
+                        <textarea name="raw_summary" class="form-control" rows="6">{{ summary.raw_summary|default:'' }}</textarea>
+                    </div>
+
+                    <div class="card detail-card">
+                        <h2><span class="icon">📦</span> Lots Data (JSON)</h2>
+                        <p class="hint">Edit raw JSON for lots structure if needed.</p>
+                        <textarea name="lots" class="form-control font-mono" rows="6">{{ summary.lots|default:'[]' }}</textarea>
+                    </div>
+
+                    <div class="info-grid">
+                        <div class="form-group card detail-card">
+                            <label>Financial Thresholds</label>
+                            <textarea name="financial_thresholds" class="form-control" rows="4">{{ summary.financial_thresholds|default:'' }}</textarea>
+                        </div>
+                        <div class="form-group card detail-card">
+                            <label>Maintenance & Warranty</label>
+                            <textarea name="maintenance_warranty" class="form-control" rows="4">{{ summary.maintenance_warranty|default:'' }}</textarea>
+                        </div>
+                        <div class="form-group card detail-card">
+                            <label>Key Experts</label>
+                            <textarea name="key_experts" class="form-control" rows="4">{{ summary.key_experts|default:'' }}</textarea>
+                        </div>
+                        <div class="form-group card detail-card">
+                            <label>Past Performance</label>
+                            <textarea name="past_performance" class="form-control" rows="4">{{ summary.past_performance|default:'' }}</textarea>
+                        </div>
+                        <div class="form-group card detail-card">
+                            <label>Site Visit</label>
+                            <textarea name="site_visit" class="form-control" rows="4">{{ summary.site_visit|default:'' }}</textarea>
+                        </div>
+                        <div class="form-group card detail-card">
+                            <label>Certificates</label>
+                            <textarea name="quality_certificates" class="form-control" rows="4">{{ summary.quality_certificates|default:'' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="card detail-card killer-clause-card">
+                        <h2 class="text-danger">Killer Clauses</h2>
+                        <textarea name="killer_clauses" class="form-control" rows="4">{{ summary.killer_clauses|default:'' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="side-sections">
+                    <div class="card detail-card checklist-card">
+                        <h2>Document Checklist</h2>
+                        <textarea name="document_checklist" class="form-control" rows="10">{{ summary.document_checklist|default:'' }}</textarea>
+                    </div>
+
+                    <div class="card detail-card">
+                        <h2>Important Notes</h2>
+                        <textarea name="important_notes" class="form-control" rows="10">{{ summary.important_notes|default:'' }}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="edit-actions card">
+                <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
+                <button type="button" id="cancel-btn" class="btn btn-outline btn-lg">Cancel</button>
+            </div>
+        </form>
+    </div>
+    {% else %}
+    <div class="error-state card">
+        <p>Analysis failed. Please try again with a different file or check your API key.</p>
+        {% if summary.failure_reason %}
+        <div class="error-detail" style="margin: 1rem 0; padding: 1rem; background: #fff1f2; border-radius: 8px; color: #991b1b; font-family: monospace; font-size: 0.9rem; text-align: left;">
+            <strong>Error details:</strong><br>
+            {{ summary.failure_reason }}
+        </div>
+        {% endif %}
+        <a href="{% url 'docai:home' %}" class="btn btn-primary">Try Again</a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .docai-detail-container {
+        padding: 2rem 0;
+    }
+    .breadcrumb {
+        margin-bottom: 2rem;
+    }
+    .breadcrumb a {
+        color: #0891b2;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .summary-header {
+        margin-bottom: 3rem;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 1.5rem;
+    }
+    .title-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+    .title-section h1 {
+        margin: 0;
+        font-size: 2rem;
+        color: #1e293b;
+    }
+    .meta-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #64748b;
+    }
+    .data-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    .data-card {
+        padding: 1.5rem;
+        text-align: center;
+        border-top: 4px solid #0891b2;
+    }
+    .data-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    .data-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: #94a3b8;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+    .data-value {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #334155;
+    }
+    .risk-high {
+        border-top: 4px solid #ef4444 !important;
+        background: #fef2f2 !important;
+    }
+    .risk-high .data-label {
+        color: #991b1b !important;
+    }
+    .risk-high .data-value {
+        color: #b91c1c !important;
+    }
+    .detail-sections {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+    }
+    .main-sections, .side-sections {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    .detail-card {
+        padding: 2rem;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .detail-card h2 {
+        font-size: 1.25rem;
+        margin: 0 0 1.5rem 0;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 0.75rem;
+    }
+    .content-text {
+        color: #475569;
+        line-height: 1.6;
+    }
+    .killer-clause-card {
+        border-left: 6px solid #ef4444;
+        background: #fffbfa;
+    }
+    .text-danger {
+        color: #b91c1c !important;
+    }
+    .danger-box {
+        padding: 1rem;
+        background: #fef2f2;
+        border-radius: 8px;
+        border: 1px dashed #fee2e2;
+    }
+    .checklist-card {
+        border-top: 6px solid #10b981;
+    }
+    .checklist-content {
+        color: #065f46;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+    .checklist-items {
+        list-style-type: disc;
+        padding-left: 1.5rem;
+        margin: 0;
+    }
+    .checklist-items li {
+        margin-bottom: 0.5rem;
+        color: #065f46;
+    }
+    .checklist-items li:last-child {
+        margin-bottom: 0;
+    }
+    @media (max-width: 992px) {
+        .detail-sections {
+            grid-template-columns: 1fr;
+        }
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    /* Table Styles */
+    .table-responsive {
+        overflow-x: auto;
+        margin-top: 1rem;
+    }
+    .lots-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 0.95rem;
+    }
+    .lots-table th {
+        background: #f8fafc;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        padding: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+    .lots-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+        color: #334155;
+    }
+    .lots-table tr:hover {
+        background: #f8fafc;
+    }
+    .qty-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.2rem 0.6rem;
+        background: #ecfdf5;
+        color: #059669;
+        border: 1px solid #d1fae5;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        min-width: 40px;
+    }
+    
+    /* Professional Progress Bar Styling */
+    .processing-container {
+        padding: 4rem 2rem;
+        background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        max-width: 700px;
+        margin: 2rem auto;
+        border-radius: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .processing-content {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+    }
+
+    .ai-pulse {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 2rem;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .pulse-ring {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: rgba(8, 145, 178, 0.1);
+        animation: pulse-animation 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+    }
+
+    @keyframes pulse-animation {
+        0% { transform: scale(1); opacity: 1; }
+        100% { transform: scale(2.2); opacity: 0; }
+    }
+
+    .pulse-icon {
+        font-size: 2.5rem;
+        z-index: 2;
+        animation: floating 3s infinite ease-in-out;
+    }
+
+    @keyframes floating {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+    }
+
+    .processing-container h2 {
+        font-size: 1.5rem;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+    }
+
+    .processing-subtitle {
+        color: #64748b;
+        font-size: 0.95rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .progress-wrapper {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .progress-bar-container {
+        height: 14px;
+        background: #f1f5f9;
+        border-radius: 100px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #06b6d4 0%, #0891b2 100%);
+        border-radius: 100px;
+        transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+    }
+
+    .progress-glow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(90deg, 
+            transparent 0%, 
+            rgba(255, 255, 255, 0.3) 50%, 
+            transparent 100%);
+        animation: glow-slide 2s infinite linear;
+    }
+
+    @keyframes glow-slide {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+
+    .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 700;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    #progress-percent {
+        color: #0891b2;
+        font-size: 1.1rem;
+    }
+
+    .processing-tag {
+        font-size: 0.7rem;
+        color: #64748b;
+        background: #f1f5f9;
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        letter-spacing: 0.05em;
+    }
+    .badge {
+        padding: 0.25rem 0.6rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    .badge-completed { background: #dcfce7; color: #166534; }
+    .badge-processing { background: #fef9c3; color: #854d0e; }
+    .badge-failed { background: #fee2e2; color: #991b1b; }
+
+    /* Version Badges */
+    .header-badges {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .version-badge {
+        font-size: 0.8rem;
+        padding: 0.3rem 0.75rem;
+        border-radius: 6px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .version-badge.ai {
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+    }
+    .version-badge.human {
+        background: #fdf2f8;
+        color: #9d174d;
+        border: 1px solid #fbcfe8;
+    }
+
+    /* Edit Form Styles */
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .form-group label {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .form-control {
+        padding: 0.75rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 1rem;
+        color: #1e293b;
+        background: #f8fafc;
+        transition: border-color 0.2s, background-color 0.2s;
+    }
+    .form-control:focus {
+        outline: none;
+        border-color: #0891b2;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
+    }
+    .form-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    .form-grid-two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    .form-grid-three {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1.5rem;
+    }
+    .font-mono {
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 0.9rem;
+    }
+    .hint {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        margin-bottom: 0.5rem;
+    }
+    .edit-actions {
+        position: sticky;
+        bottom: 2rem;
+        z-index: 100;
+        padding: 1.5rem 2rem;
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+        margin: 3rem auto 0;
+        max-width: 500px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    }
+    .btn-lg {
+        padding: 1rem 2rem;
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const editBtn = document.getElementById('edit-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const displayMode = document.getElementById('display-mode');
+        const editMode = document.getElementById('edit-mode');
+        
+        if (editBtn) {
+            editBtn.addEventListener('click', () => {
+                displayMode.style.display = 'none';
+                editMode.style.display = 'block';
+                editBtn.style.display = 'none';
+                window.scrollTo({ top: displayMode.offsetTop - 20, behavior: 'smooth' });
+            });
+        }
+        
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                displayMode.style.display = 'block';
+                editMode.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+            });
+        }
+    });
+</script>
+{% endblock %}

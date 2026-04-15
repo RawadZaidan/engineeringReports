@@ -1,0 +1,548 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}DocAi - Tender Analyzer{% endblock %}
+
+{% block content %}
+<div class="docai-layout">
+    <!-- Sidebar Filters -->
+    <aside class="docai-sidebar">
+        <div class="sidebar-header">
+            <h3><i class="fas fa-filter"></i> Filters</h3>
+            {% if current_filters.continent or current_filters.category %}
+            <a href="{% url 'docai:home' %}" class="clear-filters">Clear All</a>
+            {% endif %}
+        </div>
+        
+        <form method="get" class="filter-form">
+            <!-- Continent Filter -->
+            <div class="filter-group">
+                <label>Continent</label>
+                <select name="continent" onchange="this.form.submit()">
+                    <option value="">All Continents</option>
+                    {% for c in continents %}
+                    <option value="{{ c }}" {% if current_filters.continent == c %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Category Filter -->
+            <div class="filter-group">
+                <label>Category</label>
+                <select name="category" onchange="this.form.submit()">
+                    <option value="">All Categories</option>
+                    {% for val, label in categories.items %}
+                    <option value="{{ val }}" {% if current_filters.category == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+
+        <div class="sidebar-footer">
+            <button class="btn btn-primary w-100" onclick="document.getElementById('upload-section').scrollIntoView({behavior: 'smooth'})">
+                <i class="fas fa-plus"></i> New Analysis
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="docai-main">
+        <div class="page-header-minimal">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 3rem; height: 3rem; background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);">
+                    <i class="fas fa-brain" style="font-size: 1.5rem; color: white;"></i>
+                </div>
+                <div>
+                    <h1>Analysis Dashboard</h1>
+                    <p>Manage and filter your analyzed tender documents.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Summaries List/Grid -->
+        <div class="summaries-section">
+            <div class="summaries-grid">
+                {% for summary in summaries %}
+                <div class="card summary-card status-{{ summary.status }}">
+                    <div class="summary-card-header">
+                        <div class="summary-id-title">
+                            <span class="summary-id">#{{ summary.id }}</span>
+                            <h3>{{ summary.title|default:summary.document.name }}</h3>
+                        </div>
+                        <div class="summary-header-actions">
+                            {% if summary.status != 'completed' %}
+                            <span class="badge badge-{{ summary.status }}">{{ summary.status|title }}</span>
+                            {% endif %}
+                            
+                            {% if summary.is_human_enhanced %}
+                            <span class="version-badge human" title="Edited by human">👤 Human Enhanced</span>
+                            {% else %}
+                            <span class="version-badge ai" title="Pure AI generated">🤖 AI</span>
+                            {% endif %}
+                            
+                            {% if summary.user == request.user or request.user.is_staff %}
+                            <form action="{% url 'docai:delete' summary.id %}" method="post" class="m-0" onsubmit="return confirm('Are you sure you want to delete this summary?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-icon-delete" title="Delete Summary">🗑️</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="summary-card-body">
+                        <div class="summary-tags mb-3">
+                            {% if summary.category %}
+                            <span class="tag tag-category">{{ summary.get_category_display }}</span>
+                            {% endif %}
+                            {% if summary.continent %}
+                            <span class="tag tag-continent"><i class="fas fa-globe"></i> {{ summary.continent }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="summary-info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Procuring Entity:</span>
+                                <span class="info-value">{{ summary.tenderer|default:"Processing..." }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Location:</span>
+                                <span class="info-value">{{ summary.location|default:"Processing..." }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Deadline:</span>
+                                <span class="info-value">{{ summary.deadline|default:"Processing..." }}</span>
+                            </div>
+                        </div>
+
+                        <div class="card-footer-sleek">
+                            <span class="date">{{ summary.created_at|date:"M d, Y" }}</span>
+                            <a href="{% url 'docai:detail' summary.id %}" class="btn-view-summary">
+                                Details <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state-card col-12">
+                    <div class="empty-content">
+                        <i class="fas fa-file-invoice" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 1rem;"></i>
+                        <h3>No Analyses Found</h3>
+                        <p>Adjust your filters or upload a document to get started.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Upload Section -->
+        <div id="upload-section" class="section-divider mt-5">
+            <h2>Analyze New Document(s)</h2>
+        </div>
+        <div class="card upload-card-modern">
+            <form action="{% url 'docai:summarize' %}" method="post" enctype="multipart/form-data" class="upload-form">
+                {% csrf_token %}
+                <div class="file-drop-zone" id="drop-zone">
+                    <div class="upload-icon-wrapper">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <h4>Drop Documents Here</h4>
+                    <p class="hint">PDF, Images, or Excel files. Multiple selection supported.</p>
+                    <input type="file" name="documents" id="file-input" required accept=".pdf,.docx,.doc,.rtf,.xlsx,.xls,image/*" multiple>
+                </div>
+                <div id="file-list" class="file-list-grid"></div>
+                <button type="submit" class="btn btn-primary btn-large-modern">
+                    <i class="fas fa-rocket me-2"></i> Launch Analysis
+                </button>
+            </form>
+        </div>
+    </main>
+</div>
+
+<style>
+    /* Layout */
+    .docai-layout {
+        display: flex;
+        gap: 2rem;
+        min-height: calc(100vh - 100px);
+        margin: 2rem 0;
+    }
+
+    /* Sidebar */
+    .docai-sidebar {
+        width: 280px;
+        flex-shrink: 0;
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        height: fit-content;
+        position: sticky;
+        top: 2rem;
+    }
+    .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    .sidebar-header h3 {
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    .clear-filters {
+        font-size: 0.8rem;
+        color: #ef4444;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .filter-group {
+        margin-bottom: 1.5rem;
+    }
+    .filter-group label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.05em;
+    }
+    .filter-group select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        outline: none;
+        background: #f8fafc;
+        font-size: 0.9rem;
+        color: #334155;
+    }
+    .sidebar-footer {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    /* Main Content */
+    .docai-main {
+        flex-grow: 1;
+        min-width: 0;
+    }
+    .page-header-minimal {
+        margin-bottom: 2rem;
+    }
+    .page-header-minimal h1 {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 0.25rem;
+    }
+    .page-header-minimal p {
+        color: #64748b;
+    }
+
+    /* Summaries Grid */
+    .summaries-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .summary-card {
+        border: 1px solid #f1f5f9;
+        border-radius: 16px;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    .summary-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+    .summary-card-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid #f8fafc;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .summary-id-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+        min-width: 0;
+    }
+    .summary-id {
+        font-size: 0.7rem;
+        color: #64748b;
+        background: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+    .summary-card-header h3 {
+        font-size: 0.95rem;
+        margin: 0;
+        font-weight: 700;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+    }
+    .summary-header-actions {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        flex-shrink: 0;
+    }
+    .tag {
+        font-size: 0.7rem;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .tag-category { background: #fef2f2; color: #dc2626; }
+    .tag-continent { background: #f0fdf4; color: #22c55e; }
+
+    .summary-card-body {
+        padding: 1.25rem;
+    }
+    .summary-info-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        font-size: 0.85rem;
+        gap: 1rem;
+    }
+    .info-label { 
+        color: #94a3b8; 
+        text-transform: uppercase;
+        font-weight: 700;
+        font-size: 0.7rem;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+        padding-top: 1px;
+    }
+    .info-value { 
+        color: #334155; 
+        font-weight: 600; 
+        text-align: right;
+        flex: 1;
+        word-break: break-word;
+    }
+
+    .card-footer-sleek {
+        margin-top: 1.25rem;
+        padding-top: 1rem;
+        border-top: 1px solid #f8fafc;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .btn-view-summary {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #dc2626;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .date { font-size: 0.8rem; color: #cbd5e1; }
+
+    /* Upload Area */
+    .upload-card-modern {
+        background: white;
+        border-radius: 20px;
+        padding: 1rem;
+        border: 2px dashed #e2e8f0;
+        transition: border-color 0.3s;
+    }
+    .upload-card-modern:hover {
+        border-color: #dc2626;
+    }
+    .file-drop-zone {
+        padding: 3rem;
+        text-align: center;
+        cursor: pointer;
+        position: relative;
+    }
+    .upload-icon-wrapper {
+        width: 60px;
+        height: 60px;
+        background: #fef2f2;
+        color: #dc2626;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem;
+        font-size: 1.5rem;
+    }
+    .upload-form h4 { font-weight: 700; color: #1e293b; margin-bottom: 0.5rem; }
+    .btn-large-modern {
+        width: 100%;
+        padding: 1rem;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    .file-list-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    .file-item-mini {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    @media (max-width: 992px) {
+        .docai-layout { 
+            flex-direction: column; 
+            margin: 1rem 0;
+            gap: 1rem;
+        }
+        .docai-sidebar { 
+            width: calc(100% - 0.5rem);
+            max-width: 100%;
+            position: static; 
+            padding: 0.75rem;
+            border-radius: 12px;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+        .sidebar-header {
+            margin-bottom: 1rem;
+        }
+        .sidebar-header h3 {
+            font-size: 0.95rem;
+        }
+        .filter-group {
+            margin-bottom: 1rem;
+        }
+        .filter-group label {
+            font-size: 0.7rem;
+            margin-bottom: 0.35rem;
+        }
+        .filter-group select {
+            padding: 0.6rem;
+            font-size: 0.85rem;
+            border-radius: 8px;
+        }
+        .sidebar-footer {
+            margin-top: 1rem;
+            padding-top: 1rem;
+        }
+        .sidebar-footer .btn {
+            padding: 0.65rem;
+            font-size: 0.9rem;
+        }
+        .docai-main {
+            padding: 0;
+        }
+        .page-header-minimal {
+            margin-bottom: 1.5rem;
+        }
+        .page-header-minimal h1 {
+            font-size: 1.5rem;
+        }
+        .summaries-grid {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+        .summary-card {
+            margin: 0;
+        }
+        .summary-card-header {
+            padding: 1rem;
+            flex-wrap: wrap;
+        }
+        .summary-id-title {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+        .summary-header-actions {
+            width: 100%;
+            justify-content: flex-start;
+        }
+        .info-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.25rem;
+        }
+        .info-value {
+            text-align: left;
+        }
+        .upload-card-modern {
+            padding: 0.75rem;
+            margin: 0;
+        }
+        .file-drop-zone {
+            padding: 2rem 1rem;
+        }
+        .file-list-grid {
+            grid-template-columns: 1fr;
+            padding: 0.5rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .docai-layout {
+            margin: 0.5rem 0;
+        }
+        .page-header-minimal h1 {
+            font-size: 1.25rem;
+        }
+        .page-header-minimal p {
+            font-size: 0.875rem;
+        }
+    }
+</style>
+
+<script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
+
+    fileInput.addEventListener('change', function() {
+        fileList.innerHTML = '';
+        if (this.files.length > 0) {
+            Array.from(this.files).forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'file-item-mini';
+                item.innerHTML = `<i class="far fa-file"></i> <span class="text-truncate">${file.name}</span>`;
+                fileList.appendChild(item);
+            });
+        }
+    });
+
+    ['dragover', 'dragleave', 'drop'].forEach(ev => {
+        dropZone.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); });
+    });
+
+    dropZone.addEventListener('dragover', () => dropZone.style.background = '#f0f9ff');
+    dropZone.addEventListener('dragleave', () => dropZone.style.background = 'transparent');
+</script>
+{% endblock %}
+

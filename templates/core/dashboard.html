@@ -1,0 +1,725 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+    
+    <!-- Top Hero Card (Visual Match to Reference) -->
+    <div class="hero-card">
+        <div class="hero-icon-box">
+            <span>E</span>
+        </div>
+        <div class="hero-content">
+            <div class="hero-subtitle">Engineering Console</div>
+            <h1 class="hero-title">Service & Maintenance</h1>
+            <div class="hero-meta">
+                <span class="status-indicator"><i class="fas fa-check-circle"></i> System Active</span>
+                <span class="separator">|</span>
+                <span class="meta-item"><i class="fas fa-file-signature"></i> {{ stats.my_pending }} Pending Actions</span>
+            </div>
+        </div>
+        <div class="hero-actions">
+             <a href="{% url 'request_list' %}" class="btn-hero-secondary">
+                <i class="fas fa-list"></i> Request Board
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="layout-grid">
+        
+        <!-- Main Content Column -->
+        <div class="content-col">
+            
+            <!-- Section Title -->
+            <div class="section-header-row">
+                <h2 class="section-title">Service Reports</h2>
+                <a href="{% url 'report_list' %}" class="btn-section-action" style="white-space: nowrap;">
+                    <i class="fas fa-list-alt"></i> View Reports
+                </a>
+            </div>
+            
+            <!-- Recent Reports Cards -->
+            {% if recent_reports %}
+            <div class="recent-reports-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                {% for report in recent_reports %}
+                <a href="{% url 'report_detail' report.pk %}" class="recent-report-card">
+                    <div class="card-top">
+                        <span class="card-id">SR-{{ report.id }}</span>
+                        <span class="card-status status-{{ report.status|lower }}">{{ report.status }}</span>
+                    </div>
+                    <div class="card-client"><i class="far fa-building"></i> {{ report.client_name|default:"Unknown Client"|truncatechars:25 }}</div>
+                    <div class="card-date"><i class="far fa-clock"></i> {{ report.created_at|date:"M d, Y" }}</div>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Pending Reports List -->
+            {% if my_pending_reports %}
+            <div class="card-stack">
+                {% for report in my_pending_reports %}
+                <div class="trip-card" onclick="location.href='{% url 'report_detail' report.pk %}';">
+                    <div class="trip-header">
+                        <span class="trip-id">ID: #SR-{{ report.id }}</span>
+                        <span class="trip-status status-{{ report.status|lower }}">{{ report.status|upper }}</span>
+                    </div>
+                    <div class="trip-route">
+                        <span class="route-city">{{ report.client_name|default:"Unknown Client" }}</span>
+                        {% if report.location %}
+                        <span class="route-arrow">→</span>
+                        <span class="route-dest">{{ report.location }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="trip-client">
+                        <i class="fas fa-building"></i> {{ report.project_reference|default:"Standard Service" }}
+                    </div>
+                    <div class="trip-details-row">
+                        <div class="detail-item">
+                            <i class="far fa-clock"></i>
+                            <div class="detail-text">
+                                <span class="label">Date</span>
+                                <span class="value">{{ report.created_at|date:"M d, H:i" }}</span>
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <i class="far fa-user"></i>
+                            <div class="detail-text">
+                                <span class="label">Engineer</span>
+                                <span class="value">{{ report.engineer.get_full_name|default:report.engineer.username }}</span>
+                            </div>
+                        </div>
+                         <div class="detail-item">
+                            <i class="fas fa-tools"></i>
+                            <div class="detail-text">
+                                <span class="label">Type</span>
+                                <span class="value">{{ report.service_type|default:"General"|truncatechars:15 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="trip-actions">
+                        <a href="{% url 'report_detail' report.pk %}" class="btn-card-action edit">
+                            <i class="far fa-edit"></i> Resume
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Recent Requests List -->
+            <div class="section-header-row" style="margin-top: 2rem;">
+                 <h2 class="section-title">Recent Requests</h2>
+            </div>
+            <div class="card-stack">
+                {% for req in recent_requests %}
+                <div class="trip-card" onclick="location.href='{% url 'request_detail' req.pk %}';">
+                    <div class="trip-header">
+                        <span class="trip-id">ID: #MR-{{ req.id }}</span>
+                        <span class="trip-status urgency-{{ req.urgency|lower }}">
+                            {% if req.status != 'Open' %}{{ req.status|upper }} | {% endif %}
+                            {{ req.urgency }} PRIORITY
+                        </span>
+                    </div>
+                    <div class="trip-route">
+                        <span class="route-city">{{ req.facility_name }}</span>
+                         <span class="route-arrow">→</span>
+                        <span class="route-dest">{{ req.get_location_display|default:req.location }}</span>
+                    </div>
+                    <div class="trip-details-row">
+                        <div class="detail-item">
+                            <i class="far fa-calendar-alt"></i>
+                            <div class="detail-text">
+                                <span class="label">Reported</span>
+                                <span class="value">{{ req.created_at|date:"M d, Y" }}</span>
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-info-circle"></i>
+                            <div class="detail-text">
+                                <span class="label">Issue</span>
+                                <span class="value">{{ req.request_details|default:"N/A"|truncatechars:30 }}</span>
+                            </div>
+                        </div>
+                         <div class="detail-item">
+                            <i class="fas fa-user-tag"></i>
+                            <div class="detail-text">
+                                <span class="label">Contact</span>
+                                <span class="value">{{ req.contact_name|default:"-" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                     <div class="trip-actions">
+                         <!-- Visual divider essentially -->
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state-panel">
+                    <i class="fas fa-inbox"></i>
+                    <p>No new requests found.</p>
+                </div>
+                {% endfor %}
+            </div>
+
+        </div>
+
+        <!-- Sidebar Column -->
+        <div class="sidebar-col">
+            
+            <!-- Calendar Widget Style -->
+            <div class="calendar-widget">
+                <div class="calendar-header">
+                    <span style="font-weight: 700; color: #1e293b;">{{ month_name }} {{ current_year }}</span>
+                    <div style="display: flex; gap: 0.8rem;">
+                        {% with prev_m=current_month|add:"-1" next_m=current_month|add:"1" %}
+                        <a href="?month={% if current_month == 1 %}12{% else %}{{ prev_m }}{% endif %}&year={% if current_month == 1 %}{{ current_year|add:"-1" }}{% else %}{{ current_year }}{% endif %}{% if selected_date %}&date={{ selected_date }}{% endif %}" style="color: #94a3b8; text-decoration: none;">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                        <a href="?month={% if current_month == 12 %}1{% else %}{{ next_m }}{% endif %}&year={% if current_month == 12 %}{{ current_year|add:"1" }}{% else %}{{ current_year }}{% endif %}{% if selected_date %}&date={{ selected_date }}{% endif %}" style="color: #94a3b8; text-decoration: none;">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        {% endwith %}
+                    </div>
+                </div>
+                <div class="calendar-grid">
+                    <div class="calendar-day-label">M</div>
+                    <div class="calendar-day-label">T</div>
+                    <div class="calendar-day-label">W</div>
+                    <div class="calendar-day-label">T</div>
+                    <div class="calendar-day-label">F</div>
+                    <div class="calendar-day-label">S</div>
+                    <div class="calendar-day-label">S</div>
+                    
+                    {% for week in calendar_weeks %}
+                        {% for day in week %}
+                            {% if day.day == 0 %}
+                                <div class="calendar-day disabled"></div>
+                            {% else %}
+                                <a href="?date={{ day.iso }}{% if current_month != today_month or current_year != today_year %}&month={{ current_month }}&year={{ current_year }}{% endif %}" 
+                                   class="calendar-day {% if day.is_today %}today{% endif %} {% if selected_date == day.iso %}selected-active{% endif %} {% if day.day in visit_days %}has-shift{% endif %}"
+                                   title="{{ day.iso }}">
+                                    {{ day.day }}
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+                
+                <h5 style="margin: 1.5rem 0 1rem 0; font-size: 0.85rem; color: #64748b; text-transform: uppercase; font-weight: 700;">
+                    {% if selected_date %}Visits on {{ selected_date|date:"M d" }}{% else %}Upcoming Visits{% endif %}
+                </h5>
+                
+                <div class="mini-visit-list">
+                    {% for visit in upcoming_visits %}
+                    <div class="mini-visit-item" onclick="location.href='{% url 'request_detail' visit.maintenance_request.pk %}';" style="cursor: pointer;">
+                        <div class="mini-visit-date">
+                            <span class="d">{{ visit.date|date:"d" }}</span>
+                            <span class="m">{{ visit.date|date:"M" }}</span>
+                        </div>
+                        <div class="mini-visit-info">
+                            <span class="v-title">{{ visit.maintenance_request.facility_name|default:"Unknown Facility"|truncatechars:20 }}</span>
+                            <span class="v-sub">
+                                {{ visit.maintenance_request.get_location_display|default:visit.maintenance_request.location }}
+                                <br>
+                                <small style="color: #64748b;">{{ visit.start_time|time:"H:i" }} - {{ visit.end_time|time:"H:i" }}</small>
+                            </span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p style="color: #94a3b8; font-size: 0.9rem; font-style: italic;">No upcoming visits</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Stats Summary Widget -->
+            <div class="widget-card">
+                 <div class="widget-header">
+                    <h3>Logistics Summary</h3>
+                </div>
+                <div class="summary-stats">
+                    <div class="stat-row">
+                        <span class="stat-label">Pending Reports</span>
+                        <span class="stat-val">{{ stats.my_pending }}</span>
+                    </div>
+                    <div class="stat-row">
+                         <span class="stat-label">Open Requests</span>
+                        <span class="stat-val">{{ stats.open_requests }}</span>
+                    </div>
+                     <div class="stat-row">
+                         <span class="stat-label">Visits (Week)</span>
+                        <span class="stat-val">{{ stats.visits_this_week }}</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<style>
+    /* RESET & CORE VARS */
+    :root {
+        --bg-body: #f8f9fc; /* Very light cool gray */
+        --card-bg: #ffffff;
+        --primary-blue: #2563eb; /* Royal blue */
+        --primary-hover: #1d4ed8;
+        --icon-bg-blue: #0284c7; /* Sky blue for header icon */
+        --text-dark: #1e293b;
+        --text-meta: #64748b;
+        --border-color: #e2e8f0;
+        --radius-card: 16px;
+        --radius-btn: 8px;
+        --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+    }
+
+    body {
+        background-color: var(--bg-body);
+    }
+
+    .dashboard-wrapper {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+        font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+    }
+
+    /* HERO CARD */
+    .hero-card {
+        background: var(--card-bg);
+        border-radius: var(--radius-card);
+        padding: 1.5rem 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+        box-shadow: var(--shadow-soft);
+        position: relative;
+    }
+    .hero-icon-box {
+        width: 64px;
+        height: 64px;
+        background-color: var(--icon-bg-blue);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+        font-weight: 500;
+        flex-shrink: 0;
+    }
+    .hero-content {
+        flex: 1;
+    }
+    .hero-subtitle {
+        color: var(--text-meta);
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+    .hero-title {
+        color: var(--text-dark);
+        font-size: 1.75rem;
+        font-weight: 800;
+        margin: 0;
+        line-height: 1.2;
+    }
+    .hero-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--text-meta);
+    }
+    .status-indicator { color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; }
+    .separator { color: #cbd5e1; }
+    
+    .hero-actions {
+        display: flex;
+        gap: 1rem;
+    }
+    .btn-hero-primary {
+        background: var(--primary-blue);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius-btn);
+        font-weight: 600;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: bg 0.2s;
+        border: none;
+    }
+    .btn-hero-primary:hover { background: var(--primary-hover); color: white; }
+    .btn-hero-secondary {
+        background: transparent;
+        color: var(--primary-blue);
+        border: 1px solid var(--primary-blue);
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius-btn);
+        font-weight: 600;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: bg 0.2s;
+    }
+    .btn-hero-secondary:hover { background: #eff6ff; }
+    
+    .btn-section-action {
+        background: var(--primary-blue);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: var(--radius-btn);
+        font-weight: 600;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+    }
+    .btn-section-action:hover { background: var(--primary-hover); color: white; }
+
+    /* LAYOUT GRID */
+    .layout-grid {
+        display: grid;
+        grid-template-columns: 2.2fr 1fr;
+        gap: 2rem;
+    }
+    
+    /* CONTENT COLUMN */
+    .section-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin: 0;
+    }
+    .filter-icon { color: var(--text-meta); cursor: pointer; }
+
+    /* Recent Report Cards */
+    .recent-report-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1rem;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        text-decoration: none;
+        transition: all 0.2s;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .recent-report-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border-color: var(--primary-blue);
+    }
+    .recent-report-card .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .recent-report-card .card-id {
+        font-size: 0.8rem;
+        color: #64748b;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+    .recent-report-card .card-status {
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 0.2rem 0.5rem;
+        border-radius: 6px;
+    }
+    .recent-report-card .card-client {
+        font-size: 0.95rem;
+        color: #1e293b;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .recent-report-card .card-client i { color: #94a3b8; font-size: 0.85rem; }
+    .recent-report-card .card-date {
+        font-size: 0.8rem;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .recent-report-card .card-date i { color: #94a3b8; font-size: 0.85rem; }
+    
+    .recent-report-card .status-completed { background: #ecfdf5; color: #047857; }
+    .recent-report-card .status-pending { background: #fffbeb; color: #b45309; }
+    .recent-report-card .status-draft { background: #f8fafc; color: #475569; }
+
+    .card-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    /* TRIP / ITEM CARD */
+    .trip-card {
+        background: var(--card-bg);
+        border-radius: var(--radius-card);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-soft);
+        border: 1px solid transparent;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .trip-card:hover {
+        border-color: var(--primary-blue);
+        transform: translateY(-2px);
+    }
+    
+    .trip-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+    }
+    .trip-id {
+        font-size: 0.8rem;
+        color: #94a3b8;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+    }
+    .trip-status {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .status-draft { color: #f59e0b; }
+    .status-pending { color: #f59e0b; }
+    .status-completed { color: #10b981; }
+    .urgency-emergency { color: #ef4444; }
+    .urgency-high { color: #f97316; }
+
+    .trip-route {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    .route-city {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-dark);
+    }
+    .route-arrow { color: #cbd5e1; font-weight: 300; }
+    .route-dest { font-size: 1.25rem; font-weight: 700; color: var(--text-dark); }
+
+    .trip-client {
+        color: var(--text-meta);
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .trip-details-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #f1f5f9;
+        margin-bottom: 1rem;
+    }
+    .detail-item {
+        display: flex;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+    .detail-item i {
+        color: #94a3b8;
+        margin-top: 3px;
+    }
+    .detail-text { display: flex; flex-direction: column; }
+    .detail-text .label { font-size: 0.7rem; color: #94a3b8; margin-bottom: 2px; }
+    .detail-text .value { font-size: 0.85rem; color: #334155; font-weight: 600; }
+
+    .trip-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+    .btn-card-action {
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn-card-action.edit { background: #f1f5f9; color: var(--text-dark); border: 1px solid #e2e8f0; }
+    .btn-card-action.edit:hover { background: #e2e8f0; }
+    .btn-card-action.cancel { background: #fef2f2; color: #ef4444; border: 1px solid #fee2e2; }
+
+    /* WIDGET CARD (Sidebar) */
+    .widget-card {
+        background: var(--card-bg);
+        border-radius: var(--radius-card);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-soft);
+        margin-bottom: 2rem;
+    }
+    .widget-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .widget-header h3 { font-size: 1rem; font-weight: 700; margin: 0; color: var(--text-dark); }
+    .widget-nav { color: var(--text-meta); gap: 1rem; display: flex; font-size: 0.9rem; cursor: pointer; }
+    
+    .mini-calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        text-align: center;
+        font-size: 0.8rem;
+        gap: 0.5rem 0;
+        margin-bottom: 2rem;
+    }
+    .mini-calendar-grid span { color: var(--text-dark); padding: 0.4rem; border-radius: 6px; }
+    .mini-calendar-grid span:nth-child(-n+7) { color: #94a3b8; font-weight: 600; font-size: 0.7rem; } /* Headers */
+    .mini-calendar-grid .dim { color: #cbd5e1; }
+    .mini-calendar-grid .today { background: var(--primary-blue); color: white; font-weight: 600; }
+    .mini-calendar-grid .active { border: 1px solid var(--primary-blue); color: var(--primary-blue); font-weight: 600; }
+
+    .widget-list-title { font-size: 0.85rem; color: var(--text-meta); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; }
+    .widget-list-item {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .widget-list-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .visit-date-badge {
+        background: #f0f9ff;
+        color: var(--primary-blue);
+        border-radius: 8px;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .visit-info { overflow: hidden; }
+    .visit-place { font-weight: 600; color: var(--text-dark); font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .visit-sub { font-size: 0.75rem; color: var(--text-meta); }
+
+    .summary-stats { display: flex; flex-direction: column; gap: 0.75rem; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 0.9rem; padding: 0.5rem 0; border-bottom: 1px dashed #e2e8f0; }
+    .stat-label { color: var(--text-meta); }
+    .stat-val { font-weight: 700; color: var(--text-dark); }
+
+    .empty-state-panel {
+        text-align: center;
+        padding: 3rem;
+        background: white;
+        border-radius: var(--radius-card);
+        border: 1px dashed #e2e8f0;
+    }
+    .empty-state-panel i { font-size: 2rem; color: #cbd5e1; margin-bottom: 0.5rem; }
+    .empty-state-panel p { color: #94a3b8; font-size: 0.9rem; margin: 0; }
+
+    /* Calendar Widget Overrides */
+    .calendar-widget {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        margin-bottom: 1.5rem;
+    }
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    .calendar-day-label {
+        text-align: center;
+        font-size: 0.75rem;
+        color: #94a3b8;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .calendar-day {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        aspect-ratio: 1;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        color: #64748b;
+        text-decoration: none;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .calendar-day:hover { background: #f1f5f9; color: var(--primary-blue); }
+    .calendar-day.today { border: 1.5px solid var(--primary-blue); color: var(--primary-blue); font-weight: 700; }
+    .calendar-day.has-shift::after {
+        content: '';
+        position: absolute;
+        bottom: 4px;
+        width: 4px;
+        height: 4px;
+        background: var(--primary-blue);
+        border-radius: 50%;
+    }
+    .calendar-day.selected-active {
+        background: var(--primary-blue) !important;
+        color: white !important;
+        font-weight: 700;
+    }
+    .calendar-day.disabled { pointer-events: none; opacity: 0; }
+    
+    .mini-visit-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .mini-visit-item {
+        display: flex; gap: 1rem; align-items: center;
+        padding: 0.75rem; /* Reduced padding */
+        background: #f8fafc;
+        border-radius: 12px;
+        transition: all 0.2s;
+        border-left: 3px solid transparent;
+    }
+    
+    @media (max-width: 992px) {
+
+        .layout-grid { grid-template-columns: 1fr; }
+        .hero-card { flex-direction: column; align-items: flex-start; gap: 1rem; padding: 1.25rem; }
+        .hero-actions { width: 100%; flex-direction: column; align-items: center; }
+        .btn-hero-primary, .btn-hero-secondary { 
+            width: 80%; 
+            justify-content: center; 
+            padding: 0.65rem 1rem;
+            font-size: 0.9rem;
+        }
+        .dashboard-wrapper {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}

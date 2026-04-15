@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+
+{% block title %}Asset Registry - Medilab{% endblock %}
+
+{% block content %}
+<div class="page-header-actions">
+    <div>
+        <h1 class="page-title">Asset Registry</h1>
+        <p class="text-muted">Tracking individual machines and their service history.</p>
+    </div>
+    <div class="action-btn-group">
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">Dashboard</a>
+    </div>
+</div>
+
+<style>
+    .filter-bar {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+    
+    .filter-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.25rem;
+        color: var(--text-color);
+    }
+    
+    .filter-title {
+        font-size: 1rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 50% 1fr 1fr auto;
+        gap: 1.5rem;
+        align-items: end;
+    }
+    
+    .filter-label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    
+    .input-with-icon {
+        position: relative;
+    }
+    
+    .input-with-icon i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        pointer-events: none;
+    }
+    
+    .styled-input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.75rem 1rem 0.75rem 2.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background-color: #f8fafc;
+        font-size: 0.9rem;
+        color: var(--text-color);
+        transition: all 0.2s;
+        height: 48px; /* Consistent height */
+    }
+    
+    .styled-select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 0.75rem 2rem 0.75rem 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background-color: #f8fafc;
+        font-size: 0.9rem;
+        color: var(--text-color);
+        transition: all 0.2s;
+        height: 48px; /* Consistent height */
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        background-size: 16px 12px;
+    }
+    
+    .styled-input:focus, .styled-select:focus {
+        background-color: #ffffff;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px var(--primary-soft);
+        outline: none;
+    }
+    
+    .filter-btn {
+        height: 48px;
+        padding: 0 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        border: none;
+        white-space: nowrap;
+    }
+    
+    .btn-apply {
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .btn-apply:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+    }
+    
+    .btn-clear {
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .btn-clear:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+    }
+
+    @media (max-width: 992px) {
+        .filter-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+        .search-col {
+            grid-column: span 2;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+        .search-col {
+            grid-column: span 1;
+        }
+    }
+</style>
+
+<div class="filter-bar">
+    <div class="filter-header">
+        <div class="filter-title">
+            <i class="fas fa-filter" style="color: var(--primary-color);"></i>
+            SEARCH & FILTERS
+        </div>
+    </div>
+    
+    <form method="get" class="filter-grid">
+        <!-- Search Filter -->
+        <div class="search-col">
+            <label for="search" class="filter-label">Search Asset</label>
+            <div class="input-with-icon">
+                <i class="fas fa-search"></i>
+                <input type="text" class="styled-input" id="search" name="q" value="{{ current_q }}" placeholder="Name, Model, or Serial Number...">
+            </div>
+        </div>
+
+        <!-- Location Filter -->
+        <div>
+            <label for="location" class="filter-label">Facility / Location</label>
+            <select class="styled-select" id="location" name="location">
+                <option value="">All Locations</option>
+                {% for loc in locations %}
+                    {% if loc %}
+                    <option value="{{ loc }}" {% if current_location == loc %}selected{% endif %}>{{ loc }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Warranty Filter -->
+        <div>
+            <label for="warranty" class="filter-label">Warranty Status</label>
+            <select class="styled-select" id="warranty" name="warranty">
+                <option value="">All Statuses</option>
+                <option value="active" {% if current_warranty == 'active' %}selected{% endif %}>Active Warranty</option>
+                <option value="expired" {% if current_warranty == 'expired' %}selected{% endif %}>Warranty Expired</option>
+            </select>
+        </div>
+
+        <!-- Buttons -->
+        <div style="display: flex; gap: 0.75rem;">
+            <button type="submit" class="filter-btn btn-apply" style="flex: 1;">
+                Apply Filters
+            </button>
+            {% if current_q or current_location or current_warranty %}
+            <a href="{% url 'equipment_list' %}" class="filter-btn btn-clear" title="Clear All">
+                <i class="fas fa-times"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title" style="font-size: 1.1rem; margin: 0;">
+            <i class="fas fa-list"></i> Full Registry
+        </h3>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="modern-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Machine</th>
+                        <th>Model | Manufacturer</th>
+                        <th>Serial Number</th>
+                        <th>Last Location</th>
+                        <th>Warranty Status</th>
+                        <th>Service History</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eq in equipments %}
+                    <tr {% if eq.warranty_expiration_date and eq.warranty_expiration_date >= today %}style="background: #fffbeb;"{% endif %}>
+                        <td>
+                            <div style="font-weight: 700; color: #0f172a;">{{ eq.product.name }}</div>
+                        </td>
+                        <td>{{ eq.product.manufacturer }} | {{ eq.product.model }}</td>
+                        <td><span style="font-family: monospace; font-weight: 600; color: var(--primary-color);">{{ eq.serial_number }}</span></td>
+                        <td>{{ eq.current_facility|default:"-" }}</td>
+                        <td>
+                            {% if eq.warranty_expiration_date %}
+                                {% if eq.warranty_expiration_date >= today %}
+                                    <span class="badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a;">
+                                        Under Warranty ({{ eq.warranty_expiration_date|date:"Y-m-d" }})
+                                    </span>
+                                {% else %}
+                                    <span class="badge" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0;">
+                                        Expired ({{ eq.warranty_expiration_date|date:"Y-m-d" }})
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted" style="font-size: 0.85rem;">No warranty info</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'dashboard' %}?q={{ eq.serial_number }}" class="btn btn-sm btn-outline-secondary">View {{ eq.report_count }} Reports</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5">
+                            <div style="color: #94a3b8;">No equipment registered yet.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    {% if is_paginated %}
+    <div class="pagination-container" style="padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0;">
+        <span class="step-links-info" style="font-size: 0.85rem; color: #64748b;">
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} assets
+        </span>
+        
+        <div class="step-links">
+            <nav aria-label="Page navigation">
+                <ul class="pagination" style="display: flex; gap: 4px; margin: 0; padding: 0; list-style: none;">
+                    {% if page_obj.has_previous %}
+                    <li>
+                        <a href="?page=1{% if current_q %}&q={{ current_q }}{% endif %}{% if current_location %}&location={{ current_location }}{% endif %}{% if current_warranty %}&warranty={{ current_warranty }}{% endif %}" class="btn btn-sm btn-outline-secondary" style="padding: 0.25rem 0.6rem;">&laquo; First</a>
+                    </li>
+                    <li>
+                        <a href="?page={{ page_obj.previous_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_location %}&location={{ current_location }}{% endif %}{% if current_warranty %}&warranty={{ current_warranty }}{% endif %}" class="btn btn-sm btn-outline-secondary" style="padding: 0.25rem 0.6rem;">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    <li style="display: flex; align-items: center; padding: 0 0.5rem; font-weight: 600; font-size: 0.9rem;">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li>
+                        <a href="?page={{ page_obj.next_page_number }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_location %}&location={{ current_location }}{% endif %}{% if current_warranty %}&warranty={{ current_warranty }}{% endif %}" class="btn btn-sm btn-outline-secondary" style="padding: 0.25rem 0.6rem;">Next</a>
+                    </li>
+                    <li>
+                        <a href="?page={{ page_obj.paginator.num_pages }}{% if current_q %}&q={{ current_q }}{% endif %}{% if current_location %}&location={{ current_location }}{% endif %}{% if current_warranty %}&warranty={{ current_warranty }}{% endif %}" class="btn btn-sm btn-outline-secondary" style="padding: 0.25rem 0.6rem;">Last &raquo;</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

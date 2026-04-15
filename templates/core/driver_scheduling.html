@@ -1,0 +1,1747 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="scheduling-dashboard">
+    <div class="container-fluid" style="padding: 0 2rem;">
+        <!-- Driver Profile Header (FleetOps Style) -->
+        <div class="driver-hero-section">
+            <div class="driver-profile-info">
+                <img src="https://ui-avatars.com/api/?name=F&background=dc2626&color=fff&size=128" class="driver-large-avatar" alt="Fleet">
+                <div class="driver-details">
+                    <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Fleet Overview</div>
+                    <h2>Operational Logistics</h2>
+                    <div class="driver-badge">
+                        <i class="fas fa-check-circle" style="color: #38a169;"></i>
+                        <span>System Active</span>
+                        <span style="margin: 0 0.5rem; color: #cbd5e1;">|</span>
+                        <i class="fas fa-truck" style="color: #dc2626;"></i>
+                        <span>{{ active_driver_count }} Drivers Assigned</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-actions">
+                {% if selected_date %}
+                <a href="{% url 'driver_scheduling' %}" class="btn" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; text-decoration: none; margin-right: 1rem; display: inline-flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-times"></i> Clear Filter
+                </a>
+                {% endif %}
+                <a href="{% url 'driver_request_create' %}" class="btn-create-modern">
+                    <i class="fas fa-plus"></i>
+                    <span>New Trip Request</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="scheduling-layout" id="scheduling-layout-container">
+            {% include 'core/partials/driver_scheduling_partial.html' %}
+        </div>
+
+        <!-- FULL CALENDAR VIEW CONTAINER (Initially Hidden) -->
+        <div id="full-calendar-container" class="hidden" style="margin-top: 2rem;">
+            <div class="calendar-toolbar">
+                <div class="view-switcher">
+                    <button class="view-btn active" onclick="switchCalendarView('month')">Month</button>
+                    <button class="view-btn" onclick="switchCalendarView('week')">Week</button>
+                    <button class="view-btn" onclick="switchCalendarView('day')">Day</button>
+                </div>
+                <div class="calendar-nav">
+                    <button onclick="changeCalendarPeriod(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <button onclick="resetCalendarToToday()">Today</button>
+                    <button onclick="changeCalendarPeriod(1)"><i class="fas fa-chevron-right"></i></button>
+                    <span id="calendar-current-period" style="font-weight: 700; margin-left: 1rem; color: #1e293b;">February 2026</span>
+                </div>
+            </div>
+
+            <div class="calendar-content-wrapper">
+                <!-- Sidebar (Visible in Week/Day on Desktop) -->
+                <div id="calendar-sidebar" class="hidden">
+                    <div class="mini-month-widget">
+                        <div class="mini-month-header">
+                            <span id="mini-month-label" style="font-weight: 700; color: #1e293b;">February 2026</span>
+                            <div class="mini-nav">
+                                <span onclick="changeMiniMonth(-1)"><i class="fas fa-chevron-left"></i></span>
+                                <span onclick="changeMiniMonth(1)"><i class="fas fa-chevron-right"></i></span>
+                            </div>
+                        </div>
+                        <div class="mini-calendar-grid" id="mini-calendar-grid">
+                            <!-- JS populated -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Views -->
+                <div class="calendar-main-area">
+                    <!-- Month View Grid -->
+                    <div id="calendar-view-month" class="calendar-view">
+                        <div class="month-grid-header">
+                            <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                        </div>
+                        <div class="month-grid-body" id="month-grid-body">
+                            <!-- JS will populate -->
+                        </div>
+                    </div>
+
+                    <!-- Week View Grid -->
+                    <div id="calendar-view-week" class="calendar-view hidden">
+                        <div class="time-grid-container">
+                            <div class="time-grid-header" id="week-grid-header">
+                                <div class="time-label-col"></div>
+                                <!-- JS populate headers -->
+                            </div>
+                            <div class="time-grid-body">
+                                <div class="time-label-col">
+                                    <!-- 6 AM to 6 PM (12 hours) -->
+                                    {% for i in "012345678901"|make_list %}
+                                        <div class="time-slot-label">
+                                            {% with hour=forloop.counter0|add:6 %}
+                                                {{ hour }}:00
+                                                {% if hour < 12 %}AM{% elif hour == 12 %}PM{% else %}PM{% endif %}
+                                            {% endwith %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="days-col-container" id="week-grid-days">
+                                    <!-- JS populate columns -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Day View Grid -->
+                    <div id="calendar-view-day" class="calendar-view hidden">
+                        <div class="time-grid-container">
+                            <div class="time-grid-header" id="day-grid-header">
+                                <div class="time-label-col"></div>
+                                <div class="day-header-cell">Today</div>
+                            </div>
+                             <div class="time-grid-body">
+                                <div class="time-label-col">
+                                    {% for i in "012345678901"|make_list %}
+                                        <div class="time-slot-label">
+                                            {% with hour=forloop.counter0|add:6 %}
+                                                {{ hour }}:00
+                                                {% if hour < 12 %}AM{% elif hour == 12 %}PM{% else %}PM{% endif %}
+                                            {% endwith %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="days-col-container" id="day-grid-day-col">
+                                    <!-- JS populate single column -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Floating Action Button for Mobile -->
+    <a href="{% url 'driver_request_create' %}" class="fab-mobile">
+        <i class="fas fa-plus"></i>
+    </a>
+
+    <!-- Event Details Modal -->
+    <div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 16px; overflow: hidden;">
+                <div class="modal-header border-0 bg-slate-50">
+                    <h5 class="modal-title fw-bold text-slate-800" id="eventModalTitle">Trip Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" style="padding: 2rem;">
+                <div class="d-flex align-items-center mb-4">
+                     <span id="eventModalStatusBadge" class="badge rounded-pill px-3 py-2 fs-7 me-3">Status</span>
+                     <h3 id="eventModalSubject" class="modal-title" style="font-size: 1.25rem;">Title</h3>
+                </div>
+
+                <div class="row g-4">
+                     <div class="col-6">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Time</label>
+                        <div class="d-flex align-items-start text-slate-700">
+                            <i class="far fa-clock me-2 text-slate-400" style="margin-top: 3px;"></i>
+                            <span id="eventModalTime" class="fw-medium" style="line-height: 1.4;"></span>
+                        </div>
+                     </div>
+                     <div class="col-6">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Vehicle</label>
+                        <div class="d-flex align-items-center text-slate-700">
+                            <i class="fas fa-car me-2 text-slate-400"></i>
+                            <span id="eventModalVehicle" class="fw-medium"></span>
+                        </div>
+                     </div>
+                     <div class="col-12">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Driver</label>
+                        <div class="d-flex align-items-center text-slate-700">
+                            <i class="far fa-user-circle me-2 text-slate-400"></i>
+                            <span id="eventModalDriver" class="fw-medium"></span>
+                        </div>
+                     </div>
+                     <div class="col-12">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Requester</label>
+                        <div class="d-flex align-items-center text-slate-700">
+                            <i class="far fa-id-card me-2 text-slate-400"></i>
+                            <span id="eventModalRequester" class="fw-medium"></span>
+                        </div>
+                     </div>
+                </div>
+                
+                <div class="mt-5 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn-action-small cancel" data-bs-dismiss="modal" style="border: 1px solid #e2e8f0;">Close</button>
+                    <a id="eventModalEditBtn" href="#" class="btn-action-small edit">
+                        <i class="fas fa-edit"></i> Edit Request
+                    </a>
+                </div>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Serialized Data from View -->
+<script id="month-requests-data" type="application/json">
+    {{ month_requests_json|safe }}
+</script>
+
+<script>
+// --- Global State ---
+let currentView = 'month'; // month, week, day
+let currentDate = new Date('{{ current_year }}-{{ current_month }}-01'); // Start at view's month
+let miniCalendarDate = new Date(currentDate); // Separate state for mini calendar
+const serverMonth = {{ current_month }};
+const serverYear = {{ current_year }};
+const requestsData = JSON.parse(document.getElementById('month-requests-data').textContent);
+const currentUserId = {{ request.user.id }};
+const isStaff = {{ request.user.is_staff|yesno:"true,false" }};
+
+const DRIVER_COLORS = {
+    'Mohammad': 'driver-color-mohammad',
+    'Mostafa': 'driver-color-mostafa',
+    'Shafiq': 'driver-color-shafiq',
+    'Samer': 'driver-color-samer',
+    'Samer Youssif': 'driver-color-samer'
+};
+const DEFAULT_DRIVER_COLOR = 'driver-color-default';
+
+// --- Filtering State ---
+// Normalize driver names to keys (First name or specific key)
+const ALL_FILTERS = ['Mohammad', 'Mostafa', 'Shafiq', 'Samer'];
+let activeDriverFilters = new Set(ALL_FILTERS);
+let activeRequestFilter = '{{ active_filter|default:"approved" }}';
+
+function normalizeDriverName(fullName) {
+    if (!fullName) return null;
+    if (fullName.includes('Mohammad')) return 'Mohammad';
+    if (fullName.includes('Mostafa')) return 'Mostafa';
+    if (fullName.includes('Shafiq')) return 'Shafiq';
+    if (fullName.includes('Samer')) return 'Samer';
+    return null;
+}
+
+function isEventVisible(e) {
+    const key = normalizeDriverName(e.driver);
+    return activeDriverFilters.has(key);
+}
+
+function toggleDriverFilter(key) {
+    if (activeDriverFilters.has(key)) {
+        activeDriverFilters.delete(key);
+    } else {
+        activeDriverFilters.add(key);
+    }
+    renderDriverLegend();
+    
+    // Refresh active view
+    const isListView = document.getElementById('full-calendar-container').classList.contains('hidden');
+    if (isListView) {
+        filterListView();
+    } else {
+        refreshCalendar();
+    }
+}
+
+function filterListView() {
+    const cards = document.querySelectorAll('.shift-card');
+    cards.forEach(card => {
+        const driverRow = card.querySelector('.fa-user-tie')?.closest('.body-item');
+        if (driverRow) {
+            const driverName = driverRow.querySelector('.body-item-value')?.textContent.trim();
+            const key = normalizeDriverName(driverName);
+           
+            if (activeDriverFilters.has(key)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        }
+    });
+}
+
+// --- Request Type / Status Filtering ---
+function toggleFilterMenu(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('filter-dropdown-menu');
+    if (menu) {
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    }
+}
+
+function setRequestFilter(filterType) {
+    activeRequestFilter = filterType;
+    // Hide menu
+    const menu = document.getElementById('filter-dropdown-menu');
+    if(menu) menu.style.display = 'none';
+    
+    // Fetch data with new filter
+    // We need to reload the partial which contains the 'requests' list
+    // We can reuse fetchSchedulingData logic but we need to construct the URL
+    const url = new URL(window.location.href);
+    url.searchParams.set('filter', activeRequestFilter);
+    
+    // If we are "clearing" a date filter effectively by switching to global filter?
+    // User usage: "New" -> Show all new. "Archived" -> Show all past.
+    // Ensure we keep month/year if set, or date if set.
+    // fetchSchedulingData handles the fetching.
+    fetchSchedulingData(url);
+}
+
+// Close Dropdown on outside click
+document.addEventListener('click', function(e) {
+    const menu = document.getElementById('filter-dropdown-menu');
+    if (menu && menu.style.display === 'block') {
+         if (!e.target.closest('.filter-dropdown-wrapper')) {
+             menu.style.display = 'none';
+         }
+    }
+});
+
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', function() {
+    const schedulingContainer = document.getElementById('scheduling-layout-container');
+    
+    // AJAX Navigation for Scheduling
+    if (schedulingContainer) {
+        schedulingContainer.addEventListener('click', function(e) {
+            const link = e.target.closest('.ajax-cal-day') || e.target.closest('.cal-nav-link') || e.target.closest('.btn[href*="driver_scheduling"]');
+            if (!link) return;
+
+            e.preventDefault();
+            const url = new URL(link.href, window.location.origin);
+            fetchSchedulingData(url);
+        });
+    }
+
+    // fetchSchedulingData is now global
+    if (schedulingContainer) {
+        // Initial fetch logic if needed here, but usually page load handles it.
+        // We handle popstate here if we want to support back/forward for AJAX
+        window.addEventListener('popstate', function() {
+            if (!document.getElementById('full-calendar-container').classList.contains('hidden')) return;
+            const link = document.createElement('a'); // dummy
+            link.href = window.location.href;
+            const url = new URL(link.href, window.location.origin);
+            fetchSchedulingData(url);
+        });
+    }
+
+    // Handle back/forward browser buttons
+    window.addEventListener('popstate', function() {
+        if (!document.getElementById('full-calendar-container').classList.contains('hidden')) return;
+        fetchSchedulingData(new URL(window.location.href));
+    });
+
+    // Restore view preference
+    const savedView = localStorage.getItem('calendarViewActive');
+    
+    // Inject Toggle Button into Header Actions
+    const headerActions = document.querySelector('.header-actions');
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'btn btn-toggle-view';
+    toggleBtn.innerHTML = '<i class="fas fa-calendar-alt"></i> Calendar View';
+    toggleBtn.style.cssText = 'background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; cursor: pointer; margin-right: 1rem;';
+    toggleBtn.onclick = toggleMainView;
+    headerActions.insertBefore(toggleBtn, headerActions.lastElementChild); // Insert before "New Trip"
+
+    // Render Initial Month
+    renderMonthView();
+    renderMiniCalendar();
+    renderDriverLegend(); // New Legend
+    filterListView(); // Ensure list is filtered initially
+    
+    if (savedView === 'true') {
+        // Toggle immediately to show calendar
+        toggleMainView();
+        // Restore specific view type if saved?
+         const prefView = localStorage.getItem('calendarViewPref');
+         if(prefView && prefView !== 'month') {
+             switchCalendarView(prefView);
+         }
+    }
+});
+
+// --- View Switching Logic ---
+function toggleMainView() {
+    const listLayout = document.querySelector('.scheduling-layout');
+    const calendarLayout = document.getElementById('full-calendar-container');
+    const btn = document.querySelector('.btn-toggle-view');
+    const miniCol = document.getElementById('mini-calendar-column');
+
+    if (calendarLayout.classList.contains('hidden')) {
+        // Show Calendar
+        listLayout.classList.add('hidden');
+        if(miniCol) miniCol.classList.add('hidden'); // Hide list-view side calendar
+        calendarLayout.classList.remove('hidden');
+        btn.innerHTML = '<i class="fas fa-list"></i> List View';
+        localStorage.setItem('calendarViewActive', 'true');
+        
+        // Trigger render of current sub-view
+        refreshCalendar();
+    } else {
+        // Show List
+        listLayout.classList.remove('hidden');
+        if(miniCol) miniCol.classList.remove('hidden');
+        calendarLayout.classList.add('hidden');
+        btn.innerHTML = '<i class="fas fa-calendar-alt"></i> Calendar View';
+        localStorage.setItem('calendarViewActive', 'false');
+        
+        // Ensure legend is rendered and list is filtered
+        renderDriverLegend();
+        filterListView();
+    }
+}
+
+async function fetchSchedulingData(url) {
+    const schedulingContainer = document.getElementById('scheduling-layout-container');
+    if (!schedulingContainer) return;
+    
+    // Add loading state
+    schedulingContainer.style.opacity = '0.5';
+    schedulingContainer.style.pointerEvents = 'none';
+
+    try {
+        url.searchParams.set('ajax', '1');
+        const response = await fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+
+        if (!response.ok) throw new Error('Network response was not ok');
+
+        const html = await response.text();
+        schedulingContainer.innerHTML = html;
+
+        // Update URL in browser
+        url.searchParams.delete('ajax');
+        window.history.pushState({}, '', url.toString());
+        
+    } catch (error) {
+        console.error('Fetch error:', error);
+        // Fallback to full reload if AJAX fails
+        window.location.href = url.toString();
+    } finally {
+        schedulingContainer.style.opacity = '1';
+        schedulingContainer.style.pointerEvents = 'auto';
+    }
+}
+
+function switchCalendarView(view) {
+    currentView = view;
+    localStorage.setItem('calendarViewPref', view);
+    
+    // Update active button
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.view-btn[onclick="switchCalendarView('${view}')"]`).classList.add('active');
+
+    // Hide all views
+    document.querySelectorAll('.calendar-view').forEach(v => v.classList.add('hidden'));
+    
+    // Show selected view
+    document.getElementById(`calendar-view-${view}`).classList.remove('hidden');
+
+    // Handle Sidebar Visibility
+    const sidebar = document.getElementById('calendar-sidebar');
+    const legend = document.getElementById('driver-legend-box');
+    
+    if (view === 'week' || view === 'day') {
+        sidebar.classList.remove('hidden');
+        // Synchronize mini calendar with current date
+        miniCalendarDate = new Date(currentDate);
+        renderMiniCalendar();
+        
+        // Toggle Legend: Show for both Week and Day
+        if (legend) legend.style.display = 'block';
+        
+    } else {
+        sidebar.classList.add('hidden');
+    }
+
+    refreshCalendar();
+}
+
+function changeCalendarPeriod(delta) {
+    if (currentView === 'month') {
+        currentDate.setMonth(currentDate.getMonth() + delta);
+    } else if (currentView === 'week') {
+        currentDate.setDate(currentDate.getDate() + (delta * 7));
+    } else if (currentView === 'day') {
+        // Skip Sat/Sun
+        do {
+            currentDate.setDate(currentDate.getDate() + delta);
+        } while (currentDate.getDay() === 0 || currentDate.getDay() === 6);
+    }
+    refreshCalendar();
+
+    // Sync Mini Calendar selection if visible
+    if (currentView !== 'month') {
+        miniCalendarDate = new Date(currentDate); 
+        renderMiniCalendar();
+    }
+}
+
+function resetCalendarToToday() {
+    currentDate = new Date();
+    miniCalendarDate = new Date();
+    refreshCalendar();
+    if (currentView !== 'month') renderMiniCalendar();
+}
+
+function refreshCalendar() {
+    updatePeriodLabel();
+    if (currentView === 'month') renderMonthView();
+    else if (currentView === 'week') renderWeekView();
+    else if (currentView === 'day') renderDayView();
+}
+
+function updatePeriodLabel() {
+    const label = document.getElementById('calendar-current-period');
+    const options = { year: 'numeric', month: 'long' };
+    if (currentView === 'day') options.day = 'numeric';
+    label.textContent = currentDate.toLocaleDateString('en-US', options);
+}
+
+// --- Rendering Logic ---
+
+function renderMiniCalendar() {
+    const grid = document.getElementById('mini-calendar-grid');
+    const label = document.getElementById('mini-month-label');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    
+    const year = miniCalendarDate.getFullYear();
+    const month = miniCalendarDate.getMonth();
+    
+    label.textContent = miniCalendarDate.toLocaleDateString('en-US', {month: 'long', year: 'numeric'});
+    
+    // Headers Mon-Fri
+    ['M','T','W','T','F'].forEach(d => {
+        const dh = document.createElement('div');
+        dh.className = 'mini-cal-header';
+        dh.textContent = d;
+        grid.appendChild(dh);
+    });
+    
+    // Grid Setup: Override to 5 columns
+    grid.style.gridTemplateColumns = 'repeat(5, 1fr)';
+    
+    const firstDay = new Date(year, month, 1);
+    const dayOfWeek = firstDay.getDay(); // 0(Sun) - 6(Sat)
+    
+    // Align to Monday
+    const distToMon = (dayOfWeek + 6) % 7; 
+    const startDate = new Date(firstDay);
+    startDate.setDate(firstDay.getDate() - distToMon);
+    
+    let currentDayIterator = new Date(startDate);
+    
+    // 6 rows
+    for (let row = 0; row < 6; row++) {
+        for (let col = 0; col < 5; col++) {
+             const cellDate = new Date(currentDayIterator);
+             
+             const d = document.createElement('div');
+             let classes = 'mini-cal-day';
+             
+             // Styles
+             if (isToday(cellDate)) classes += ' is-today';
+             if (isSameDay(cellDate, currentDate)) classes += ' is-selected';
+             
+             // Check for shifts
+             const hasShift = requestsData.some(e => isSameDay(new Date(e.start), cellDate));
+             if (hasShift) classes += ' has-shift';
+             
+             // Muted if different month
+             if (cellDate.getMonth() !== month) classes += ' disabled';
+             
+             d.className = classes;
+             d.textContent = cellDate.getDate();
+             
+             // Selection logic
+             if (currentView === 'week') {
+                const startOfWeek = new Date(currentDate);
+                startOfWeek.setDate(currentDate.getDate() - (currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1)); // start Mon
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 4); // end Fri
+                
+                // Compare logic
+                if (cellDate >= startOfWeek && cellDate <= endOfWeek) {
+                    d.classList.add('is-selected-week');
+                }
+             }
+
+             d.onclick = () => {
+                 currentDate = new Date(cellDate);
+                 refreshCalendar();
+                 renderMiniCalendar();
+             };
+             
+             grid.appendChild(d);
+             
+             currentDayIterator.setDate(currentDayIterator.getDate() + 1);
+        }
+        // Skip Sat/Sun
+        currentDayIterator.setDate(currentDayIterator.getDate() + 2);
+        
+        if (currentDayIterator.getMonth() !== month && currentDayIterator.getDate() > 7) break; 
+    }
+}
+
+function changeMiniMonth(delta) {
+    miniCalendarDate.setMonth(miniCalendarDate.getMonth() + delta);
+    renderMiniCalendar();
+}
+
+function renderMonthView() {
+    const gridBody = document.getElementById('month-grid-body');
+    const headerContainer = document.querySelector('.month-grid-header');
+    
+    // Update Header to Mon-Fri if not already (or just force it in case)
+    if (headerContainer) {
+        headerContainer.innerHTML = '';
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(d => {
+            const h = document.createElement('div');
+            h.style.padding = '0.5rem';
+            h.textContent = d;
+            headerContainer.appendChild(h);
+        });
+    }
+
+    gridBody.innerHTML = '';
+    
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    // Calculate start date: Monday of the week containing the 1st
+    const firstDayOfMonth = new Date(year, month, 1);
+    const dayOfWeek = firstDayOfMonth.getDay(); // 0(Sun) - 6(Sat)
+    
+    // Calculate difference to get back to Monday
+    // If Sun(0), -6 days? No, we usually want the Monday of the *current* ISO week?
+    // If Month starts on Sun, usually that Sun is the end of the previous week. 
+    // Let's assume standard "month view" logic where we see the full week containing the 1st.
+    // Make Monday index 1. 0=Sun. 
+    // Shift: Mon(1)->0, Tue(2)->1... Sun(0)->6?
+    // Let's use standard JS getDay(): Sun=0, Mon=1...Sat=6.
+    // Distance to previous Monday:
+    // If Mon(1), dist=0.
+    // If Tue(2), dist=1.
+    // If Sun(0), dist=6 (since it's 6 days afert Monday).
+    
+    const distToMon = (dayOfWeek + 6) % 7; 
+    const startDate = new Date(firstDayOfMonth);
+    startDate.setDate(firstDayOfMonth.getDate() - distToMon);
+    
+    let currentDayIterator = new Date(startDate);
+    
+    // 6 rows to cover most months
+    for (let row = 0; row < 6; row++) {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'month-row';
+        
+        // Loop 5 days (Mon-Fri)
+        for (let col = 0; col < 5; col++) {
+            const cellDate = new Date(currentDayIterator);
+            // Check if we are checking the right day? 
+            // currentDayIterator is Mon. 
+            // We want Mon, Tue, Wed, Thu, Fri.
+            
+            const cell = document.createElement('div');
+            cell.className = 'month-cell';
+            
+            // Visual Styles for different months
+            if (cellDate.getMonth() !== month) {
+                cell.classList.add('empty');
+                cell.innerHTML = `<div class="cell-date" style="opacity:0.4">${cellDate.getDate()}</div>`;
+            } else {
+                cell.innerHTML = `<div class="cell-date">${cellDate.getDate()}</div>`;
+                
+                // Events
+                const cellEvents = requestsData.filter(e => isSameDay(new Date(e.start), cellDate) && isEventVisible(e));
+                const eventsContainer = document.createElement('div');
+                eventsContainer.className = 'cell-events';
+                
+                cellEvents.slice(0, 3).forEach(e => {
+                    const chip = document.createElement('div');
+                    // Use driver color instead of status color
+                    const colorClass = DRIVER_COLORS[e.driver] || DEFAULT_DRIVER_COLOR;
+                    chip.className = `event-chip ${colorClass}`;
+                    chip.textContent = `${e.start.substring(11, 16)} ${e.title}`;
+                    chip.onclick = (ev) => {
+                        ev.stopPropagation();
+                        window.location.href = `/scheduling/request/${e.id}/edit/`;
+                    };
+                    eventsContainer.appendChild(chip);
+                });
+                
+                if (cellEvents.length > 3) {
+                    const more = document.createElement('div');
+                    more.style.fontSize = '0.7rem';
+                    more.style.color = '#64748b';
+                    more.style.textAlign = 'center';
+                    more.textContent = `+${cellEvents.length - 3} more`;
+                    eventsContainer.appendChild(more);
+                }
+                
+                cell.appendChild(eventsContainer);
+                
+                // Navigate to Day
+                cell.onclick = () => {
+                    currentView = 'day';
+                    currentDate = new Date(cellDate);
+                    // Ensure local storage or state update if needed
+                    switchCalendarView('day');
+                };
+                
+                if (isToday(cellDate)) cell.style.background = '#fef2f2';
+            }
+            
+            rowEl.appendChild(cell);
+            
+            // Advance 1 day
+            currentDayIterator.setDate(currentDayIterator.getDate() + 1);
+        }
+        
+        // Skip Sat/Sun to get to next Monday
+        currentDayIterator.setDate(currentDayIterator.getDate() + 2);
+        
+        gridBody.appendChild(rowEl);
+        
+        // Break if we are far into the next month
+        if (currentDayIterator.getFullYear() > year || (currentDayIterator.getFullYear() === year && currentDayIterator.getMonth() > month)) {
+             // Basic check: if the *start* of the next week is already next month, do we need it?
+             // Only if the current month ended mid-week, which the col loop handles.
+             // If the whole next week is next month, stop.
+             if (currentDayIterator.getDate() > 7) break; 
+        }
+    }
+}
+
+function renderWeekView() {
+    const container = document.getElementById('week-grid-days');
+    const header = document.getElementById('week-grid-header');
+    container.innerHTML = '';
+    
+    // Clear header except first spacer
+    while(header.children.length > 1) header.removeChild(header.lastChild);
+
+    // Calculate start of week (Sunday then shift to Mon)
+    // Current logic: currentDate is the month start or selected date.
+    // If we want "Current Week", we need to find the Monday of the week containing currentDate.
+    const startOfWeek = new Date(currentDate);
+    const dayOfWeek = startOfWeek.getDay(); // 0-6
+    const distToMon = (dayOfWeek + 6) % 7; 
+    startOfWeek.setDate(startOfWeek.getDate() - distToMon);
+
+    // Loop Mon (1) to Fri (5)
+    for (let i = 0; i < 5; i++) {
+        const day = new Date(startOfWeek);
+        day.setDate(startOfWeek.getDate() + i);
+        
+        // Header
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'day-header-cell';
+        dayHeader.innerHTML = `<div>${day.toLocaleDateString('en-US', {weekday: 'short'})}</div><div>${day.getDate()}</div>`;
+        if (isToday(day)) dayHeader.classList.add('today');
+        header.appendChild(dayHeader);
+
+        // Column
+        const dayCol = document.createElement('div');
+        dayCol.className = 'day-column';
+        
+        // Add grid lines (12 slots) to match time labels
+        for(let j=0; j<12; j++) {
+            const line = document.createElement('div');
+            line.className = 'grid-cell-line';
+            dayCol.appendChild(line);
+        }
+
+        // Filter events for this day
+        const dayEvents = requestsData.filter(e => isSameDay(new Date(e.start), day) && isEventVisible(e));
+        
+        // --- Column Per Driver Logic ---
+        const activeDrivers = ALL_FILTERS.filter(d => activeDriverFilters.has(d));
+        const colCount = activeDrivers.length || 1;
+        const widthPct = 100 / colCount;
+
+        // Add subtle vertical styling for columns (lanes)
+        // We can add backgrounds or just borders
+        if (activeDrivers.length > 1) {
+            activeDrivers.forEach((d, idx) => {
+                 if (idx > 0) {
+                     const divider = document.createElement('div');
+                     divider.style.position = 'absolute';
+                     divider.style.top = '0';
+                     divider.style.bottom = '0';
+                     divider.style.left = `${idx * widthPct}%`;
+                     divider.style.borderLeft = '1px dashed #f1f5f9';
+                     divider.style.zIndex = '1';
+                     dayCol.appendChild(divider);
+                 }
+            });
+        }
+
+        dayEvents.forEach(e => {
+             const el = createEventElement(e);
+             if(el) {
+                 const drvKey = normalizeDriverName(e.driver);
+                 let colIdx = activeDrivers.indexOf(drvKey);
+                 
+                 // If Unassigned is active and this is unassigned
+                 if (colIdx === -1) return; // Should be filtered out by isEventVisible, but safety
+
+                 // Apply Driver Color
+                 const colorClass = DRIVER_COLORS[drvKey] || DEFAULT_DRIVER_COLOR;
+                 el.classList.add(colorClass);
+                 
+                 // Position in Driver Lane
+                 el.style.width = `calc(${widthPct}% - 4px)`;
+                 el.style.left = `calc(${colIdx * widthPct}% + 2px)`;
+                 
+                 // Add specific styling for this view
+                 el.style.fontSize = '0.7rem';
+                 
+                 dayCol.appendChild(el);
+             }
+        });
+        
+        container.appendChild(dayCol);
+    }
+}
+
+function renderDriverLegend() {
+    // Targets: Full Calendar Sidebar AND List View Sidebar
+    const targets = [
+        document.getElementById('calendar-sidebar'),
+        document.getElementById('mini-calendar-column')
+    ];
+
+    targets.forEach(parent => {
+        if(!parent) return;
+        
+        // Check if legend already exists in this parent
+        // Use a class for identifying the legend box, but unique ID per instance
+        let legendBox = parent.querySelector('.driver-legend');
+        
+        if(!legendBox) {
+            legendBox = document.createElement('div');
+            legendBox.className = 'driver-legend'; // Class handles styling
+            
+            // Insert after mini calendar widget or at end
+            const miniWidget = parent.querySelector('.mini-month-widget') || parent.querySelector('#mini-calendar-widget');
+            if(miniWidget && miniWidget.nextSibling) {
+                parent.insertBefore(legendBox, miniWidget.nextSibling);
+            } else {
+                parent.appendChild(legendBox);
+            }
+        }
+        
+        legendBox.innerHTML = `<div class="legend-title" style="margin-bottom:0.5rem; font-weight:700; color:#1e293b;">Filter Drivers</div>`;
+        
+        ALL_FILTERS.forEach(key => {
+            const item = document.createElement('div');
+            item.className = `legend-item ${activeDriverFilters.has(key) ? '' : 'inactive'}`;
+            item.onclick = () => toggleDriverFilter(key);
+            
+            // Determine color class
+            let colorClass = DEFAULT_DRIVER_COLOR;
+            // Since Unassigned is gone from filters, we just match keys
+            if (DRIVER_COLORS[key]) {
+                 colorClass = DRIVER_COLORS[key];
+            } else if (key === 'Unassigned') {
+                 // Fallback if it somehow remains
+            }
+            
+            item.innerHTML = `
+                <div class="legend-dot ${colorClass}"></div>
+                <span>${key}</span>
+            `;
+            legendBox.appendChild(item);
+        });
+    });
+}
+
+function renderDayView() {
+    const container = document.getElementById('day-grid-day-col');
+    const headerDateEl = document.querySelector('#day-grid-header .day-header-cell');
+    
+    // Filter columns based on active selection
+    // Use global ALL_FILTERS to ensure consistency
+    const drivers = ALL_FILTERS.filter(d => activeDriverFilters.has(d));
+
+    // Update Header Date & Add Driver Labels
+    if (headerDateEl) {
+        headerDateEl.innerHTML = '';
+        headerDateEl.style.display = 'flex';
+        headerDateEl.style.flexDirection = 'column';
+        headerDateEl.style.padding = '0'; // Reset padding to handle inner rows
+        
+        // Row 1: Date
+        const dateRow = document.createElement('div');
+        dateRow.style.padding = '0.75rem 0.5rem';
+        dateRow.style.borderBottom = '1px solid #e2e8f0';
+        dateRow.style.textAlign = 'center';
+        dateRow.innerHTML = `
+            <div style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase;">${currentDate.toLocaleDateString('en-US', {weekday: 'long'})}</div>
+            <div style="font-size: 1.1rem; font-weight: 700; color: #1e293b;">${currentDate.toLocaleDateString('en-US', {month: 'long', day: 'numeric'})}</div>
+        `;
+        headerDateEl.appendChild(dateRow);
+        
+        // Row 2: Driver Columns Labels
+        const driversRow = document.createElement('div');
+        driversRow.style.display = 'flex';
+        driversRow.style.width = '100%';
+        driversRow.style.background = '#f8fafc';
+        
+        drivers.forEach((d, i) => {
+            const label = document.createElement('div');
+            label.style.flex = '1';
+            label.style.textAlign = 'center';
+            label.style.padding = '0.5rem';
+            label.style.fontSize = '0.85rem';
+            label.style.fontWeight = '700';
+            label.style.color = '#475569';
+            label.style.borderRight = i < drivers.length - 1 ? '1px solid #e2e8f0' : 'none';
+            label.textContent = d;
+            driversRow.appendChild(label);
+        });
+        headerDateEl.appendChild(driversRow);
+    }
+
+    container.innerHTML = '';
+    
+    // Create Layout matches the header
+    const columnsWrapper = document.createElement('div');
+    columnsWrapper.style.display = 'flex';
+    columnsWrapper.style.height = '100%';
+    columnsWrapper.style.width = '100%';
+    
+    drivers.forEach((driverName, index) => {
+        const colContainer = document.createElement('div');
+        colContainer.style.flex = '1';
+        colContainer.style.borderRight = index < drivers.length - 1 ? '1px solid #e2e8f0' : 'none';
+        colContainer.style.position = 'relative';
+        colContainer.style.minWidth = '0'; 
+        colContainer.className = 'day-column'; // Reuse class for styling if needed, but we handle content manually
+
+        // Add matching grid lines (12 slots)
+        for(let j=0; j<12; j++) {
+            const line = document.createElement('div');
+            line.className = 'grid-cell-line';
+            colContainer.appendChild(line);
+        }
+        
+        // Filter events
+        const dayEvents = requestsData.filter(e => 
+            isSameDay(new Date(e.start), currentDate) && 
+            e.driver && e.driver.includes(driverName)
+        );
+        
+        dayEvents.forEach(e => {
+            const el = createEventElement(e);
+            if (el) colContainer.appendChild(el);
+        });
+        
+        columnsWrapper.appendChild(colContainer);
+    });
+    
+    container.appendChild(columnsWrapper);
+}
+
+// --- Helper Functions ---
+
+function showEventDetails(e) {
+    document.getElementById('eventModalTitle').textContent = "Trip Details";
+    document.getElementById('eventModalSubject').textContent = e.title; 
+    
+    // Status Badge
+    const badge = document.getElementById('eventModalStatusBadge');
+    badge.className = `badge rounded-pill px-3 py-2 fs-7 me-3 status-${e.status.toLowerCase()}`;
+    badge.textContent = e.status;
+    badge.style.border = '1px solid currentColor'; 
+    
+    // Time
+    const start = new Date(e.start);
+    const end = new Date(e.end);
+    document.getElementById('eventModalTime').textContent = `${start.toLocaleDateString()} ${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    
+    // Details
+    document.getElementById('eventModalVehicle').textContent = e.vehicle || 'N/A';
+    document.getElementById('eventModalDriver').textContent = e.driver || 'Unassigned';
+    document.getElementById('eventModalRequester').textContent = e.details || 'N/A'; 
+    
+    // Edit Link Visibility
+    const editBtn = document.getElementById('eventModalEditBtn');
+    if (e.requester_id === currentUserId || isStaff) {
+        editBtn.style.display = 'inline-flex'; // or whatever the original display was (inline-flex due to btn class)
+        editBtn.href = `/scheduling/request/${e.id}/edit/`;
+    } else {
+        editBtn.style.display = 'none';
+    }
+    
+    // Show Modal (Custom Logic)
+    const modal = document.getElementById('eventDetailsModal');
+    modal.classList.add('show');
+}
+
+// Close Modal Logic
+document.addEventListener('DOMContentLoaded', function() {
+    // ... existing init code ...
+    
+    // Close Modal Handler
+    const modal = document.getElementById('eventDetailsModal');
+    if (modal) {
+        // Close buttons
+        modal.querySelectorAll('[data-bs-dismiss="modal"]').forEach(btn => {
+            btn.onclick = () => modal.classList.remove('show');
+        });
+        
+        // Click outside
+        modal.onclick = (e) => {
+            if (e.target === modal) modal.classList.remove('show');
+        };
+    }
+});
+
+function createEventElement(e) {
+    const start = new Date(e.start);
+    const end = new Date(e.end);
+    
+    // Calculate position relative to 6 AM - 6 PM (12 hours)
+    let startHour = start.getHours() + (start.getMinutes() / 60);
+    let endHour = end.getHours() + (end.getMinutes() / 60);
+    
+    // Clamp values to visible range (6 - 18)
+    if (endHour < 6 || startHour > 18) return null; // Outside range
+    
+    // Adjust start/end visual bounds
+    if (startHour < 6) startHour = 6;
+    if (endHour > 18) endHour = 18;
+    
+    const duration = endHour - startHour;
+    if (duration <= 0) return null;
+
+    // 12 hours total height = 100%
+    // Top % = ((startHour - 6) / 12) * 100
+    // Height % = (duration / 12) * 100
+    
+    const topPct = ((startHour - 6) / 12) * 100;
+    const heightPct = (duration / 12) * 100;
+    
+    const el = document.createElement('div');
+    el.className = `time-grid-event status-${e.status.toLowerCase()}`;
+    el.style.top = `${topPct}%`;
+    el.style.height = `${heightPct}%`;
+    
+    // Add min-height visual if too small (e.g. < 15 mins)
+    // But % based height handles scale well.
+    
+    // Modal Trigger
+    el.onclick = (ev) => {
+        ev.stopPropagation(); // Prevent grid click
+        showEventDetails(e);
+    };
+    
+    // Enhanced Content
+    // Check if height is very small -> show minimal info
+    // 1 hour (1/12 = 8.3%) is standard. 
+    // If < 5%, maybe just showing title?
+    // Let's standardly show more info as requested.
+    el.innerHTML = `
+        <div class="event-time" style="font-size:0.7rem; opacity:0.8; margin-bottom:2px;">
+            ${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+        </div>
+        <div class="event-title" style="font-weight:700; font-size:0.8rem; margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${e.title}
+        </div>
+        <div class="event-driver" style="font-size:0.75rem; color:#475569; display:flex; align-items:center; gap:4px;">
+            <i class="fas fa-user-circle" style="font-size:0.7rem;"></i> ${e.driver}
+        </div>
+         ${e.vehicle ? `
+        <div class="event-vehicle" style="font-size:0.7rem; color:#64748b; margin-top:2px;">
+            <i class="fas fa-car" style="font-size:0.65rem;"></i> ${e.vehicle}
+        </div>` : ''}
+    `;
+    return el;
+}
+
+function isSameDay(d1, d2) {
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+}
+
+function isToday(d) {
+    const today = new Date();
+    return isSameDay(d, today);
+}
+// Handling existing action logic
+function handleAction(requestId, action) {
+    // Check for cancel action
+    if (action === 'cancel' && !confirm("Are you sure you want to cancel this trip?")) {
+        return;
+    }
+
+    let notes = '';
+    if (action === 'deny' || action === 'request_edit') {
+        notes = prompt("Reason / Notes for " + action + ":");
+        if (notes === null) return;
+    }
+
+    const formData = new URLSearchParams();
+    formData.append('action', action);
+    formData.append('notes', notes);
+
+    fetch(`/scheduling/action/${requestId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString()
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert("Error: " + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert("An error occurred. Please try again.");
+    });
+}
+</script>
+
+<style>
+/* Override base.html main.container for full width */
+main.container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Utilities */
+.hidden { display: none !important; }
+
+/* Calendar Container */
+#full-calendar-container {
+    background: white;
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Enhanced Shadow */
+    border: 1px solid #e2e8f0;
+}
+
+/* Layout Structure */
+.calendar-content-wrapper {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+
+.calendar-main-area {
+    flex: 1;
+    min-width: 0; /* Critical for flex child text-overflow */
+    display: flex;
+    flex-direction: column;
+}
+
+#calendar-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+    #calendar-sidebar { display: none !important; }
+}
+
+/* Sidebar Mini Calendar */
+.mini-month-widget {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.mini-month-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.mini-nav span {
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+.mini-nav span:hover { background: #f1f5f9; color: #1e293b; }
+
+.mini-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    text-align: center;
+}
+
+.mini-cal-header {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+}
+
+.mini-cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: #475569;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mini-cal-day:hover { background: #f1f5f9; color: #0f172a; }
+
+.mini-cal-day.is-today { font-weight: 800; color: #2563eb; background: #eff6ff; }
+.mini-cal-day.is-selected { background: #2563eb; color: white !important; font-weight: 700; }
+.mini-cal-day.is-selected-week { background: #dbeafe; color: #1e40af; border-radius: 0; }
+.mini-cal-day.is-selected-week:first-of-type { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+.mini-cal-day.is-selected-week:last-of-type { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+
+
+/* Toolbar */
+.calendar-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.view-switcher, .calendar-nav {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.view-btn {
+    padding: 0.6rem 1.2rem;
+    border: 1px solid #e2e8f0;
+    background: white;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+.view-btn:hover { background: #f8fafc; color: #334155; }
+.view-btn.active {
+    background: #0f172a; /* Darker Active State */
+    color: white;
+    border-color: #0f172a;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-nav button {
+    background: white;
+    border: 1px solid #e2e8f0;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.calendar-nav button:hover { background: #f8fafc; color: #0f172a; border-color: #cbd5e1; }
+
+/* Month Grid */
+.month-grid-header {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* Business Week */
+    text-align: center;
+    font-weight: 700;
+    color: #475569;
+    padding: 1rem 0;
+    border-bottom: 1px solid #cbd5e1;
+    background: #f8fafc;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+
+.month-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* Business Week */
+    height: 140px; /* Fixed Height */
+    min-height: 140px;
+    max-height: 140px;
+    overflow: hidden; /* Prevent growth */
+}
+
+.month-cell {
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    padding: 0.5rem; /* Reduced padding slightly */
+    position: relative;
+    background: white;
+    transition: background 0.2s;
+    overflow: hidden; /* Hide extra content */
+    display: flex;
+    flex-direction: column;
+}
+
+.month-cell:hover { background: #fcfcfc; }
+.month-cell:nth-child(5n) { border-right: none; } /* 5th item */
+.month-cell.empty { background: #f8fafc; }
+
+.cell-date {
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.cell-events {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.event-chip {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-left-width: 4px;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Custom Modal Styles (since Bootstrap is missing) */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 1000; 
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.5); /* Black w/ opacity */
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.modal.show {
+    display: block;
+    opacity: 1;
+}
+.modal-dialog {
+    margin: 10% auto; /* 10% from the top and centered */
+    width: 90%;
+    max-width: 500px;
+    pointer-events: none; /* Wrapper shouldn't block clicks? Content should enable them. */
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+}
+.modal.show .modal-dialog {
+    transform: translateY(0);
+    pointer-events: auto;
+}
+.modal-content {
+    background-color: #fefefe;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+.modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.modal-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+.btn-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #64748b;
+    cursor: pointer;
+}
+.modal-body {
+    padding: 1.5rem;
+}
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
+    margin-top: 1rem;
+}
+
+/* Custom Grid/Typography classes for modal (mimicking Bootstrap) */
+.d-flex { display: flex; }
+.align-items-center { align-items: center; }
+.justify-content-end { justify-content: flex-end; }
+.justify-content-between { justify-content: space-between; }
+.mb-4 { margin-bottom: 1.5rem !important; }
+.mb-1 { margin-bottom: 0.25rem !important; }
+.mb-0 { margin-bottom: 0 !important; }
+.me-2 { margin-right: 0.5rem !important; }
+.me-3 { margin-right: 1rem !important; }
+.p-4 { padding: 1.5rem !important; }
+.px-3 { padding-left: 1rem !important; padding-right: 1rem !important; }
+.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+.fw-bold { font-weight: 700 !important; }
+.fw-medium { font-weight: 500 !important; }
+.text-slate-800 { color: #1e293b; }
+.text-slate-700 { color: #334155; }
+.text-slate-600 { color: #475569; }
+.text-slate-400 { color: #94a3b8; }
+.text-xs { font-size: 0.75rem; }
+.text-uppercase { text-transform: uppercase; }
+.rounded-pill { border-radius: 9999px; }
+.badge { display: inline-block; font-size: 0.75rem; font-weight: 600; line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline; }
+.row { display: flex; flex-wrap: wrap; margin-left: -0.5rem; margin-right: -0.5rem; }
+.col-6 { flex: 0 0 50%; max-width: 50%; padding-left: 0.5rem; padding-right: 0.5rem; box-sizing: border-box; }
+.col-12 { flex: 0 0 100%; max-width: 100%; padding-left: 0.5rem; padding-right: 0.5rem; box-sizing: border-box; margin-top: 1rem; }
+.g-4 { margin-top: -1.5rem; } /* Simplified gap handling */
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.5rem 1rem; font-weight: 500; border-radius: 0.375rem; transition: all 0.2s; text-decoration: none; border: 1px solid transparent; cursor: pointer; }
+.btn-primary { background-color: #2563eb; color: white; border-color: #2563eb; }
+.btn-primary:hover { background-color: #1d4ed8; }
+.btn-light { background-color: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+.btn-light:hover { background-color: #e2e8f0; }
+
+.event-details-row {
+    margin-bottom: 1rem;
+}
+
+/* Time Grid (Week/Day) */
+.time-grid-container {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    overflow: hidden; /* Hide outer scroll, handle inside */
+    background: white;
+}
+
+.time-grid-header {
+    display: flex;
+    border-bottom: 1px solid #cbd5e1;
+    background: #f8fafc;
+    /* Spacing for scrollbar alignment - Adjust based on OS, usually 15-17px */
+    padding-right: 17px; 
+}
+
+.time-label-col {
+    width: 70px;
+    flex-shrink: 0;
+    border-right: 1px solid #cbd5e1;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+.day-header-cell {
+    flex: 1;
+    min-width: 140px; /* MATCH day-column min-width */
+    text-align: center;
+    padding: 0.75rem 0.5rem;
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.day-header-cell div:first-child { font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.day-header-cell div:last-child { font-size: 1.2rem; font-weight: 700; color: #1e293b; margin-top: 2px; }
+.day-header-cell.today div:last-child { 
+    background: #2563eb; color: white; width: 32px; height: 32px; 
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+}
+
+.time-grid-body {
+    display: flex;
+    position: relative;
+    height: 600px;
+    overflow-y: scroll; /* Always show scrollbar to match header padding */
+}
+
+/* Time slots distribute evenly */
+.time-slot-label {
+    flex: 1; /* Distribute height evenly among 12 slots */
+    border-bottom: 1px solid #f1f5f9; /* Lighter separator */
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #94a3b8;
+    padding-top: 4px; /* Slight offset */
+    box-sizing: border-box; /* Strict box model */
+    min-height: 0; /* Prevent content expansion */
+}
+.time-slot-label:last-child { border-bottom: none; }
+
+.days-col-container {
+    display: flex;
+    flex: 1;
+}
+
+.day-column {
+    flex: 1;
+    min-width: 0; /* Allow shrinking if needed, but flex:1 handles width */
+    border-right: 1px solid #e2e8f0;
+    position: relative;
+    height: 100%;
+    /* Flex container for grid lines */
+    display: flex;
+    flex-direction: column;
+}
+
+/* Explicit Grid Lines for alignment */
+.grid-cell-line {
+    flex: 1;
+    border-bottom: 1px solid #f1f5f9;
+    box-sizing: border-box; /* Include border in height calc */
+    min-height: 0; /* Prevent content expansion */
+}
+.grid-cell-line:last-child { border-bottom: none; }
+
+/* Current Time Indicator Line (Optional enhancement) */
+.current-time-line {
+    position: absolute;
+    width: 100%;
+    border-top: 2px solid #ef4444;
+    z-index: 20;
+    pointer-events: none;
+}
+
+.time-grid-event {
+    position: absolute;
+    width: 100%; /* Fill the cell width */
+    left: 0;     /* Align to left edge */
+    background: white;
+    border-radius: 4px; /* Sharper corners */
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* Subtle shadow */
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #cbd5e1;
+    z-index: 10;
+    transition: all 0.2s;
+    box-sizing: border-box; /* Include padding/border in size */
+}
+.time-grid-event:hover {
+    z-index: 20;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+/* Event Content */
+.time-grid-event .event-time { font-weight: 700; font-size: 0.7rem; margin-bottom: 2px; opacity: 0.8; }
+.time-grid-event .event-title { font-weight: 700; font-size: 0.8rem; margin-bottom: 2px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; color: #1e293b; }
+.time-grid-event .event-driver { color: #64748b; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; }
+
+/* Status styling for time grid events using same classes */
+.time-grid-event.status-pending { border-left-color: #f59e0b; background: #fffbeb; }
+.time-grid-event.status-approved { border-left-color: #10b981; background: #f0fdf4; }
+.time-grid-event.status-completed { border-left-color: #3b82f6; background: #eff6ff; }
+.time-grid-event.status-cancelled { border-left-color: #ef4444; background: #fef2f2; opacity: 0.7; }
+
+@media (max-width: 768px) {
+    .calendar-toolbar { flex-direction: column; align-items: stretch; }
+    .view-switcher, .calendar-nav { justify-content: center; width: 100%; }
+    .month-cell { min-height: 80px; }
+    .event-chip { font-size: 0.65rem; }
+}
+    .event-chip { font-size: 0.65rem; }
+}
+
+/* Action Section - Redesigned */
+.shift-card-actions {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9; /* Subtle solid line, not dashed */
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* Base Sleek Button */
+.btn-action-small {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px; /* Fixed height for consistency */
+    padding: 0 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid #e2e8f0; /* Default sleek border */
+    background: white;
+    color: #64748b; /* Slate 500 */
+    gap: 0.4rem;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.btn-action-small:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+/* Approve: Pivot to Green */
+.btn-action-small.approve:hover {
+    border-color: #10b981;
+    color: #059669;
+    background: #ecfdf5;
+}
+
+/* Deny: Pivot to Red */
+.btn-action-small.deny:hover {
+    border-color: #ef4444;
+    color: #dc2626;
+    background: #fef2f2;
+}
+
+/* Edit: Pivot to Blue */
+.btn-action-small.edit:hover {
+    border-color: #3b82f6;
+    color: #2563eb;
+    background: #eff6ff;
+}
+
+/* Cancel: Pivot to Dark Gray */
+.btn-action-small.cancel:hover {
+    border-color: #94a3b8;
+    color: #334155;
+    background: #f8fafc;
+}
+
+</style>
+<style>
+/* Driver Colors */
+.driver-color-mohammad { background-color: #3b82f6 !important; border-left-color: #1d4ed8 !important; color: white !important; }
+.driver-color-mostafa { background-color: #10b981 !important; border-left-color: #047857 !important; color: white !important; }
+.driver-color-shafiq { background-color: #8b5cf6 !important; border-left-color: #6d28d9 !important; color: white !important; }
+.driver-color-default { background-color: #94a3b8 !important; border-left-color: #475569 !important; color: white !important; }
+
+/* Legend Styles */
+.driver-legend {
+    margin-top: 1rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+.legend-item:hover {
+    background: #f8fafc;
+}
+.legend-item.inactive {
+    opacity: 0.5;
+    filter: grayscale(1);
+}
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+
+
+/* Compact Overlap Style */
+.time-grid-event.compact {
+    padding: 0 !important;
+    font-size: 0 !important;
+    border: none !important;
+    /* border-left: 2px solid rgba(0,0,0,0.2) !important; Optional */
+    opacity: 0.9;
+}
+.time-grid-event.compact .event-time, 
+.time-grid-event.compact .event-title, 
+.time-grid-event.compact .event-driver,
+.time-grid-event.compact .event-vehicle {
+    display: none !important;
+}
+.time-grid-event.compact:hover {
+    opacity: 1;
+    z-index: 50 !important;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+</style>
+{% endblock %}

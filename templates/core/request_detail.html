@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Maintenance Request #MR-{{ request.id }} - Medilab{% endblock %}
+
+{% block content %}
+<div class="document-letterhead print-only">
+    <img src="{% static 'img/medilab_logo.png' %}" alt="Medilab Logo" class="letterhead-logo">
+    <img src="{% static 'img/iso_logo.png' %}" alt="ISO Certification" class="letterhead-logo">
+</div>
+
+<div class="detail-page-container">
+    <div class="detail-header-card">
+        <div class="detail-header-main">
+            <h1>
+                Request #MR-{{ request.id }}
+                <span class="status-badge status-{{ request.status|lower|cut:' ' }}" style="font-size: 0.8rem; padding: 0.5rem 1rem;">{{ request.status }}</span>
+            </h1>
+            <div class="detail-header-meta">
+                <span><i class="fas fa-user-circle"></i> {{ request.created_by.get_full_name|default:request.created_by.username }}</span>
+                <span><i class="fas fa-calendar-alt"></i> {{ request.customer_contact_date|date:"M d, Y" }}</span>
+            </div>
+        </div>
+        <div class="detail-header-urgency" style="text-align: right;">
+            <span class="info-label">Current Urgency</span>
+            <span class="status-badge urgency-{{ request.urgency|lower }}" style="font-size: 0.9rem; padding: 0.5rem 1.25rem;">{{ request.urgency }}</span>
+        </div>
+    </div>
+
+    <!-- Actions Bar -->
+    <div class="detail-action-grid">
+        {% if user.is_staff or request.created_by == user %}
+        <a href="{% url 'request_update' request.pk %}" class="detail-action-btn btn-premium-primary">
+            <i class="fas fa-edit"></i> Edit Request
+        </a>
+        {% endif %}
+        
+        {% if is_engineer %}
+        <a href="{% url 'report_create' %}?request_id={{ request.pk }}" class="detail-action-btn btn-premium-success">
+            <i class="fas fa-plus-circle"></i> Create Service Report
+        </a>
+        {% endif %}
+
+        <button class="detail-action-btn btn-premium-outline" onclick="window.print()">
+            <i class="fas fa-print"></i> Print Details
+        </button>
+        
+        {% if request.status == 'Open' and user.is_staff %}
+        <a href="{% url 'maintenance_assignment_create' %}?request_id={{ request.pk }}" class="detail-action-btn btn-premium-primary">
+            <i class="fas fa-calendar-check"></i> Schedule Request
+        </a>
+        {% endif %}
+
+        <a href="{% url 'request_list' %}" class="detail-action-btn btn-premium-outline">
+            <i class="fas fa-arrow-left"></i> Back to Requests
+        </a>
+    </div>
+
+    <div class="detail-content-grid">
+        <!-- Main Column -->
+        <div class="detail-main-col">
+            <div class="content-section-card">
+                <h2 class="section-title"><i class="fas fa-tools" style="color: var(--primary-color);"></i> Service Information</h2>
+                
+                <div class="detail-item">
+                    <span class="item-label">Equipment to be Serviced</span>
+                    <div class="equipment-badge-container">
+                        {% for item in request.equipment_items.all %}
+                        <div class="equipment-premium-badge">
+                            <div class="eq-category">{{ item.equipment.product.category|default:'Standard Equipment' }}</div>
+                            <div class="eq-model">{{ item.equipment.product.manufacturer }} {{ item.equipment.product.model }}</div>
+                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">S/N: {{ item.equipment.serial_number|default:"N/A" }}</div>
+                        </div>
+                        {% empty %}
+                            {% if request.equipment_list %}
+                                <div style="background: #f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid #e2e8f0; font-size: 0.9rem; line-height: 1.6; color: #475569;">
+                                    {{ request.equipment_list|linebreaksbr }}
+                                </div>
+                            {% else %}
+                                <div class="text-muted" style="font-style: italic;">No specific equipment linked.</div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="detail-item" style="margin-top: 2rem;">
+                    <span class="item-label">Service Category</span>
+                    <div style="background: #eff6ff; color: #1e40af; padding: 6px 16px; border-radius: 12px; font-size: 0.9rem; font-weight: 700; border: 1px solid #bfdbfe; display: inline-block;">
+                        {{ request.service_type|default:"General Maintenance" }}
+                    </div>
+                </div>
+
+                {% if request.request_details %}
+                <div class="detail-item" style="margin-top: 2rem;">
+                    <span class="item-label">Special Instructions / Details</span>
+                    <div style="background: #f8fafc; padding: 1.5rem; border-radius: 16px; color: #1e293b; font-size: 1rem; line-height: 1.7; border-left: 4px solid var(--primary-color);">
+                        {{ request.request_details|linebreaksbr }}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if request.service_reports.all %}
+                <div class="detail-item" style="margin-top: 2.5rem; border-top: 1px solid #f1f5f9; padding-top: 1.5rem;">
+                    <span class="item-label" style="margin-bottom: 1rem;">Linked Service Outcomes</span>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem;">
+                        {% for report in request.service_reports.all %}
+                        <a href="{% url 'report_detail' report.pk %}" style="text-decoration: none;">
+                            <div class="content-section-card" style="padding: 1.25rem; margin-bottom: 0; background: #f8fafc; transition: all 0.2s; border-color: #e2e8f0;">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                                    <div style="font-weight: 800; color: var(--primary-color);">#SR-{{ report.id }}</div>
+                                    <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">{{ report.service_date|date:"M d, Y" }}</div>
+                                </div>
+                                <div style="font-size: 0.85rem; color: #475569; font-weight: 600;">Status: <span style="color: var(--success-color);">Finalized</span></div>
+                                <div style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--primary-color); font-weight: 800;">View Full Report ➔</div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sidebar Column -->
+        <div class="detail-sidebar-col">
+            <div class="content-section-card">
+                <h2 class="section-title"><i class="fas fa-building" style="color: var(--primary-color);"></i> Logistics</h2>
+                
+                <div class="detail-item">
+                    <span class="item-label">Facility Details</span>
+                    <div class="item-value" style="font-size: 1.15rem; color: #1e293b;">{{ request.facility_name|default:"General Facility" }}</div>
+                    {% if request.location %}
+                    <div style="font-size: 0.85rem; color: #64748b; margin-top: 4px;">
+                        <i class="fas fa-map-marker-alt"></i> {{ request.get_location_display }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="detail-item">
+                    <span class="item-label">Primary Contact</span>
+                    <div class="item-value">{{ request.contact_name|default:"Not Supplied" }}</div>
+                    <div style="color: var(--primary-color); font-weight: 700; margin-top: 4px;">
+                        <i class="fas fa-phone-alt"></i> {{ request.contact_number|default:"No Number" }}
+                    </div>
+                </div>
+
+                {% if request.availability_start %}
+                <div class="detail-item">
+                    <span class="item-label">Availability Window</span>
+                    <div class="item-value" style="font-size: 0.9rem;">
+                        {{ request.availability_start|date:"M d" }} — {{ request.availability_end|date:"M d, Y" }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="content-section-card" style="background: #fffbeb; border-color: #fef3c7;">
+                <h2 class="section-title" style="color: #92400e; border-color: #fde68a;">
+                    <i class="fas fa-file-invoice-dollar"></i> Billing & Warranty
+                </h2>
+                
+                <div class="detail-item">
+                    <span class="item-label">Agreement Type</span>
+                    <div class="item-value">
+                        <span class="status-badge" style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; font-size: 0.75rem;">
+                            {{ request.get_billing_status_display }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="detail-item">
+                    <span class="item-label">Engineers Quote</span>
+                    <div class="item-value" style="font-size: 1.5rem; font-weight: 800; color: #b45309;">
+                        ${{ request.estimated_cost|floatformat:2|default:"0.00" }}
+                    </div>
+                    {% if request.pricing_set_by %}
+                    <div style="font-size: 0.75rem; color: #92400e; margin-top: 8px; opacity: 0.8;">
+                        Validated by {{ request.pricing_set_by.username }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if is_engineer and request.billing_status == 'Billable' %}
+                <button type="button" class="detail-action-btn btn-premium-outline" style="width: 100%; border-color: #d97706; color: #d97706; margin-top: 1rem;" onclick="openPricingModal()">
+                    <i class="fas fa-calculator"></i> Update Valuation
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Pricing Modal -->
+<div id="pricingModal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
+    <div class="modal-content" style="background-color: #fefefe; margin: 15% auto; pad: 20px; border: 1px solid #888; width: 400px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+        <div style="padding: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h3 style="margin: 0; color: #1e293b;">Enter Pricing</h3>
+                <span aria-hidden="true" style="cursor: pointer; font-size: 1.5rem;" onclick="document.getElementById('pricingModal').style.display='none'">&times;</span>
+            </div>
+            
+            <form id="pricingForm">
+                <div class="form-group" style="margin-bottom: 1.5rem;">
+                    <label class="form-label">Estimated Cost ($)</label>
+                    <input type="number" step="0.01" class="form-control" name="price" id="modalPriceInput" value="{{ request.estimated_cost|default:'' }}" required style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px;">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('pricingModal').style.display='none'">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="savePriceBtn">Save Price</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openPricingModal() {
+        document.getElementById('pricingModal').style.display = 'block';
+    }
+    
+    // Close on click outside
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('pricingModal')) {
+            document.getElementById('pricingModal').style.display = "none";
+        }
+    }
+
+    document.getElementById('pricingForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('savePriceBtn');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        
+        const price = document.getElementById('modalPriceInput').value;
+        const formData = new FormData();
+        formData.append('request_id', '{{ request.pk }}');
+        formData.append('price', price);
+        
+        fetch('{% url "update_pricing_ajax" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update UI without reload
+                document.getElementById('pricingModal').style.display = 'none';
+                // Reload to keep it simple and ensure all logical blocks update (like if previous price was null)
+                window.location.reload(); 
+            } else {
+                alert('Error: ' + data.message);
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred.');
+            btn.disabled = false;
+            btn.textContent = originalText;
+        });
+    });
+</script>
+{% endblock %}

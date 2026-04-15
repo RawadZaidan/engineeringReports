@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+
+{% block title %}Maintenance Requests - Medilab{% endblock %}
+
+{% block content %}
+<div class="page-header-actions maintenance-header">
+    <div class="header-content">
+        <h1 class="page-title">Maintenance Requests</h1>
+        <p class="text-muted">Manage and track facility upkeep tasks.</p>
+    </div>
+    <div class="action-btn-group">
+        <a href="{% url 'request_create' %}" class="btn btn-primary create-btn">
+            <i class="fas fa-plus-circle"></i> NEW REQUEST
+        </a>
+    </div>
+</div>
+
+<div class="premium-filter-container">
+    <!-- Status Selection -->
+    <div class="modern-status-pills">
+        <a href="?status=&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if not request.GET.status %}active{% endif %}">All</a>
+        <a href="?status=Open&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if request.GET.status == 'Open' %}active{% endif %}">Open</a>
+        <a href="?status=Scheduled&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if request.GET.status == 'Scheduled' %}active{% endif %}">Scheduled</a>
+        <a href="?status=In Progress&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if request.GET.status == 'In Progress' %}active{% endif %}">Active</a>
+        <a href="?status=Completed&sort={{ request.GET.sort|default:'timeline' }}" class="status-pill {% if request.GET.status == 'Completed' %}active{% endif %}">Closed</a>
+    </div>
+
+    <!-- Sort & Search Bar -->
+    <div class="premium-sort-search">
+        <div class="sort-label-group">
+            <span class="sort-label">View:</span>
+            <div class="sort-toggle-group">
+                <a href="?for_me={% if not request.GET.for_me %}1{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.sort %}&sort={{ request.GET.sort }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                   class="sort-toggle-btn {% if request.GET.for_me %}active{% endif %}">
+                    <i class="fas fa-user-circle"></i> For Me
+                </a>
+            </div>
+            <span class="sort-label" style="margin-left: 1rem;">Sort by:</span>
+            <div class="sort-toggle-group">
+                <a href="?sort=timeline{% if request.GET.for_me %}&for_me=1{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                   class="sort-toggle-btn {% if request.GET.sort != 'urgency' %}active{% endif %}">
+                    <i class="fas fa-history"></i> Timeline
+                </a>
+                <a href="?sort=urgency{% if request.GET.for_me %}&for_me=1{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" 
+                   class="sort-toggle-btn {% if request.GET.sort == 'urgency' %}active{% endif %}">
+                    <i class="fas fa-bolt"></i> Urgency
+                </a>
+            </div>
+        </div>
+
+        <form method="get" class="search-form">
+            <div class="search-input-wrapper">
+                <span class="search-icon"><i class="fas fa-search"></i></span>
+                <input type="text" name="q" placeholder="Search by facility, location..." class="form-control" value="{{ request.GET.q }}">
+            </div>
+            {% if request.GET.status %}<input type="hidden" name="status" value="{{ request.GET.status }}">{% endif %}
+            {% if request.GET.sort %}<input type="hidden" name="sort" value="{{ request.GET.sort }}">{% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="request-modern-grid" id="request-grid-container">
+    {% include 'core/partials/request_cards_partial.html' %}
+</div>
+
+{% if is_paginated %}
+<div class="pagination" style="margin-top: 3rem; justify-content: center;">
+    <!-- Pagination remains functional -->
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const gridContainer = document.getElementById('request-grid-container');
+    const filterContainer = document.querySelector('.premium-filter-container');
+
+    if (!gridContainer || !filterContainer) return;
+
+    const searchForm = document.querySelector('.search-form');
+
+    filterContainer.addEventListener('click', function(e) {
+        const link = e.target.closest('a');
+        if (!link) return;
+
+        // Don't intercept if it's the "New Request" button (though it's outside this container now)
+        if (link.classList.contains('create-btn')) return;
+
+        e.preventDefault();
+        const url = new URL(link.href);
+        fetchRequests(url);
+    });
+
+    if (searchForm) {
+        searchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(searchForm);
+            const params = new URLSearchParams(formData);
+            const url = new URL(window.location.href);
+            
+            // Clear existing but relevant params and set new ones
+            for (const [key, value] of params) {
+                if (value) url.searchParams.set(key, value);
+                else url.searchParams.delete(key);
+            }
+            
+            fetchRequests(url);
+        });
+    }
+
+    // Handle card clicks via event delegation
+    gridContainer.addEventListener('click', function(e) {
+        const card = e.target.closest('.request-modern-card');
+        if (card && !e.target.closest('a')) {
+            const url = card.getAttribute('data-url');
+            if (url) window.location.href = url;
+        }
+    });
+
+    async function fetchRequests(url) {
+        // Add loading state
+        gridContainer.style.opacity = '0.5';
+        gridContainer.style.pointerEvents = 'none';
+
+        try {
+            // Append ajax param
+            url.searchParams.set('ajax', '1');
+            
+            const response = await fetch(url, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) throw new Error('Network response was not ok');
+
+            const html = await response.text();
+            gridContainer.innerHTML = html;
+            
+            // Update URL in browser
+            url.searchParams.delete('ajax');
+            window.history.pushState({}, '', url.toString());
+
+            // Update active states for status pills
+            const status = url.searchParams.get('status') || '';
+            document.querySelectorAll('.status-pill').forEach(pill => {
+                const pillUrl = new URL(pill.href);
+                const pillStatus = pillUrl.searchParams.get('status') || '';
+                if (pillStatus === status) {
+                    pill.classList.add('active');
+                } else {
+                    pill.classList.remove('active');
+                }
+            });
+
+            // Update active states for sort buttons
+            const sort = url.searchParams.get('sort') || 'timeline';
+            document.querySelectorAll('.sort-toggle-btn').forEach(btn => {
+                const btnUrl = new URL(btn.href);
+                const btnSort = btnUrl.searchParams.get('sort') || 'timeline';
+                if (btnSort === sort) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+        } catch (error) {
+            console.error('Fetch error:', error);
+        } finally {
+            gridContainer.style.opacity = '1';
+            gridContainer.style.pointerEvents = 'auto';
+        }
+    }
+
+    // Handle back/forward browser buttons
+    window.addEventListener('popstate', function() {
+        fetchRequests(new URL(window.location.href));
+    });
+});
+</script>
+{% endblock %}
