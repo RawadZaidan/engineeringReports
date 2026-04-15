@@ -33,6 +33,9 @@
             </div>
         </div>
 
+        <!-- Mobile Driver Filter Bar (hidden on desktop via CSS) -->
+        <div id="mobile-driver-filter-bar" class="mobile-driver-filter-bar"></div>
+
         <div class="scheduling-layout" id="scheduling-layout-container">
             {% include 'core/partials/driver_scheduling_partial.html' %}
         </div>
@@ -74,6 +77,8 @@
                 <div class="calendar-main-area">
                     <!-- Month View Grid -->
                     <div id="calendar-view-month" class="calendar-view">
+                        <!-- Driver filter pills for month view -->
+                        <div id="month-driver-filter-bar" style="display:flex; flex-wrap:wrap; gap:0.5rem; padding:0.75rem 0 0.75rem 0; margin-bottom:0.5rem;"></div>
                         <div class="month-grid-header">
                             <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
                         </div>
@@ -160,7 +165,7 @@
 
                 <div class="row g-4">
                      <div class="col-6">
-                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Time</label>
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Date &amp; Time</label>
                         <div class="d-flex align-items-start text-slate-700">
                             <i class="far fa-clock me-2 text-slate-400" style="margin-top: 3px;"></i>
                             <span id="eventModalTime" class="fw-medium" style="line-height: 1.4;"></span>
@@ -173,27 +178,82 @@
                             <span id="eventModalVehicle" class="fw-medium"></span>
                         </div>
                      </div>
-                     <div class="col-12">
+                     <div class="col-6">
                         <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Driver</label>
                         <div class="d-flex align-items-center text-slate-700">
                             <i class="far fa-user-circle me-2 text-slate-400"></i>
                             <span id="eventModalDriver" class="fw-medium"></span>
                         </div>
                      </div>
+                     <div class="col-6">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Department</label>
+                        <div class="d-flex align-items-center text-slate-700">
+                            <i class="fas fa-building me-2 text-slate-400"></i>
+                            <span id="eventModalDepartment" class="fw-medium"></span>
+                        </div>
+                     </div>
                      <div class="col-12">
-                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Requester</label>
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Requested By</label>
                         <div class="d-flex align-items-center text-slate-700">
                             <i class="far fa-id-card me-2 text-slate-400"></i>
                             <span id="eventModalRequester" class="fw-medium"></span>
                         </div>
                      </div>
+                     <div class="col-12" id="eventModalClientRow">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Client / End User</label>
+                        <div class="d-flex align-items-center text-slate-700">
+                            <i class="fas fa-hospital me-2 text-slate-400"></i>
+                            <span id="eventModalClient" class="fw-medium"></span>
+                        </div>
+                     </div>
+                     <div class="col-12" id="eventModalContactRow">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Contact</label>
+                        <div class="d-flex align-items-center text-slate-700">
+                            <i class="fas fa-phone me-2 text-slate-400"></i>
+                            <span id="eventModalContact" class="fw-medium"></span>
+                        </div>
+                     </div>
+                     <div class="col-6" id="eventModalDistanceRow">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Distance</label>
+                        <div class="d-flex align-items-center text-slate-700">
+                            <i class="fas fa-route me-2 text-slate-400"></i>
+                            <span id="eventModalDistance" class="fw-medium"></span>
+                        </div>
+                     </div>
+                     <div class="col-6" id="eventModalDurationRow">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Duration</label>
+                        <div class="d-flex align-items-center text-slate-700">
+                            <i class="fas fa-hourglass-half me-2 text-slate-400"></i>
+                            <span id="eventModalDuration" class="fw-medium"></span>
+                        </div>
+                     </div>
+                     <div class="col-12" id="eventModalNotesRow">
+                        <label class="text-xs text-uppercase text-slate-400 fw-bold mb-1" style="letter-spacing: 0.05em;">Admin Notes</label>
+                        <div class="d-flex align-items-start text-slate-700">
+                            <i class="fas fa-sticky-note me-2 text-slate-400" style="margin-top: 3px;"></i>
+                            <span id="eventModalNotes" class="fw-medium" style="white-space: pre-wrap;"></span>
+                        </div>
+                     </div>
                 </div>
-                
-                <div class="mt-5 d-flex justify-content-end gap-2">
-                    <button type="button" class="btn-action-small cancel" data-bs-dismiss="modal" style="border: 1px solid #e2e8f0;">Close</button>
-                    <a id="eventModalEditBtn" href="#" class="btn-action-small edit">
-                        <i class="fas fa-edit"></i> Edit Request
-                    </a>
+
+                <div class="mt-5 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                    <div class="d-flex gap-2" id="eventModalAdminActions">
+                        <button id="eventModalApproveBtn" type="button" class="btn-action-small approve" style="display:none;">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button id="eventModalDenyBtn" type="button" class="btn-action-small deny" style="display:none;">
+                            <i class="fas fa-times"></i> Deny
+                        </button>
+                        <button id="eventModalCancelBtn" type="button" class="btn-action-small cancel" style="display:none; border: 1px solid #e2e8f0;">
+                            <i class="fas fa-ban"></i> Cancel
+                        </button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn-action-small" data-bs-dismiss="modal" style="border: 1px solid #e2e8f0; color: #475569;">Close</button>
+                        <a id="eventModalEditBtn" href="#" class="btn-action-small edit" style="display:none;">
+                            <i class="fas fa-edit"></i> Edit Request
+                        </a>
+                    </div>
                 </div>
             </div>
             </div>
@@ -204,6 +264,9 @@
 <!-- Serialized Data from View -->
 <script id="month-requests-data" type="application/json">
     {{ month_requests_json|safe }}
+</script>
+<script id="drivers-data" type="application/json">
+    {{ drivers_json|safe }}
 </script>
 
 <script>
@@ -217,28 +280,35 @@ const requestsData = JSON.parse(document.getElementById('month-requests-data').t
 const currentUserId = {{ request.user.id }};
 const isStaff = {{ request.user.is_staff|yesno:"true,false" }};
 
-const DRIVER_COLORS = {
-    'Mohammad': 'driver-color-mohammad',
-    'Mostafa': 'driver-color-mostafa',
-    'Shafiq': 'driver-color-shafiq',
-    'Samer': 'driver-color-samer',
-    'Samer Youssif': 'driver-color-samer'
-};
-const DEFAULT_DRIVER_COLOR = 'driver-color-default';
+// --- Dynamic Driver Color System ---
+const DRIVER_PALETTE = [
+    { bg: '#3b82f6', border: '#1d4ed8' },  // blue
+    { bg: '#10b981', border: '#047857' },  // green
+    { bg: '#8b5cf6', border: '#6d28d9' },  // purple
+    { bg: '#f59e0b', border: '#d97706' },  // amber
+    { bg: '#ef4444', border: '#b91c1c' },  // red
+    { bg: '#06b6d4', border: '#0e7490' },  // cyan
+    { bg: '#ec4899', border: '#be185d' },  // pink
+    { bg: '#14b8a6', border: '#0f766e' },  // teal
+];
+const DEFAULT_DRIVER_COLOR = { bg: '#94a3b8', border: '#475569' };
+
+const driversData = JSON.parse(document.getElementById('drivers-data').textContent);
+const ALL_FILTERS = driversData.map(d => d.name);
+
+function getDriverColor(name) {
+    const idx = ALL_FILTERS.indexOf(name);
+    if (idx !== -1) return DRIVER_PALETTE[idx % DRIVER_PALETTE.length];
+    return DEFAULT_DRIVER_COLOR;
+}
 
 // --- Filtering State ---
-// Normalize driver names to keys (First name or specific key)
-const ALL_FILTERS = ['Mohammad', 'Mostafa', 'Shafiq', 'Samer'];
 let activeDriverFilters = new Set(ALL_FILTERS);
 let activeRequestFilter = '{{ active_filter|default:"approved" }}';
 
 function normalizeDriverName(fullName) {
     if (!fullName) return null;
-    if (fullName.includes('Mohammad')) return 'Mohammad';
-    if (fullName.includes('Mostafa')) return 'Mostafa';
-    if (fullName.includes('Shafiq')) return 'Shafiq';
-    if (fullName.includes('Samer')) return 'Samer';
-    return null;
+    return ALL_FILTERS.find(n => fullName === n || fullName.includes(n) || n.includes(fullName)) || null;
 }
 
 function isEventVisible(e) {
@@ -684,13 +754,14 @@ function renderMonthView() {
                 
                 cellEvents.slice(0, 3).forEach(e => {
                     const chip = document.createElement('div');
-                    // Use driver color instead of status color
-                    const colorClass = DRIVER_COLORS[e.driver] || DEFAULT_DRIVER_COLOR;
-                    chip.className = `event-chip ${colorClass}`;
+                    chip.className = 'event-chip';
+                    const dColor = getDriverColor(normalizeDriverName(e.driver));
+                    chip.style.borderLeftColor = dColor.bg;
+                    chip.style.backgroundColor = dColor.bg + '18';
                     chip.textContent = `${e.start.substring(11, 16)} ${e.title}`;
                     chip.onclick = (ev) => {
                         ev.stopPropagation();
-                        window.location.href = `/scheduling/request/${e.id}/edit/`;
+                        showEventDetails(e);
                     };
                     eventsContainer.appendChild(chip);
                 });
@@ -751,18 +822,64 @@ function renderWeekView() {
     // If we want "Current Week", we need to find the Monday of the week containing currentDate.
     const startOfWeek = new Date(currentDate);
     const dayOfWeek = startOfWeek.getDay(); // 0-6
-    const distToMon = (dayOfWeek + 6) % 7; 
+    const distToMon = (dayOfWeek + 6) % 7;
     startOfWeek.setDate(startOfWeek.getDate() - distToMon);
+
+    // Compute driver layout once (same for every day column)
+    const activeDrivers = ALL_FILTERS.filter(d => activeDriverFilters.has(d));
+    const colCount = activeDrivers.length || 1;
+    const widthPct = 100 / colCount;
 
     // Loop Mon (1) to Fri (5)
     for (let i = 0; i < 5; i++) {
         const day = new Date(startOfWeek);
         day.setDate(startOfWeek.getDate() + i);
-        
+
         // Header
         const dayHeader = document.createElement('div');
         dayHeader.className = 'day-header-cell';
-        dayHeader.innerHTML = `<div>${day.toLocaleDateString('en-US', {weekday: 'short'})}</div><div>${day.getDate()}</div>`;
+        dayHeader.style.display = 'flex';
+        dayHeader.style.flexDirection = 'column';
+        dayHeader.style.padding = '0';
+
+        // Date row
+        const dateRow = document.createElement('div');
+        dateRow.style.padding = '0.5rem';
+        dateRow.style.textAlign = 'center';
+        dateRow.innerHTML = `<div>${day.toLocaleDateString('en-US', {weekday: 'short'})}</div><div>${day.getDate()}</div>`;
+        dayHeader.appendChild(dateRow);
+
+        // Driver sub-labels row — color dot per driver lane
+        if (activeDrivers.length > 0) {
+            const driversRow = document.createElement('div');
+            driversRow.style.display = 'flex';
+            driversRow.style.width = '100%';
+            driversRow.style.background = '#f8fafc';
+            driversRow.style.borderTop = '1px solid #e2e8f0';
+
+            activeDrivers.forEach((d, idx) => {
+                const cell = document.createElement('div');
+                cell.style.flex = '1';
+                cell.style.display = 'flex';
+                cell.style.alignItems = 'center';
+                cell.style.justifyContent = 'center';
+                cell.style.padding = '0.25rem 0.1rem';
+                cell.style.borderRight = idx < activeDrivers.length - 1 ? '1px solid #e2e8f0' : 'none';
+
+                const dot = document.createElement('div');
+                const dColor = getDriverColor(d);
+                dot.style.width = '10px';
+                dot.style.height = '10px';
+                dot.style.borderRadius = '50%';
+                dot.style.backgroundColor = dColor.bg;
+                dot.title = d;  // tooltip shows name on hover
+
+                cell.appendChild(dot);
+                driversRow.appendChild(cell);
+            });
+            dayHeader.appendChild(driversRow);
+        }
+
         if (isToday(day)) dayHeader.classList.add('today');
         header.appendChild(dayHeader);
 
@@ -780,11 +897,6 @@ function renderWeekView() {
         // Filter events for this day
         const dayEvents = requestsData.filter(e => isSameDay(new Date(e.start), day) && isEventVisible(e));
         
-        // --- Column Per Driver Logic ---
-        const activeDrivers = ALL_FILTERS.filter(d => activeDriverFilters.has(d));
-        const colCount = activeDrivers.length || 1;
-        const widthPct = 100 / colCount;
-
         // Add subtle vertical styling for columns (lanes)
         // We can add backgrounds or just borders
         if (activeDrivers.length > 1) {
@@ -811,14 +923,16 @@ function renderWeekView() {
                  // If Unassigned is active and this is unassigned
                  if (colIdx === -1) return; // Should be filtered out by isEventVisible, but safety
 
-                 // Apply Driver Color
-                 const colorClass = DRIVER_COLORS[drvKey] || DEFAULT_DRIVER_COLOR;
-                 el.classList.add(colorClass);
-                 
+                 // Apply Driver Color (inline, dynamic)
+                 const dColor = getDriverColor(drvKey);
+                 el.style.backgroundColor = dColor.bg;
+                 el.style.borderLeftColor = dColor.border;
+                 el.style.color = 'white';
+
                  // Position in Driver Lane
                  el.style.width = `calc(${widthPct}% - 4px)`;
                  el.style.left = `calc(${colIdx * widthPct}% + 2px)`;
-                 
+
                  // Add specific styling for this view
                  el.style.fontSize = '0.7rem';
                  
@@ -831,54 +945,88 @@ function renderWeekView() {
 }
 
 function renderDriverLegend() {
-    // Targets: Full Calendar Sidebar AND List View Sidebar
-    const targets = [
+    // --- Desktop sidebars ---
+    const sidebarTargets = [
         document.getElementById('calendar-sidebar'),
         document.getElementById('mini-calendar-column')
     ];
 
-    targets.forEach(parent => {
-        if(!parent) return;
-        
-        // Check if legend already exists in this parent
-        // Use a class for identifying the legend box, but unique ID per instance
+    sidebarTargets.forEach(parent => {
+        if (!parent) return;
+
         let legendBox = parent.querySelector('.driver-legend');
-        
-        if(!legendBox) {
+        if (!legendBox) {
             legendBox = document.createElement('div');
-            legendBox.className = 'driver-legend'; // Class handles styling
-            
-            // Insert after mini calendar widget or at end
+            legendBox.className = 'driver-legend';
             const miniWidget = parent.querySelector('.mini-month-widget') || parent.querySelector('#mini-calendar-widget');
-            if(miniWidget && miniWidget.nextSibling) {
+            if (miniWidget && miniWidget.nextSibling) {
                 parent.insertBefore(legendBox, miniWidget.nextSibling);
             } else {
                 parent.appendChild(legendBox);
             }
         }
-        
+
         legendBox.innerHTML = `<div class="legend-title" style="margin-bottom:0.5rem; font-weight:700; color:#1e293b;">Filter Drivers</div>`;
-        
         ALL_FILTERS.forEach(key => {
             const item = document.createElement('div');
             item.className = `legend-item ${activeDriverFilters.has(key) ? '' : 'inactive'}`;
             item.onclick = () => toggleDriverFilter(key);
-            
-            // Determine color class
-            let colorClass = DEFAULT_DRIVER_COLOR;
-            // Since Unassigned is gone from filters, we just match keys
-            if (DRIVER_COLORS[key]) {
-                 colorClass = DRIVER_COLORS[key];
-            } else if (key === 'Unassigned') {
-                 // Fallback if it somehow remains
-            }
-            
-            item.innerHTML = `
-                <div class="legend-dot ${colorClass}"></div>
-                <span>${key}</span>
-            `;
+            const dColor = getDriverColor(key);
+            const dot = document.createElement('div');
+            dot.className = 'legend-dot';
+            dot.style.backgroundColor = dColor.bg;
+            item.appendChild(dot);
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = key;
+            item.appendChild(nameSpan);
             legendBox.appendChild(item);
         });
+    });
+
+    // --- Month view driver filter bar (horizontal pills above month grid) ---
+    const monthBar = document.getElementById('month-driver-filter-bar');
+    if (monthBar) {
+        monthBar.innerHTML = '';
+        ALL_FILTERS.forEach(key => {
+            const pill = document.createElement('button');
+            const isActive = activeDriverFilters.has(key);
+            const dColor = getDriverColor(key);
+            pill.style.cssText = `display:inline-flex;align-items:center;gap:0.4rem;padding:0.3rem 0.75rem;border-radius:999px;border:2px solid ${dColor.bg};background:${isActive ? dColor.bg : 'transparent'};color:${isActive ? '#fff' : dColor.bg};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;`;
+            pill.onclick = () => toggleDriverFilter(key);
+
+            const dot = document.createElement('span');
+            dot.style.cssText = `width:8px;height:8px;border-radius:50%;background:${isActive ? '#fff' : dColor.bg};display:inline-block;`;
+            pill.appendChild(dot);
+
+            const label = document.createElement('span');
+            label.textContent = key;
+            pill.appendChild(label);
+
+            monthBar.appendChild(pill);
+        });
+    }
+
+    // --- Mobile filter bar (horizontal pill row) ---
+    const mobileBar = document.getElementById('mobile-driver-filter-bar');
+    if (!mobileBar) return;
+    mobileBar.innerHTML = '';
+
+    ALL_FILTERS.forEach(key => {
+        const pill = document.createElement('button');
+        pill.className = 'mobile-driver-pill' + (activeDriverFilters.has(key) ? ' active' : '');
+        pill.onclick = () => toggleDriverFilter(key);
+
+        const dColor = getDriverColor(key);
+        const dot = document.createElement('span');
+        dot.className = 'mobile-pill-dot';
+        dot.style.backgroundColor = dColor.bg;
+        pill.appendChild(dot);
+
+        const label = document.createElement('span');
+        label.textContent = key;
+        pill.appendChild(label);
+
+        mobileBar.appendChild(pill);
     });
 }
 
@@ -908,23 +1056,31 @@ function renderDayView() {
         `;
         headerDateEl.appendChild(dateRow);
         
-        // Row 2: Driver Columns Labels
+        // Row 2: Driver Columns — color dot per driver lane
         const driversRow = document.createElement('div');
         driversRow.style.display = 'flex';
         driversRow.style.width = '100%';
         driversRow.style.background = '#f8fafc';
-        
+
         drivers.forEach((d, i) => {
-            const label = document.createElement('div');
-            label.style.flex = '1';
-            label.style.textAlign = 'center';
-            label.style.padding = '0.5rem';
-            label.style.fontSize = '0.85rem';
-            label.style.fontWeight = '700';
-            label.style.color = '#475569';
-            label.style.borderRight = i < drivers.length - 1 ? '1px solid #e2e8f0' : 'none';
-            label.textContent = d;
-            driversRow.appendChild(label);
+            const cell = document.createElement('div');
+            cell.style.flex = '1';
+            cell.style.display = 'flex';
+            cell.style.alignItems = 'center';
+            cell.style.justifyContent = 'center';
+            cell.style.padding = '0.5rem';
+            cell.style.borderRight = i < drivers.length - 1 ? '1px solid #e2e8f0' : 'none';
+
+            const dot = document.createElement('div');
+            const dColor = getDriverColor(d);
+            dot.style.width = '12px';
+            dot.style.height = '12px';
+            dot.style.borderRadius = '50%';
+            dot.style.backgroundColor = dColor.bg;
+            dot.title = d;  // tooltip shows name on hover
+
+            cell.appendChild(dot);
+            driversRow.appendChild(cell);
         });
         headerDateEl.appendChild(driversRow);
     }
@@ -960,9 +1116,15 @@ function renderDayView() {
         
         dayEvents.forEach(e => {
             const el = createEventElement(e);
-            if (el) colContainer.appendChild(el);
+            if (el) {
+                const dColor = getDriverColor(driverName);
+                el.style.backgroundColor = dColor.bg;
+                el.style.borderLeftColor = dColor.border;
+                el.style.color = 'white';
+                colContainer.appendChild(el);
+            }
         });
-        
+
         columnsWrapper.appendChild(colContainer);
     });
     
@@ -973,36 +1135,118 @@ function renderDayView() {
 
 function showEventDetails(e) {
     document.getElementById('eventModalTitle').textContent = "Trip Details";
-    document.getElementById('eventModalSubject').textContent = e.title; 
-    
+    document.getElementById('eventModalSubject').textContent = e.title;
+
     // Status Badge
     const badge = document.getElementById('eventModalStatusBadge');
     badge.className = `badge rounded-pill px-3 py-2 fs-7 me-3 status-${e.status.toLowerCase()}`;
     badge.textContent = e.status;
-    badge.style.border = '1px solid currentColor'; 
-    
-    // Time
+    badge.style.border = '1px solid currentColor';
+
+    // Date & Time
     const start = new Date(e.start);
     const end = new Date(e.end);
-    document.getElementById('eventModalTime').textContent = `${start.toLocaleDateString()} ${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-    
-    // Details
+    const dateStr = e.date || start.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+    const timeStr = `${start.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} – ${end.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+    document.getElementById('eventModalTime').innerHTML = `<strong>${dateStr}</strong><br>${timeStr}`;
+
+    // Core fields
     document.getElementById('eventModalVehicle').textContent = e.vehicle || 'N/A';
     document.getElementById('eventModalDriver').textContent = e.driver || 'Unassigned';
-    document.getElementById('eventModalRequester').textContent = e.details || 'N/A'; 
-    
-    // Edit Link Visibility
+    document.getElementById('eventModalRequester').textContent = e.requester || e.details || 'N/A';
+    document.getElementById('eventModalDepartment').textContent = e.department || 'N/A';
+
+    // Conditional fields
+    const clientRow = document.getElementById('eventModalClientRow');
+    if (e.client) {
+        clientRow.style.display = '';
+        document.getElementById('eventModalClient').textContent = e.client;
+    } else { clientRow.style.display = 'none'; }
+
+    const contactRow = document.getElementById('eventModalContactRow');
+    const contactText = [e.contactPerson, e.contactNumber].filter(Boolean).join(' | ');
+    if (contactText) {
+        contactRow.style.display = '';
+        document.getElementById('eventModalContact').textContent = contactText;
+    } else { contactRow.style.display = 'none'; }
+
+    const distRow = document.getElementById('eventModalDistanceRow');
+    if (e.distance) {
+        distRow.style.display = '';
+        document.getElementById('eventModalDistance').textContent = e.distance;
+    } else { distRow.style.display = 'none'; }
+
+    const durRow = document.getElementById('eventModalDurationRow');
+    if (e.duration) {
+        durRow.style.display = '';
+        document.getElementById('eventModalDuration').textContent = e.duration;
+    } else { durRow.style.display = 'none'; }
+
+    const notesRow = document.getElementById('eventModalNotesRow');
+    if (e.adminNotes && isStaff) {
+        notesRow.style.display = '';
+        document.getElementById('eventModalNotes').textContent = e.adminNotes;
+    } else { notesRow.style.display = 'none'; }
+
+    // Edit button: owner or staff, only when not yet approved
     const editBtn = document.getElementById('eventModalEditBtn');
-    if (e.requester_id === currentUserId || isStaff) {
-        editBtn.style.display = 'inline-flex'; // or whatever the original display was (inline-flex due to btn class)
+    const isOwner = e.requester_id === currentUserId;
+    const isPending = e.status === 'Pending' || e.status === 'Edit Requested';
+    if ((isOwner || isStaff) && isPending) {
+        editBtn.style.display = 'inline-flex';
         editBtn.href = `/scheduling/request/${e.id}/edit/`;
     } else {
         editBtn.style.display = 'none';
     }
-    
-    // Show Modal (Custom Logic)
+
+    // Admin action buttons
+    const approveBtn = document.getElementById('eventModalApproveBtn');
+    const denyBtn = document.getElementById('eventModalDenyBtn');
+    const cancelBtn = document.getElementById('eventModalCancelBtn');
     const modal = document.getElementById('eventDetailsModal');
+
+    if (isStaff && isPending) {
+        approveBtn.style.display = 'inline-flex';
+        denyBtn.style.display = 'inline-flex';
+        approveBtn.onclick = () => { modal.classList.remove('show'); handleAction(e.id, 'approve'); };
+        denyBtn.onclick = () => { modal.classList.remove('show'); handleAction(e.id, 'deny'); };
+    } else {
+        approveBtn.style.display = 'none';
+        denyBtn.style.display = 'none';
+    }
+
+    if ((isOwner || isStaff) && e.status !== 'Cancelled' && e.status !== 'Completed') {
+        cancelBtn.style.display = 'inline-flex';
+        cancelBtn.onclick = () => { modal.classList.remove('show'); handleAction(e.id, 'cancel'); };
+    } else {
+        cancelBtn.style.display = 'none';
+    }
+
     modal.classList.add('show');
+}
+
+function openCardModal(el) {
+    const d = el.dataset;
+    showEventDetails({
+        id: d.requestId,
+        title: d.title,
+        date: d.date,
+        start: d.start,
+        end: d.end,
+        driver: d.driver,
+        status: d.status,
+        vehicle: d.vehicle,
+        requester_id: parseInt(d.requesterId),
+        requester: d.requester,
+        department: d.department,
+        details: d.requester + (d.department ? ' — ' + d.department : ''),
+        client: d.client,
+        contactPerson: d.contactPerson,
+        contactNumber: d.contactNumber,
+        distance: d.distance,
+        duration: d.duration,
+        adminNotes: d.adminNotes,
+    });
 }
 
 // Close Modal Logic
@@ -1684,11 +1928,55 @@ main.container {
 
 </style>
 <style>
-/* Driver Colors */
-.driver-color-mohammad { background-color: #3b82f6 !important; border-left-color: #1d4ed8 !important; color: white !important; }
-.driver-color-mostafa { background-color: #10b981 !important; border-left-color: #047857 !important; color: white !important; }
-.driver-color-shafiq { background-color: #8b5cf6 !important; border-left-color: #6d28d9 !important; color: white !important; }
-.driver-color-default { background-color: #94a3b8 !important; border-left-color: #475569 !important; color: white !important; }
+/* Driver colors are now applied dynamically via inline styles */
+
+/* Mobile Driver Filter Bar */
+.mobile-driver-filter-bar {
+    display: none; /* hidden on desktop */
+}
+@media (max-width: 900px) {
+    .mobile-driver-filter-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+    }
+}
+.mobile-driver-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+.mobile-driver-pill.active {
+    border-color: currentColor;
+    background: white;
+    color: #1e293b;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.mobile-driver-pill:not(.active) {
+    opacity: 0.45;
+    filter: grayscale(0.6);
+}
+.mobile-pill-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
 
 /* Legend Styles */
 .driver-legend {

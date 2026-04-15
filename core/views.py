@@ -67,12 +67,23 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             ).count()
             
             # Reuse notification_counts cache to avoid double-querying open requests.
-            # If cache is cold we fall back to a fresh query.
+            # If cache is cold, query AND prime the notification cache so the
+            # context processor (which runs later during template render) gets a
+            # cache hit and doesn't issue the same query a second time.
             cached_notif = cache.get(notif_cache_key)
             if cached_notif:
                 open_requests_count = cached_notif['open_maintenance_count']
             else:
                 open_requests_count = MaintenanceRequest.objects.filter(status='Open').count()
+                driver_count = 0
+                if user.is_staff:
+                    driver_count = DriverRequest.objects.filter(
+                        status__in=['Pending', 'Edit Requested']
+                    ).count()
+                cache.set(notif_cache_key, {
+                    'open_maintenance_count': open_requests_count,
+                    'open_driver_request_count': driver_count,
+                }, 60)
             
             visits_this_week_count = MaintenanceAssignment.objects.filter(
                 visit_week_filter
@@ -742,6 +753,8 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(status='Approved', date__gte=today)
         elif filter_type == 'archived': # "Completed, Archived" (Past)
             queryset = queryset.filter(date__lt=today)
+        elif filter_type == 'denied': # "Denied / Requires Change"
+            queryset = queryset.filter(status='Denied')
         else: # Fallback or 'active' -> Approved
             queryset = queryset.filter(status='Approved', date__gte=today)
             
@@ -797,20 +810,28 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
                 'title': f"{req.get_location_display()} ({req.client_name or 'General'})",
                 'start': start_dt.isoformat(),
                 'end': end_dt.isoformat(),
+                'date': f"{req.date.strftime('%a, %b')} {req.date.day}, {req.date.year}",
                 'driver': req.driver.name if req.driver else "Unassigned",
                 'status': req.status,
                 'vehicle': req.vehicle_type,
                 'location': req.get_location_display(),
                 'details': f"{req.requester.get_full_name() or req.requester.username} - {req.department}",
-                'day': req.date.day, 
+                'requester': req.requester.get_full_name() or req.requester.username,
+                'department': req.department,
+                'client': req.client_name or '',
+                'contactPerson': req.contact_person or '',
+                'contactNumber': req.contact_number or '',
+                'distance': req.estimated_distance or '',
+                'duration': req.duration or '',
+                'adminNotes': req.admin_notes or '',
+                'day': req.date.day,
                 'requester_id': req.requester.id,
             })
         
-        # --- OPTIMIZATION (Phase 2) ---
-        # The template only needs the COUNT of active drivers. Calling Driver.objects.all()
-        # triggers redundant queries. Cache the count for 1 hour to drop DB pings.
-        active_driver_count = cache.get_or_set('active_drivers_count', Driver.objects.filter(is_active=True).count, 3600)
-        
+        # Fetch all active drivers for the calendar's dynamic filter/color system
+        active_drivers_qs = list(Driver.objects.filter(is_active=True).values('id', 'name').order_by('name'))
+        active_driver_count = len(active_drivers_qs)
+
         context.update({
             'active_driver_count': active_driver_count,
             'is_admin': self.request.user.is_staff,
@@ -821,7 +842,8 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
             'month_name': calendar.month_name[month],
             'selected_date': self.request.GET.get('date'),
             'active_filter': self.request.GET.get('filter', 'approved'),
-            'month_requests_json': json.dumps(serialized_requests), # Pass as JSON string
+            'month_requests_json': json.dumps(serialized_requests),
+            'drivers_json': json.dumps(active_drivers_qs),
             'today': timezone.now().date(),
         })
         return context
