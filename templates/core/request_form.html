@@ -295,13 +295,13 @@
         // Open Modal
         openModalBtn.onclick = () => {
             eqModal.style.display = 'block';
-            document.getElementById('tab-existing').click(); // Default to existing
+            document.getElementById('tab-new').click(); // Default to new machine
         };
 
         // Close Modal Logic (X and Cancel)
         function closeEqModal() {
             eqModal.style.display = "none";
-            document.getElementById("modal_equipment_select").value = "";
+            if (window.resetRegistrySearch) window.resetRegistrySearch();
             document.getElementById('quickEquipmentForm').reset();
         }
         document.querySelectorAll('.close-equipment, .close-equipment-btn').forEach(btn => btn.onclick = closeEqModal);
@@ -385,6 +385,24 @@
             });
         });
         
+        // Availability date constraints
+        const availStart = document.getElementById('id_availability_start');
+        const availEnd   = document.getElementById('id_availability_end');
+        if (availStart && availEnd) {
+            function syncEndMin() {
+                if (availStart.value) {
+                    availEnd.min = availStart.value;
+                    if (availEnd.value && availEnd.value < availStart.value) {
+                        availEnd.value = '';
+                    }
+                } else {
+                    availEnd.removeAttribute('min');
+                }
+            }
+            availStart.addEventListener('change', syncEndMin);
+            syncEndMin(); // apply on page load if editing an existing record
+        }
+
         // Show Global Loading Overlay on Submit
         document.getElementById('requestForm').addEventListener('submit', function(e) {
             const overlay = document.getElementById('global-loading-overlay');

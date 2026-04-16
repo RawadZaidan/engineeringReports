@@ -48,6 +48,9 @@ class MaintenanceRequestForm(forms.ModelForm):
                 if field in self.fields:
                     del self.fields[field]
         
+        today = datetime.date.today().strftime('%Y-%m-%d')
+        self.fields['availability_start'].widget.attrs['min'] = today
+
         if self.instance.pk and self.instance.service_type:
             self.fields['service_type'].initial = [x.strip() for x in self.instance.service_type.split(',')]
 

@@ -1,61 +1,549 @@
-<div id="equipmentModal" class="modal" style="display:none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
-    <div class="modal-content" style="background-color: #fefefe; margin: 10% auto; padding: 25px; border: none; width: 90%; max-width: 500px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h3 style="margin: 0; color: #1e293b;">Register/Add Machine</h3>
-            <span class="close-equipment" style="color: #64748b; font-size: 24px; font-weight: bold; cursor: pointer;">&times;</span>
+<div id="equipmentModal" class="modal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; overflow:auto; background:rgba(0,0,0,0.4);">
+    <div class="modal-content" style="background:#fefefe; margin:6% auto; padding:25px; border:none; width:90%; max-width:520px; border-radius:12px; box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
+            <h3 style="margin:0; color:#1e293b; font-size:1.1rem;">Register / Add Machine</h3>
+            <span class="close-equipment" style="color:#64748b; font-size:22px; font-weight:bold; cursor:pointer;">&times;</span>
         </div>
-        
+
         <!-- Tab Switcher -->
-        <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">
-            <button type="button" id="tab-existing" class="btn btn-sm" style="background: #f1f5f9; color: #475569;">From Registry</button>
-            <button type="button" id="tab-new" class="btn btn-sm" style="background: transparent; color: #94a3b8;">New Machine</button>
+        <div style="display:flex; gap:10px; margin-bottom:18px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
+            <button type="button" id="tab-existing" class="btn btn-sm" style="background:transparent; color:#94a3b8;">From Registry</button>
+            <button type="button" id="tab-new" class="btn btn-sm" style="background:#f1f5f9; color:#475569;">New Machine</button>
         </div>
 
-        <!-- Mode A: Selection from Existing Registry -->
-        <div id="mode-registry">
-            <div class="form-group">
-                <label class="form-label">Select from Registry</label>
-                <select id="modal_equipment_select" class="form-control equipment-select">
-                    <option value="">-- Search Registry --</option>
-                    {% for eq in equipments %}
-                        <option value="{{ eq.id }}">{{ eq.product.manufacturer }} {{ eq.product.model }} (S/N: {{ eq.serial_number }})</option>
-                    {% endfor %}
-                </select>
-                <small class="text-muted">Only machines already in the database.</small>
+        <!-- ── Mode A: existing registry ───────────────────── -->
+        <div id="mode-registry" style="display:none;">
+            <div class="form-group" style="position:relative; margin-bottom:8px;">
+                <label class="form-label" style="font-size:.8rem; font-weight:700; color:#475569; text-transform:uppercase; margin-bottom:4px;">Search by Client / Institution</label>
+                <input type="text" id="modal_client_search" class="form-control"
+                       placeholder="Type institution, donor, brand, model or S/N…" autocomplete="off">
+                <!-- Inline results dropdown -->
+                <div id="modal_eq_results" style="display:none; position:absolute; z-index:10001; left:0; right:0; top:100%; margin-top:2px; background:#fff; border:1px solid #d1d5db; border-radius:8px; box-shadow:0 8px 16px rgba(0,0,0,.12); max-height:210px; overflow-y:auto;"></div>
             </div>
+            <!-- Selected equipment chip -->
+            <div id="modal_eq_chosen" style="display:none; align-items:center; gap:8px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:7px 10px; margin-bottom:8px; font-size:.85rem; color:#1e40af;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                <span id="modal_eq_chosen_text" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></span>
+                <button type="button" id="modal_eq_clear" style="background:none;border:none;cursor:pointer;color:#64748b;font-size:16px;line-height:1;padding:0;" title="Clear selection">&times;</button>
+            </div>
+            <!-- Hidden select — keeps saveEquipmentBtn logic in request_form.html working -->
+            <select id="modal_equipment_select" class="equipment-select" style="display:none;">
+                <option value=""></option>
+                {% for eq in equipments %}
+                <option value="{{ eq.id }}" data-facility="{{ eq.current_facility|default:'' }}">{{ eq.product.manufacturer }} {{ eq.product.model }} (S/N: {{ eq.serial_number }}){% if eq.current_facility %} — {{ eq.current_facility }}{% endif %}</option>
+                {% endfor %}
+            </select>
+            <small class="text-muted">Only machines already in the database.</small>
         </div>
 
-        <!-- Mode B: Quick Create New Registry Entry -->
-        <div id="mode-new" style="display: none;">
-            <form id="quickEquipmentForm">
-                <div class="form-group">
-                    <label class="form-label">Product (Catalogue)</label>
-                    <div style="display: flex; gap: 8px;">
-                        <select id="modal_new_eq_product" name="product" class="form-control" required style="flex:1;">
-                            <option value="">-- Choose Type --</option>
-                            {% for p in products %}
-                            <option value="{{ p.id }}">{{ p.manufacturer }} {{ p.model }}</option>
-                            {% endfor %}
-                        </select>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('productModal').style.display='block'">+</button>
-                    </div>
+        <!-- ── Mode B: create new machine ─────────────────── -->
+        <div id="mode-new">
+            <form id="quickEquipmentForm" autocomplete="off">
+                {% csrf_token %}
+
+                <!-- Hidden field: resolved product ID -->
+                <input type="hidden" name="product" id="modal_product_id">
+
+                <!-- Step labels style -->
+                <style>
+                .eqstep { margin-bottom:12px; transition:opacity .2s; }
+                .eqstep.locked { opacity:.35; pointer-events:none; user-select:none; }
+                .eqstep-label {
+                    font-size:.75rem; font-weight:700; text-transform:uppercase;
+                    letter-spacing:.04em; color:#475569; margin-bottom:4px;
+                    display:flex; align-items:center; gap:5px;
+                }
+                .eqstep-label .snum {
+                    display:inline-flex; align-items:center; justify-content:center;
+                    width:16px; height:16px; border-radius:50%;
+                    background:#2563eb; color:#fff; font-size:.65rem; font-weight:800;
+                }
+                .locked .eqstep-label .snum { background:#94a3b8; }
+                .eq-addinput {
+                    display:none; margin-top:5px;
+                    border:1px solid #d1d5db; border-radius:6px;
+                    padding:6px 10px; width:100%; font-size:.875rem; box-sizing:border-box;
+                    outline:none;
+                }
+                .eq-addinput:focus { border-color:#2563eb; box-shadow:0 0 0 2px rgba(37,99,235,.15); }
+                .eqdivider { width:2px; height:8px; background:#e5e7eb; margin:0 0 12px 7px; }
+                </style>
+
+                <!-- 1 · Category -->
+                <div class="eqstep" id="eq_cat_row">
+                    <div class="eqstep-label"><span class="snum">1</span> Category</div>
+                    <select id="eq_cat_sel" class="form-control">
+                        <option value="">— Loading… —</option>
+                    </select>
+                    <input id="eq_cat_inp" type="text" class="eq-addinput" placeholder="Type custom category…" maxlength="100">
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Serial Number</label>
-                    <input type="text" name="serial_number" class="form-control" placeholder="Enter unique S/N" required>
+                <div class="eqdivider"></div>
+
+                <!-- 2 · Product Type -->
+                <div class="eqstep locked" id="eq_name_row">
+                    <div class="eqstep-label"><span class="snum">2</span> Product Type</div>
+                    <select id="eq_name_sel" class="form-control" disabled>
+                        <option value="">— Select category first —</option>
+                    </select>
+                    <input id="eq_name_inp" type="text" class="eq-addinput" placeholder="Type product type…" maxlength="200">
                 </div>
-                <div id="eqError" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px;"></div>
+                <div class="eqdivider"></div>
+
+                <!-- 3 · Brand -->
+                <div class="eqstep locked" id="eq_brand_row">
+                    <div class="eqstep-label"><span class="snum">3</span> Brand / Manufacturer</div>
+                    <select id="eq_brand_sel" class="form-control" disabled>
+                        <option value="">— Select product type first —</option>
+                    </select>
+                    <input id="eq_brand_inp" type="text" class="eq-addinput" placeholder="Type brand name…" maxlength="200">
+                </div>
+                <div class="eqdivider"></div>
+
+                <!-- 4 · Model -->
+                <div class="eqstep locked" id="eq_model_row">
+                    <div class="eqstep-label"><span class="snum">4</span> Model</div>
+                    <select id="eq_model_sel" class="form-control" disabled>
+                        <option value="">— Select brand first —</option>
+                    </select>
+                    <input id="eq_model_inp" type="text" class="eq-addinput" placeholder="Type model name…" maxlength="200">
+                </div>
+
+                <hr style="margin:14px 0 10px; border:none; border-top:1px solid #e5e7eb;">
+
+                <!-- Serial Number -->
+                <div class="form-group" style="margin-bottom:4px;">
+                    <label class="form-label" style="font-size:.8rem; font-weight:700; color:#475569; text-transform:uppercase;">Serial Number</label>
+                    <input type="text" name="serial_number" class="form-control" placeholder="Enter unique serial number" required>
+                </div>
+
+                <div id="eqError" style="color:#ef4444; font-size:.82rem; margin-top:6px; min-height:16px;"></div>
             </form>
         </div>
 
-        <div class="form-group" style="margin-top: 1rem;">
-            <label class="form-label">Service Note (Optional)</label>
+        <!-- Service Note (shared) -->
+        <div class="form-group" style="margin-top:14px;">
+            <label class="form-label">Service Note <span style="font-weight:400; color:#94a3b8;">(optional)</span></label>
             <input type="text" id="modal_service_note" class="form-control" placeholder="Note for this service only">
         </div>
 
-        <div style="text-align: right; margin-top: 2rem; display: flex; gap: 10px; justify-content: flex-end;">
+        <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:1.5rem;">
             <button type="button" class="btn btn-secondary close-equipment-btn">Cancel</button>
             <button type="button" class="btn btn-primary" id="saveEquipmentBtn">Add to Report</button>
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    /* ── DOM ─────────────────────────────────────────────── */
+    const catRow   = document.getElementById('eq_cat_row');
+    const catSel   = document.getElementById('eq_cat_sel');
+    const catInp   = document.getElementById('eq_cat_inp');
+
+    const nameRow  = document.getElementById('eq_name_row');
+    const nameSel  = document.getElementById('eq_name_sel');
+    const nameInp  = document.getElementById('eq_name_inp');
+
+    const brandRow = document.getElementById('eq_brand_row');
+    const brandSel = document.getElementById('eq_brand_sel');
+    const brandInp = document.getElementById('eq_brand_inp');
+
+    const modelRow = document.getElementById('eq_model_row');
+    const modelSel = document.getElementById('eq_model_sel');
+    const modelInp = document.getElementById('eq_model_inp');
+
+    const productIdField = document.getElementById('modal_product_id');
+    const eqErr          = document.getElementById('eqError');
+
+    /* ── State ───────────────────────────────────────────── */
+    let st = { category:'', name:'', brand:'', model:'', productId:'' };
+
+    /* ── Helpers ─────────────────────────────────────────── */
+    function lock(row, sel, inp, placeholder) {
+        row.classList.add('locked');
+        sel.disabled = true;
+        sel.innerHTML = '<option value="">' + placeholder + '</option>';
+        inp.style.display = 'none';
+        inp.value = '';
+    }
+
+    function unlock(row, sel) {
+        row.classList.remove('locked');
+        sel.disabled = false;
+    }
+
+    function addOptions(sel, items, emptyLabel, withAdd) {
+        sel.innerHTML = '<option value="">' + emptyLabel + '</option>';
+        items.forEach(function(item) {
+            const opt = document.createElement('option');
+            if (typeof item === 'object') {
+                opt.value = item.value;
+                opt.textContent = item.label;
+                if (item.id) opt.dataset.productId = item.id;
+            } else {
+                opt.value = item;
+                opt.textContent = item;
+            }
+            sel.appendChild(opt);
+        });
+        if (withAdd) {
+            const a = document.createElement('option');
+            a.value = '__new__';
+            a.textContent = '➕ Add new…';
+            sel.appendChild(a);
+        }
+    }
+
+    function clearProductId() {
+        st.productId = '';
+        productIdField.value = '';
+    }
+
+    /* ── Product resolution ─────────────────────────────── */
+    function resolveProduct() {
+        if (!st.name || !st.brand || !st.model) return;
+        const saveBtn = document.getElementById('saveEquipmentBtn');
+        saveBtn.disabled = true;
+        clearProductId();
+
+        const fd = new FormData();
+        fd.append('csrfmiddlewaretoken', document.querySelector('#quickEquipmentForm [name=csrfmiddlewaretoken]').value);
+        fd.append('name', st.name);
+        fd.append('category', st.category);
+        fd.append('manufacturer', st.brand);
+        fd.append('model', st.model);
+
+        fetch('{% url "product_get_or_create_ajax" %}', { method:'POST', body:fd })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    st.productId = d.id;
+                    productIdField.value = d.id;
+                } else {
+                    eqErr.textContent = d.message || 'Could not register product type.';
+                }
+                saveBtn.disabled = false;
+            })
+            .catch(function() { saveBtn.disabled = false; });
+    }
+
+    /* Debounce helper */
+    function debounce(fn, ms) {
+        let t;
+        return function() {
+            clearTimeout(t);
+            const ctx = this, args = arguments;
+            t = setTimeout(function() { fn.apply(ctx, args); }, ms);
+        };
+    }
+
+    /* ── Reset all ──────────────────────────────────────── */
+    function resetCascade() {
+        st = { category:'', name:'', brand:'', model:'', productId:'' };
+        productIdField.value = '';
+        eqErr.textContent = '';
+
+        catSel.innerHTML = '<option value="">— Loading… —</option>';
+        catInp.style.display = 'none'; catInp.value = '';
+
+        lock(nameRow,  nameSel,  nameInp,  '— Select category first —');
+        lock(brandRow, brandSel, brandInp, '— Select product type first —');
+        lock(modelRow, modelSel, modelInp, '— Select brand first —');
+
+        loadCategories();
+    }
+
+    /* ── Step 1: Categories ─────────────────────────────── */
+    function loadCategories() {
+        fetch('{% url "product_categories_ajax" %}')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                addOptions(catSel, data.categories, '— Select a category —', true);
+            })
+            .catch(function() {
+                catSel.innerHTML = '<option value="">— Could not load —</option>';
+            });
+    }
+
+    catSel.addEventListener('change', function() {
+        const val = this.value;
+        catInp.style.display = 'none'; catInp.value = '';
+        st.category = ''; st.name = ''; st.brand = ''; st.model = '';
+        clearProductId();
+        lock(nameRow, nameSel, nameInp, '— Select category first —');
+        lock(brandRow, brandSel, brandInp, '— Select product type first —');
+        lock(modelRow, modelSel, modelInp, '— Select brand first —');
+
+        if (val === '__new__') {
+            catInp.style.display = 'block'; catInp.focus();
+        } else if (val) {
+            st.category = val;
+            loadNames(val);
+        }
+    });
+
+    catInp.addEventListener('input', function() {
+        st.category = this.value.trim();
+        st.name = ''; st.brand = ''; st.model = '';
+        clearProductId();
+        lock(brandRow, brandSel, brandInp, '— Select product type first —');
+        lock(modelRow, modelSel, modelInp, '— Select brand first —');
+        if (st.category) {
+            addOptions(nameSel, [], '— Select product type —', true);
+            unlock(nameRow, nameSel);
+        } else {
+            lock(nameRow, nameSel, nameInp, '— Select category first —');
+        }
+    });
+
+    /* ── Step 2: Product Names ──────────────────────────── */
+    function loadNames(category) {
+        nameSel.innerHTML = '<option value="">— Loading… —</option>';
+        unlock(nameRow, nameSel);
+        fetch('{% url "product_names_by_category_ajax" %}?category=' + encodeURIComponent(category))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                addOptions(nameSel, data.names, '— Select a product type —', true);
+            });
+    }
+
+    nameSel.addEventListener('change', function() {
+        const val = this.value;
+        nameInp.style.display = 'none'; nameInp.value = '';
+        st.name = ''; st.brand = ''; st.model = '';
+        clearProductId();
+        lock(brandRow, brandSel, brandInp, '— Select product type first —');
+        lock(modelRow, modelSel, modelInp, '— Select brand first —');
+
+        if (val === '__new__') {
+            nameInp.style.display = 'block'; nameInp.focus();
+        } else if (val) {
+            st.name = val;
+            loadBrands(val);
+        }
+    });
+
+    nameInp.addEventListener('input', function() {
+        st.name = this.value.trim();
+        st.brand = ''; st.model = '';
+        clearProductId();
+        lock(brandRow, brandSel, brandInp, '— Select product type first —');
+        lock(modelRow, modelSel, modelInp, '— Select brand first —');
+        if (st.name) loadBrands(st.name);
+    });
+
+    /* ── Step 3: Brands ─────────────────────────────────── */
+    function loadBrands(name) {
+        addOptions(brandSel, [], '— Loading… —', false);
+        unlock(brandRow, brandSel);
+        fetch('{% url "product_brands_ajax" %}?name=' + encodeURIComponent(name))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.brands.length === 0) {
+                    addOptions(brandSel, [], '— No brands yet —', true);
+                    brandInp.style.display = 'block'; brandInp.focus();
+                } else {
+                    addOptions(brandSel, data.brands, '— Select a brand —', true);
+                    brandInp.style.display = 'none';
+                }
+            });
+    }
+
+    brandSel.addEventListener('change', function() {
+        const val = this.value;
+        brandInp.style.display = 'none'; brandInp.value = '';
+        st.brand = ''; st.model = '';
+        clearProductId();
+        lock(modelRow, modelSel, modelInp, '— Select brand first —');
+
+        if (val === '__new__') {
+            brandInp.style.display = 'block'; brandInp.focus();
+        } else if (val) {
+            st.brand = val;
+            loadModels(st.name, val);
+        }
+    });
+
+    brandInp.addEventListener('input', function() {
+        st.brand = this.value.trim();
+        st.model = '';
+        clearProductId();
+        lock(modelRow, modelSel, modelInp, '— Select brand first —');
+        if (st.brand) {
+            /* New brand → no existing models */
+            addOptions(modelSel, [], '— No models yet —', true);
+            unlock(modelRow, modelSel);
+            modelInp.style.display = 'block';
+        }
+    });
+
+    /* ── Step 4: Models ─────────────────────────────────── */
+    function loadModels(name, brand) {
+        addOptions(modelSel, [], '— Loading… —', false);
+        unlock(modelRow, modelSel);
+        fetch('{% url "product_models_ajax" %}?name=' + encodeURIComponent(name) + '&brand=' + encodeURIComponent(brand))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.models.length === 0) {
+                    addOptions(modelSel, [], '— No models yet —', true);
+                    modelInp.style.display = 'block'; modelInp.focus();
+                } else {
+                    const items = data.models.map(function(m) {
+                        return { value: m.model, label: m.model, id: m.id };
+                    });
+                    addOptions(modelSel, items, '— Select a model —', true);
+                    modelInp.style.display = 'none';
+                }
+            });
+    }
+
+    modelSel.addEventListener('change', function() {
+        const opt = this.options[this.selectedIndex];
+        modelInp.style.display = 'none'; modelInp.value = '';
+        clearProductId();
+
+        if (this.value === '__new__') {
+            modelInp.style.display = 'block'; modelInp.focus();
+        } else if (this.value) {
+            st.model = this.value;
+            if (opt.dataset.productId) {
+                /* Existing product — ID is known immediately */
+                st.productId = opt.dataset.productId;
+                productIdField.value = opt.dataset.productId;
+            } else {
+                resolveProduct();
+            }
+        }
+    });
+
+    const debouncedResolve = debounce(resolveProduct, 600);
+    modelInp.addEventListener('input', function() {
+        st.model = this.value.trim();
+        clearProductId();
+        if (st.model && st.brand && st.name) debouncedResolve();
+    });
+
+    /* ── Init on mode-new tab click ─────────────────────── */
+    document.addEventListener('DOMContentLoaded', function() {
+        /* Hook into tab-new click to init cascade */
+        const tabNew = document.getElementById('tab-new');
+        if (tabNew) {
+            tabNew.addEventListener('click', function() {
+                if (!catSel.options.length || catSel.options[0].value === '') {
+                    loadCategories();
+                }
+            });
+        }
+    });
+
+    /* Reset cascade when form is reset (closeEqModal calls form.reset()) */
+    const qef = document.getElementById('quickEquipmentForm');
+    if (qef) {
+        qef.addEventListener('reset', function() {
+            setTimeout(resetCascade, 0);
+        });
+    }
+
+    /* Initial load */
+    loadCategories();
+
+    /* ── Registry autocomplete ──────────────────────────────── */
+    (function() {
+        var searchInp   = document.getElementById('modal_client_search');
+        var resultsList = document.getElementById('modal_eq_results');
+        var chosenDiv   = document.getElementById('modal_eq_chosen');
+        var chosenText  = document.getElementById('modal_eq_chosen_text');
+        var clearBtn    = document.getElementById('modal_eq_clear');
+        var hiddenSel   = document.getElementById('modal_equipment_select');
+        if (!searchInp) return;
+
+        /* Build searchable data from the hidden select rendered by the server */
+        var allEquipment = Array.from(hiddenSel.options)
+            .filter(function(o) { return o.value; })
+            .map(function(o) {
+                return {
+                    id: o.value,
+                    text: o.textContent.trim(),
+                    search: ((o.dataset.facility || '') + ' ' + o.textContent).toLowerCase()
+                };
+            });
+
+        function esc(s) {
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function renderResults(q) {
+            var matches = q
+                ? allEquipment.filter(function(e) { return e.search.includes(q); })
+                : allEquipment;
+
+            if (!matches.length) {
+                resultsList.innerHTML = '<div style="padding:10px 14px;color:#94a3b8;font-size:.85rem;">No machines found</div>';
+            } else {
+                resultsList.innerHTML = matches.slice(0, 60).map(function(e) {
+                    return '<div class="eq-ac-item" data-id="' + esc(e.id) + '" ' +
+                           'style="padding:9px 14px;cursor:pointer;font-size:.85rem;border-bottom:1px solid #f1f5f9;line-height:1.4;">' +
+                           esc(e.text) + '</div>';
+                }).join('');
+            }
+            resultsList.style.display = 'block';
+        }
+
+        function selectItem(id) {
+            var eq = allEquipment.find(function(e) { return e.id === id; });
+            if (!eq) return;
+            hiddenSel.value = id;
+            chosenText.textContent = eq.text;
+            chosenDiv.style.display = 'flex';
+            searchInp.value = '';
+            resultsList.style.display = 'none';
+        }
+
+        /* Exposed so closeEqModal in request_form.html can fully reset this widget */
+        window.resetRegistrySearch = function() {
+            hiddenSel.value = '';
+            searchInp.value = '';
+            chosenDiv.style.display = 'none';
+            resultsList.style.display = 'none';
+        };
+
+        searchInp.addEventListener('focus', function() {
+            if (!hiddenSel.value) renderResults(this.value.trim().toLowerCase());
+        });
+
+        searchInp.addEventListener('input', function() {
+            hiddenSel.value = '';
+            chosenDiv.style.display = 'none';
+            renderResults(this.value.trim().toLowerCase());
+        });
+
+        /* mousedown fires before blur, preventing the list from vanishing before click */
+        resultsList.addEventListener('mousedown', function(e) {
+            var item = e.target.closest('.eq-ac-item');
+            if (!item) return;
+            e.preventDefault();
+            selectItem(item.dataset.id);
+        });
+
+        resultsList.addEventListener('mouseover', function(e) {
+            var item = e.target.closest('.eq-ac-item');
+            if (item) item.style.background = '#f0f9ff';
+        });
+        resultsList.addEventListener('mouseout', function(e) {
+            var item = e.target.closest('.eq-ac-item');
+            if (item) item.style.background = '';
+        });
+
+        searchInp.addEventListener('blur', function() {
+            setTimeout(function() { resultsList.style.display = 'none'; }, 200);
+        });
+
+        clearBtn.addEventListener('click', function() {
+            window.resetRegistrySearch();
+            searchInp.focus();
+            renderResults('');
+        });
+    })();
+})();
+</script>

@@ -216,6 +216,79 @@ def product_create_ajax(request):
         return JsonResponse({'success': True, 'id': obj.id, 'name': str(obj)})
     return JsonResponse({'success': False, 'message': 'Invalid data'}, status=400)
 
+@login_required
+def product_categories_ajax(request):
+    """Return product categories: static catalogue merged with any custom ones saved to the DB."""
+    from .catalogue_data import CATALOGUE
+    static_cats = set(CATALOGUE.keys())
+    db_cats = set(
+        Product.objects.exclude(category='')
+        .values_list('category', flat=True)
+        .distinct()
+    )
+    categories = sorted(static_cats | db_cats)
+    return JsonResponse({'categories': categories})
+
+@login_required
+def product_names_by_category_ajax(request):
+    """Return product type names for a category: static catalogue merged with DB entries."""
+    from .catalogue_data import CATALOGUE
+    category = request.GET.get('category', '')
+    static_names = set(CATALOGUE.get(category, []))
+    db_names = set(
+        Product.objects.filter(category=category)
+        .exclude(name='')
+        .values_list('name', flat=True)
+        .distinct()
+    )
+    names = sorted(static_names | db_names)
+    return JsonResponse({'names': names})
+
+@login_required
+def product_brands_ajax(request):
+    """Return distinct brands (manufacturers) that exist in the DB for a given product name."""
+    name = request.GET.get('name', '')
+    brands = (
+        Product.objects.filter(name=name)
+        .exclude(manufacturer='')
+        .values_list('manufacturer', flat=True)
+        .distinct()
+        .order_by('manufacturer')
+    )
+    return JsonResponse({'brands': list(brands)})
+
+@login_required
+def product_models_ajax(request):
+    """Return distinct models (with product IDs) for a given product name + brand."""
+    name = request.GET.get('name', '')
+    brand = request.GET.get('brand', '')
+    items = (
+        Product.objects.filter(name=name, manufacturer=brand)
+        .exclude(model='')
+        .values('id', 'model')
+        .order_by('model')
+    )
+    return JsonResponse({'models': [{'model': i['model'], 'id': i['id']} for i in items]})
+
+@login_required
+@require_POST
+def product_get_or_create_ajax(request):
+    """Get an existing product by (manufacturer, model) or create it. Never errors on duplicate."""
+    name         = request.POST.get('name', '').strip()
+    category     = request.POST.get('category', '').strip()
+    manufacturer = request.POST.get('manufacturer', '').strip()
+    model        = request.POST.get('model', '').strip()
+
+    if not name or not manufacturer or not model:
+        return JsonResponse({'success': False, 'message': 'Name, brand, and model are required.'}, status=400)
+
+    product, created = Product.objects.get_or_create(
+        manufacturer=manufacturer,
+        model=model,
+        defaults={'name': name, 'category': category, 'notes': ''},
+    )
+    return JsonResponse({'success': True, 'id': product.id, 'name': str(product), 'created': created})
+
 class EquipmentListView(LoginRequiredMixin, ListView):
     model = Equipment
     template_name = 'core/equipment_list.html'

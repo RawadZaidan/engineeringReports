@@ -4,7 +4,8 @@ from .views import (
     ProductListView, ProductCreateView,
     EquipmentListView, equipment_create_ajax,
     MaintenanceRequestListView, MaintenanceRequestCreateView, MaintenanceRequestDetailView, MaintenanceRequestUpdateView,
-    update_pricing_ajax, product_create_ajax,
+    update_pricing_ajax, product_create_ajax, product_categories_ajax, product_names_by_category_ajax,
+    product_brands_ajax, product_models_ajax, product_get_or_create_ajax,
     DriverSchedulingView, DriverRequestCreateView, DriverRequestUpdateView, driver_request_action,
     get_driver_occupancy,
     EngineerSchedulingView, MaintenanceAssignmentCreateView, MaintenanceAssignmentUpdateView
@@ -19,6 +20,11 @@ urlpatterns = [
     path('products/', ProductListView.as_view(), name='product_list'),
     path('products/new/', ProductCreateView.as_view(), name='product_create'),
     path('products/create-ajax/', product_create_ajax, name='product_create_ajax'),
+    path('products/categories/', product_categories_ajax, name='product_categories_ajax'),
+    path('products/names-by-category/', product_names_by_category_ajax, name='product_names_by_category_ajax'),
+    path('products/brands/', product_brands_ajax, name='product_brands_ajax'),
+    path('products/models/', product_models_ajax, name='product_models_ajax'),
+    path('products/get-or-create/', product_get_or_create_ajax, name='product_get_or_create_ajax'),
     
     path('registry/', EquipmentListView.as_view(), name='equipment_list'),
     path('registry/create-ajax/', equipment_create_ajax, name='equipment_create_ajax'),
