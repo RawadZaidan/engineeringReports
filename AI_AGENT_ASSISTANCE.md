@@ -1,147 +1,249 @@
-# AI Agent Assistance Guide - Medilab Maintenance DB
+# AI Agent Assistance Guide — MedilabERP
 
-This document is designed to help AI agents (like Antigravity) navigate, understand, and modify the Medilab Maintenance Database codebase efficiently.
-
-## 🚀 Project Overview
-**Medilab** is a Django-based MVP for the Engineering Department to manage service reports, maintenance requests, and equipment inventory. It features signature capture, photo attachments, and a premium, minimalistic aesthetic.
+Designed for AI agents navigating, understanding, and modifying MedilabERP efficiently.
+Last updated: 2026-05-07
 
 ---
 
-## 🏗️ Architecture & Stack
-- **Backend:** Django 5.0 (Monolithic)
-- **Database:** Supabase PostgreSQL (Production)
-- **Frontend:** Server-rendered HTML, Vanilla CSS (custom), Vanilla JS.
-- **Key Dependencies:** Pillow (Images), python-dotenv (Config), Whitenoise (Static files), boto3 (Cloud Storage), django-storages (R2 Integration), psycopg2-binary (PostgreSQL).
-- **Cloud Storage:** Cloudflare R2 (S3-compatible) for media files.
+## Project Overview
+
+**MedilabERP** is a Django-based internal web application for the Engineering Department. It manages:
+- Service reports with signature capture and photo attachments
+- Maintenance requests and scheduling
+- Equipment and product catalogue
+- Driver logistics / trip scheduling
+- Engineer assignment scheduling
+- AI-powered document (tender) analysis
+
+> See [CODE_MAP.md](CODE_MAP.md) for the complete model/view/form/URL reference.
 
 ---
 
-## 📂 Directory Structure Highlights
+## Architecture & Stack
 
-> **See [CODE_MAP.md](CODE_MAP.md) for a detailed breakdown of models, views, and functions.**
-
-### `config/`
-- `settings.py`: Core configuration.
-- `urls.py`: Main routing.
-
-### `core/` (Main App)
-- Contains the primary business logic for Reports, Equipment, and Requests.
-- Key files: `models.py`, `views.py`, `forms.py`, `urls.py`.
-
-### `docai/` (Document AI)
-- Handles AI-powered document summarization (Gemini/OpenAI).
-- Key files: `views.py` (Analysis logic), `utils.py` (Text extraction).
-
-### `templates/`
-- `base.html`: Global layout.
-- `core/`: Dashboard and Report forms.
-- `docai/`: Document upload and summary views.
-
-### `static/`
-- `css/`: Custom styling.
-- `js/`: Utility scripts (e.g., `service-worker.js`).
+| Layer | Technology |
+|-------|-----------|
+| Backend | Django 5.0 (monolithic) |
+| Database | Supabase PostgreSQL (production) |
+| Frontend | Server-rendered HTML + Vanilla CSS + Vanilla JS |
+| Cloud Storage | Cloudflare R2 (S3-compatible) via `django-storages` |
+| Auth | Django built-in authentication |
+| Caching | `LocMemCache` (dashboard stats, session roles) |
+| Sessions | `cached_db` (persistent across restarts) |
+| PWA | `service-worker.js` + `manifest.json` |
+| Push Notifications | `django-webpush` + VAPID keys |
+| Document AI | OpenAI API via background thread |
 
 ---
 
-## 🔧 Key Logic & Features
+## Directory Map
 
-### 1. Signature Capture
-- **Frontend:** Located in `templates/core/report_form.html`. Uses HTML5 Canvas.
-- **Backend:** Processed in `core/views.py`. Converts Base64 data from a hidden input into a Django `ContentFile`.
-
-### 2. Multi-Equipment Reports
-- A `ServiceReport` can have multiple `ReportItem` instances.
-- Implementation uses Django **Inline Formsets**. 
-- Adding items dynamically on the frontend is handled via a `<script>` block in `report_form.html` using a template literal/prefix approach.
-
-### 3. Product Creation AJAX
-- Users can create a `Product` without leaving the `ServiceReport` form.
-- Logic is in `report_form.html` (JS `fetch`) and `core/views.py` (`product_create_ajax`).
-
-### 4. Maintenance Request to Service Report Mapping
-- Clicking **"Create Service Report"** from a Maintenance Request detail page passes `request_id` in the URL.
-- `ServiceReportCreateView` handles this in:
-    - `get_initial()`: Maps client info, contact details, donor, and translates `billing_status` to `billing_category`. **New:** It also maps the `service_type` selections from the request to the report.
-    - `get_context_data()`: Attempts to auto-match `Product` records based on the equipment type/model strings in the request and pre-fills the `ReportItemFormSet`.
-
-
-
-### 5. Cloudflare R2 Cloud Storage
-- **Purpose:** All media files (signatures, report photos, tender documents) are stored in Cloudflare R2 instead of the local filesystem.
-- **Configuration:** Located in `config/settings.py` under "Cloudflare R2 Storage Configuration".
-- **Environment Variables Required:**
-    - `R2_ACCESS_KEY_ID`: Access key for R2 API authentication
-    - `R2_SECRET_ACCESS_KEY`: Secret key for R2 API authentication
-    - `R2_BUCKET_NAME`: Name of the R2 bucket (e.g., "medilab")
-    - `R2_ENDPOINT_URL`: R2 endpoint URL for API calls
-    - `R2_PUBLIC_URL`: Public URL for accessing uploaded files
-- **Storage Backend:** Uses `django-storages` with S3-compatible backend (`storages.backends.s3boto3.S3Boto3Storage`)
-- **Public Access:** The R2 bucket must have public read access enabled in Cloudflare dashboard for files to be viewable.
-- **Media Files Affected:** 
-    - `ServiceReport.client_signature` → `signatures/`
-    - `ReportImage.image` → `report_photos/`
-    - `TenderDocument.document` → `tender_docs/`
-
-### 6. Supabase PostgreSQL Database
-- **Purpose:** Primary database for the application.
-- **Configuration:** Located in `config/settings.py` using `dj_database_url`.
-- **Environment Variables:**
-    - `DATABASE_URL`: Connection string for Supabase PostgreSQL.
-- **Notes:** 
-    - Migrations must be run against this database (`python manage.py migrate`).
-    - The project uses `psycopg2-binary` as the adapter.
-
-### 7. Security Configuration
-- **SECRET_KEY**: Loaded from `.env` file (never hardcoded).
-- **DEBUG**: Controlled via `DEBUG` environment variable (default: `False` in production).
-- **Security Headers**: XSS filter, content-type sniffing protection, clickjacking protection.
-- **Session Security**: Secure cookies enabled in production.
-- **HTTPS**: SSL redirect and HSTS enabled in production.
-- **Authentication**: AJAX endpoints protected with `@login_required`.
-
-### 8. Document AI Analysis
-- **Workflow:** User uploads a document (PDF, DOCX, etc.) → Backend extracts text (`docai/utils.py`) → Background Thread (`perform_analysis_task`) calls LLM → Result saved to `TenderSummary`.
-- **Text Extraction:** Uses `PyPDF2` (memory-efficient), `python-docx`, `pandas`, and `striprtf` to normalize text from various formats.
-- **Memory Optimization:** 
-    - **Full Document Processing:** Processes entire documents without page/sheet limits
-    - **Incremental Processing:** Page-by-page (PDF) and sheet-by-sheet (Excel) to minimize memory footprint
-    - **Explicit Memory Cleanup:** Uses `del` to free memory after processing each page/sheet
-    - **Progress Logging:** Logs progress every 10 pages (PDF) or 5 sheets (Excel) for large documents
-    - **Graceful Error Handling:** Catches MemoryError with user-friendly messages
-- **LLM Integration:** Uses OpenAI/Gemini API (via `openai` client) to structure the tender data which is then saved as JSON.
+```
+MedilabERP/
+├── config/          Django project (settings, root URLs)
+├── core/            Main app — Reports, Requests, Scheduling, Equipment, Drivers, Engineers
+├── docai/           Document AI app — Tender document analysis
+├── templates/       HTML templates (base.html + per-app)
+├── static/          CSS, JS, images, PWA assets
+├── media/           User uploads (signatures, photos, driver photos, tender docs)
+└── staticfiles/     collectstatic output (production)
+```
 
 ---
 
+## Key Logic & Systems
+
+### 1. Role-Based Access & DriverRedirectMixin
+
+`DriverRedirectMixin` (in `core/views.py`) is applied to all non-logistics views. Users in the **"Driver"** group are redirected to `/scheduling/` and cannot access reports, requests, or engineering pages.
+
+`core/context_processors.py`:
+- `user_roles()` — Session-cached flags: `is_engineer`, `is_driver`, `is_sales`, `is_procurement`.
+- `notification_counts()` — 60-second TTL badge counts for pending driver requests and open maintenance requests.
+
 ---
 
-## 🔍 How to Locate Things
+### 2. Maintenance Request → Service Report Flow
 
-- **Models:** Always check `core/models.py`.
-- **Business Logic:** Primarily in `core/views.py` and `core/forms.py`.
-- **Styling:** Main layout styles are in `static/css/`. Page-specific styles are often in `<style>` blocks within the template.
-- **Global Config:** `config/settings.py`.
+When a user clicks **"Create Service Report"** from a `MaintenanceRequest` detail page, `request_id` is passed as a URL query param.
+
+`ServiceReportCreateView` handles this in:
+- `get_initial()` — Maps `facility_name`, `contact_name`, `contact_number`, `donor`, translates `billing_status` → `billing_category`, maps `service_type` selections.
+- `get_context_data()` — Attempts to auto-match `Product` records from the request's `equipment_list` text and pre-fills `ReportItemFormSet`.
 
 ---
 
-## 🛠️ Common Workflows for AI
+### 3. Signature Capture
 
-### Adding a New Field to a Report
-1. Update model in `core/models.py`.
-2. Run `python manage.py makemigrations` and `python manage.py migrate`.
+- **Frontend:** HTML5 Canvas in `templates/core/report_form.html`. Draw → convert to Base64 → write into a hidden `<input>`.
+- **Backend:** `ServiceReportCreateView.form_valid()` reads the Base64 string, converts it to a Django `ContentFile`, saves to `ServiceReport.client_signature` (uploaded to R2 `signatures/`).
+
+---
+
+### 4. Multi-Equipment Reports (Inline Formset)
+
+- A `ServiceReport` has many `ReportItem` instances via inline formset.
+- `ReportItemFormSet` (defined in `core/forms.py`) uses `BaseReportItemFormSet.clean()` to prevent duplicate equipment entries.
+- Frontend: dynamic add/remove rows via a `<script>` block in `report_form.html` using Django's formset prefix approach.
+
+---
+
+### 5. Product AJAX Creation
+
+Users can create a `Product` without leaving the report form:
+- Frontend: `fetch()` call to `products/create-ajax/` inside a modal.
+- Backend: `product_create_ajax` view returns JSON `{status, product_id, display_name}`.
+
+Additional product AJAX endpoints allow cascading dropdowns: category → brand → model.
+
+---
+
+### 6. Driver Scheduling System
+
+- `DriverRequest` links a `requester` (any staff) to a `Driver` for a specific `date`, `start_time`, `end_time`, `location`.
+- Status flow: Pending → Approved / Denied / Edit Requested → Completed / Cancelled.
+- `DriverSchedulingView` serializes monthly trip data as JSON for a calendar frontend.
+- `get_driver_occupancy` returns availability for a given driver/month (used by the scheduling UI).
+- `driver_request_action` handles approve/deny/complete actions (POST, `@login_required`).
+
+---
+
+### 7. Engineer Scheduling System
+
+- `MaintenanceAssignment` links an `Engineer` to a `MaintenanceRequest` for a specific `date`, `start_time`, `end_time`.
+- `MaintenanceAssignmentForm` validates:
+  - Date falls within `MaintenanceRequest.availability_start` / `availability_end`.
+  - No overlapping assignments for the same engineer on the same day.
+- `EngineerSchedulingView` serializes monthly assignment data for the calendar frontend.
+
+---
+
+### 8. Cloudflare R2 Storage
+
+All media files go to Cloudflare R2 (not local disk). Configured in `config/settings.py`.
+
+**Required environment variables:**
+
+| Variable | Purpose |
+|----------|---------|
+| `R2_ACCESS_KEY_ID` | R2 API authentication |
+| `R2_SECRET_ACCESS_KEY` | R2 API secret |
+| `R2_BUCKET_NAME` | Bucket name (e.g. "medilab") |
+| `R2_ENDPOINT_URL` | R2 S3-compatible endpoint |
+| `R2_PUBLIC_URL` | Public CDN URL for serving files |
+
+**Upload paths:**
+- Signatures → `signatures/`
+- Report photos → `report_photos/`
+- Thumbnails → `report_thumbnails/`
+- Driver photos → `drivers/`
+- Engineer photos → `engineers/`
+- Tender docs → `tender_docs/`
+
+---
+
+### 9. Supabase PostgreSQL
+
+**Required environment variable:** `DATABASE_URL` (connection string)
+
+Uses `dj_database_url` with PgBouncer pooling config. Always run `python manage.py migrate` against the Supabase DB when making schema changes.
+
+---
+
+### 10. Document AI (Tender Analysis)
+
+**Workflow:**
+1. User uploads a file (PDF, DOCX, XLSX, RTF) at `/docai/`.
+2. `summarize_document` creates a `TenderSummary` record and spawns a background thread.
+3. `perform_analysis_task` extracts text (`docai/utils.py`) → sends to OpenAI → saves structured JSON to `TenderSummary`.
+4. Frontend polls `analysis_progress_api` for completion status.
+
+**Memory optimization:** Incremental page-by-page (PDF) / sheet-by-sheet (Excel) processing with explicit `del` calls after each chunk.
+
+**Required env var:** `OPENAI_API_KEY`
+
+---
+
+### 11. Caching & Cache Invalidation
+
+- Dashboard stats and notification counts use `LocMemCache` with short TTLs.
+- `core/signals.py` fires cache invalidation on `ServiceReport` and `MaintenanceRequest` post-save/post-delete to keep badge counts fresh.
+
+---
+
+### 12. Security Configuration
+
+| Setting | Detail |
+|---------|--------|
+| `SECRET_KEY` | From `.env`, never hardcoded |
+| `DEBUG` | Controlled by `DEBUG` env var (default: False in production) |
+| HTTPS | `SECURE_SSL_REDIRECT`, `HSTS` enabled in production |
+| Session Cookies | `SESSION_COOKIE_SECURE = True` in production |
+| AJAX | All mutation endpoints protected with `@login_required` |
+| CSRF | Enabled on all forms and AJAX POST calls |
+
+---
+
+## How to Locate Things
+
+| What you need | Where to look |
+|---------------|--------------|
+| Models | `core/models.py` |
+| Business logic | `core/views.py`, `core/forms.py` |
+| URL routes | `core/urls.py`, `config/urls.py` |
+| Global styles | `static/css/styles.css` |
+| Page-specific styles | `<style>` blocks inside the relevant template |
+| Global config | `config/settings.py` |
+| Role/notification logic | `core/context_processors.py` |
+| Cache invalidation | `core/signals.py` |
+| Product seed data | `core/catalogue_data.py` |
+| DocAI text extraction | `docai/utils.py` |
+
+---
+
+## Common Workflows
+
+### Add a Field to ServiceReport
+
+1. Update `ServiceReport` in `core/models.py`.
+2. `python manage.py makemigrations && python manage.py migrate`.
 3. Update `ServiceReportForm` in `core/forms.py`.
 4. Update `report_form.html` and `report_detail.html`.
 
-### Modifying the Aesthetics
-- The project follows a "premium" design language. Ensure horizontal lines, subtle shadows, and a clean color palette (Blues/Greys/Whites) are maintained.
-- Check `base.html` for the global design system.
+### Add a New AJAX Endpoint
+
+1. Write the view function in `core/views.py` (decorate with `@login_required`, `@require_POST` / `@require_GET`).
+2. Register it in `core/urls.py`.
+3. Call it via `fetch()` in the relevant template, including the CSRF token header.
+
+### Modify the Scheduling Calendar
+
+- Driver calendar: `DriverSchedulingView.get_context_data()` → `driver_scheduling.html`.
+- Engineer calendar: `EngineerSchedulingView.get_context_data()` → `engineer_scheduling.html`.
+- Both serialize assignments/trips as JSON injected into a `<script>` block for the JS calendar.
+
+### Change a Form's Allowed Fields by Role
+
+- `MaintenanceRequestForm.__init__()` already gates fields by `user` arg.
+- Pass the request user when instantiating: `form = MaintenanceRequestForm(user=self.request.user)`.
+
+### Maintaining the Design System
+
+Follow the existing "premium, minimalistic" aesthetic:
+- Color palette: blues, greys, whites.
+- Subtle shadows and clean horizontal dividers.
+- Check `base.html` for CSS custom properties (design tokens).
+- Add page-specific overrides in `<style>` blocks; only touch `styles.css` for global changes.
 
 ---
 
-## 🔄 Maintaining This Guide
-**This guide is a living document.** 
-When you add a new feature, change an architectural decision, or find a nuance in the code that isn't documented:
-1. **Update the Directory Structure** if new folders/apps are added.
-2. **Add to Key Logic & Features** if a new complex system is implemented.
-3. **Update Common Workflows** if a process changes.
-**CRITICAL:** Every time you complete a task, verify if `AI_AGENT_ASSISTANCE.md` needs an update to reflect the new state of the project.
+## Maintaining This Guide
 
+This is a living document. When a feature is added, an architectural decision changes, or a non-obvious behavior is discovered:
+
+1. Update **Directory Map** if new apps or folders are added.
+2. Update **Key Logic & Systems** for new complex systems.
+3. Update **Common Workflows** if a process changes.
+4. Bump the **Last updated** date at the top.
+
+**Rule:** After completing any non-trivial task, verify whether this file needs an update.
