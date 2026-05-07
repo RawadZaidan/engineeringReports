@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MED-MAINT-001 | Maintenance Request Registration SOP</title>
+<style>
+  :root {
+    --navy: #0d1f3c;
+    --navy-mid: #1a3a6b;
+    --red: #c0392b;
+    --red-light: #fdecea;
+    --amber: #e8a020;
+    --amber-light: #fef3c7;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-600: #475569;
+    --text: #1e293b;
+    --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: #eef2f7;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .page-wrap {
+    max-width: 980px;
+    margin: 2rem auto 4rem;
+    background: var(--white);
+    box-shadow: 0 6px 40px rgba(0,0,0,0.10);
+  }
+  .cover {
+    background: linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%);
+    color: white;
+    padding: 3rem 3rem 2.5rem;
+    border-bottom: 5px solid var(--amber);
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    border: 40px solid rgba(232,160,32,0.10);
+    pointer-events: none;
+  }
+  .cover-top { display: flex; align-items: center; gap: 1.4rem; margin-bottom: 2rem; }
+  .org-logo {
+    background: var(--red); color: white;
+    font-size: 1.15rem; font-weight: 900;
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px; font-style: italic; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(192,57,43,0.4);
+  }
+  .org-tag { font-size: 0.72rem; color: rgba(255,255,255,0.5); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 0.25rem; }
+  .doc-title { font-size: 1.85rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
+  .doc-subtitle { font-size: 0.92rem; color: rgba(255,255,255,0.6); margin-top: 0.3rem; }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 0;
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; overflow: hidden;
+  }
+  .meta-cell {
+    padding: 0.8rem 1rem;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .meta-cell:nth-child(4n) { border-right: none; }
+  .meta-cell:nth-last-child(-n+4) { border-bottom: none; }
+  .meta-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); margin-bottom: 0.2rem; }
+  .meta-value { font-size: 0.88rem; font-weight: 600; color: rgba(255,255,255,0.9); }
+
+  .intro-banner {
+    background: linear-gradient(90deg, #0d1f3c, #1a3a6b);
+    color: white; margin: 0 -3rem; padding: 2rem 3rem;
+    border-bottom: 3px solid var(--amber);
+  }
+  .intro-banner h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 0.6rem; color: var(--amber); letter-spacing: 0.02em; }
+  .intro-banner p { font-size: 0.9rem; color: rgba(255,255,255,0.85); line-height: 1.75; margin: 0.4rem 0; }
+
+  .body { padding: 0 3rem 4rem; }
+
+  .section { margin-top: 2.8rem; }
+  .section-title {
+    display: flex; align-items: center; gap: 0.8rem;
+    margin-bottom: 1.1rem; padding-bottom: 0.65rem;
+    border-bottom: 2px solid var(--gray-200);
+  }
+  .section-num {
+    background: var(--navy); color: white;
+    font-size: 0.72rem; font-weight: 800;
+    padding: 0.22rem 0.6rem; border-radius: 4px;
+    letter-spacing: 0.06em;
+  }
+  .section-name { font-size: 1.08rem; font-weight: 800; color: var(--navy); letter-spacing: -0.2px; }
+
+  .phase {
+    background: var(--navy); color: white;
+    padding: 0.75rem 3rem; margin: 2.2rem -3rem 1.4rem;
+    font-size: 0.78rem; font-weight: 800;
+    letter-spacing: 0.13em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 0.7rem;
+    border-left: 5px solid var(--amber);
+  }
+  .phase-badge {
+    background: var(--amber); color: var(--navy);
+    font-size: 0.68rem; padding: 0.1rem 0.55rem;
+    border-radius: 3px; font-weight: 900;
+  }
+
+  .purpose-box {
+    background: #f0f4ff; border-left: 4px solid var(--navy-mid);
+    padding: 0.9rem 1.2rem; border-radius: 0 6px 6px 0;
+    margin-bottom: 1.4rem; font-size: 0.88rem; color: var(--navy);
+  }
+  .purpose-box strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--navy-mid); margin-bottom: 0.3rem; }
+
+  .step { display: flex; gap: 1.1rem; margin: 1.1rem 0; align-items: flex-start; }
+  .step-num {
+    background: var(--amber); color: var(--navy);
+    font-weight: 900; font-size: 0.8rem;
+    min-width: 2rem; height: 2rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; flex-shrink: 0; margin-top: 0.1rem;
+    box-shadow: 0 2px 6px rgba(232,160,32,0.35);
+  }
+  .step-body { flex: 1; }
+  .step-action { font-weight: 700; color: var(--navy); font-size: 0.95rem; }
+  .step-role {
+    display: inline-block;
+    background: var(--gray-100); border: 1px solid var(--gray-200);
+    color: var(--gray-600); font-size: 0.68rem; font-weight: 700;
+    padding: 0.1rem 0.5rem; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-left: 0.5rem; vertical-align: middle;
+  }
+  .step-explain { font-size: 0.9rem; color: #334155; margin: 0.45rem 0 0.1rem; line-height: 1.7; }
+  .step-detail {
+    background: var(--gray-50); border-left: 3px solid var(--amber);
+    padding: 0.65rem 1rem; margin-top: 0.55rem;
+    font-size: 0.86rem; color: var(--gray-600);
+    border-radius: 0 4px 4px 0;
+  }
+  .step-detail p { margin: 0.25rem 0; }
+  .step-detail p:first-child { margin-top: 0; }
+  .step-detail p:last-child { margin-bottom: 0; }
+  .step-detail ul { padding-left: 1.3rem; }
+  .step-detail li { margin: 0.2rem 0; }
+
+  .decision {
+    background: var(--amber-light); border: 1.5px solid var(--amber);
+    border-radius: 6px; padding: 0.85rem 1.1rem;
+    margin: 0.7rem 0 0.7rem 3.1rem;
+  }
+  .decision-label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; color: #92400e; margin-bottom: 0.45rem; }
+  .decision-row { display: flex; gap: 0.5rem; align-items: flex-start; margin: 0.2rem 0; font-size: 0.88rem; }
+  .dy { color: #15803d; font-weight: 700; min-width: 3.5rem; }
+  .dn { color: #b91c1c; font-weight: 700; min-width: 3.5rem; }
+
+  .badge {
+    display: inline-block; font-size: 0.69rem; font-weight: 700;
+    padding: 0.15rem 0.6rem; border-radius: 4px;
+    letter-spacing: 0.05em; text-transform: uppercase; vertical-align: middle;
+  }
+  .badge-billable    { background: #fee2e2; color: #b91c1c; }
+  .badge-warranty    { background: #dcfce7; color: #15803d; }
+  .badge-contract    { background: #dbeafe; color: #1d4ed8; }
+  .badge-foc         { background: var(--gray-100); color: var(--gray-600); }
+  .badge-open        { background: #fef9c3; color: #854d0e; }
+  .badge-scheduled   { background: #dbeafe; color: #1d4ed8; }
+  .badge-active      { background: #dcfce7; color: #15803d; }
+  .badge-closed      { background: var(--gray-100); color: var(--gray-600); }
+  .badge-high        { background: #fee2e2; color: #b91c1c; }
+  .badge-medium      { background: var(--amber-light); color: #92400e; }
+  .badge-low         { background: var(--gray-100); color: var(--gray-600); }
+
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.88rem; }
+  thead tr { background: var(--navy); }
+  thead th { color: white; padding: 0.65rem 0.9rem; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  tbody tr { border-bottom: 1px solid var(--gray-200); }
+  tbody tr:nth-child(even) { background: var(--gray-50); }
+  tbody td { padding: 0.65rem 0.9rem; vertical-align: top; }
+
+  .alert {
+    display: flex; gap: 0.8rem; align-items: flex-start;
+    padding: 0.85rem 1rem; border-radius: 6px;
+    margin: 0.8rem 0; font-size: 0.88rem; line-height: 1.65;
+  }
+  .alert-icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.1rem; }
+  .alert-warn  { background: var(--amber-light); border: 1px solid #fbbf24; }
+  .alert-crit  { background: var(--red-light);   border: 1px solid #fca5a5; }
+  .alert-info  { background: #eff6ff;             border: 1px solid #93c5fd; }
+  .alert-ok    { background: var(--green-light);  border: 1px solid #86efac; }
+
+  /* Screenshot container */
+  .screenshot-wrap {
+    margin: 1.2rem 0;
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  }
+  .screenshot-label {
+    background: var(--gray-50); border-bottom: 1px solid var(--gray-200);
+    padding: 0.45rem 1rem; font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-600);
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .screenshot-label::before {
+    content: '▶';
+    color: var(--amber); font-size: 0.6rem;
+  }
+  .screenshot-body {
+    background: white; padding: 1.5rem;
+    display: flex; flex-direction: column; gap: 1rem;
+  }
+
+  /* Field mockup components */
+  .form-section-header {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding-bottom: 0.6rem; border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 0.8rem;
+  }
+  .form-section-num {
+    background: var(--red); color: white;
+    width: 1.8rem; height: 1.8rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; font-weight: 900; font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+  .form-section-name { font-weight: 700; font-size: 1rem; color: var(--navy); }
+
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .field-group { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field-group.full { grid-column: 1 / -1; }
+  .field-label { font-size: 0.75rem; font-weight: 600; color: var(--gray-600); }
+  .field-value {
+    background: var(--gray-50); border: 1px solid var(--gray-200);
+    border-radius: 5px; padding: 0.45rem 0.7rem;
+    font-size: 0.85rem; color: var(--text);
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .field-value.dropdown::after { content: '▾'; margin-left: auto; color: var(--gray-400); }
+
+  .checkbox-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+  .checkbox-item {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.7rem; border: 1px solid var(--gray-200);
+    border-radius: 5px; font-size: 0.85rem; background: white;
+  }
+  .checkbox-item.checked { border-color: #3b82f6; background: #eff6ff; }
+  .cb-box {
+    width: 1rem; height: 1rem; border: 2px solid var(--gray-400);
+    border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; color: white;
+  }
+  .cb-box.checked { background: #3b82f6; border-color: #3b82f6; }
+
+  .textarea-value {
+    background: var(--gray-50); border: 1px solid var(--gray-200);
+    border-radius: 5px; padding: 0.6rem 0.8rem;
+    font-size: 0.85rem; color: var(--text); min-height: 3rem;
+    font-style: italic;
+  }
+
+  /* Request lifecycle flow */
+  .flow-track {
+    display: flex; align-items: center; gap: 0.5rem;
+    flex-wrap: wrap; padding: 1.2rem 0; margin: 0.8rem 0;
+  }
+  .flow-node {
+    background: var(--gray-100); border: 1px solid var(--gray-200);
+    color: var(--navy); font-size: 0.72rem; font-weight: 700;
+    padding: 0.4rem 0.8rem; border-radius: 20px; white-space: nowrap;
+    letter-spacing: 0.03em;
+  }
+  .flow-node.fn-open     { background: #fef9c3; border-color: #fde047; color: #854d0e; }
+  .flow-node.fn-sched    { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+  .flow-node.fn-active   { background: #dcfce7; border-color: #86efac; color: #15803d; }
+  .flow-node.fn-closed   { background: var(--gray-100); border-color: var(--gray-400); color: var(--gray-600); }
+  .flow-arrow { color: var(--gray-400); font-size: 0.9rem; }
+
+  .img-caption {
+    font-size: 0.78rem; color: var(--gray-400); font-style: italic;
+    padding: 0.4rem 1rem 0.5rem;
+    background: var(--gray-50); border-top: 1px solid var(--gray-200);
+  }
+
+  .sop-footer {
+    background: var(--navy); color: rgba(255,255,255,0.55);
+    padding: 1rem 3rem; font-size: 0.75rem;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 1rem; flex-wrap: wrap;
+  }
+
+  @media print {
+    body { background: white; }
+    .page-wrap { box-shadow: none; margin: 0; }
+    .phase { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    thead tr { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .step-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section { page-break-inside: avoid; }
+    .phase { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-top">
+    <div class="org-logo">ML</div>
+    <div>
+      <div class="org-tag">MEDILab S.A.L. — Clinical Engineering & After-Sales</div>
+      <div class="doc-title">Maintenance Request Registration SOP</div>
+      <div class="doc-subtitle">How to submit, manage, and track equipment service requests via the MEDILab platform</div>
+    </div>
+  </div>
+  <div class="meta-grid">
+    <div class="meta-cell"><div class="meta-label">Document Code</div><div class="meta-value">MED-MAINT-001</div></div>
+    <div class="meta-cell"><div class="meta-label">Version</div><div class="meta-value">v1.0</div></div>
+    <div class="meta-cell"><div class="meta-label">Effective Date</div><div class="meta-value">07 May 2026</div></div>
+    <div class="meta-cell"><div class="meta-label">Review Date</div><div class="meta-value">07 May 2027</div></div>
+    <div class="meta-cell"><div class="meta-label">Owner</div><div class="meta-value">Clinical Engineering Manager</div></div>
+    <div class="meta-cell"><div class="meta-label">Approved By</div><div class="meta-value">Operations Manager</div></div>
+    <div class="meta-cell"><div class="meta-label">Classification</div><div class="meta-value">Internal Use Only</div></div>
+    <div class="meta-cell"><div class="meta-label">Platform Module</div><div class="meta-value">Maintenance Requests</div></div>
+  </div>
+</div>
+
+<!-- INTRO BANNER -->
+<div class="body">
+<div class="intro-banner">
+  <h2>Before You Begin — Read This First</h2>
+  <p>This SOP covers the full lifecycle of a Maintenance Request in the MEDILab platform: from opening the form and entering customer details, to selecting equipment, defining service type, setting billing status, and saving the request. It also describes what happens after submission and how requestors and the Sales/Engineering team track progress.</p>
+  <p>Every maintenance, installation, training, repair, or commissioning engagement with a client facility must have a corresponding Maintenance Request record in the system before any field visit occurs. Verbal authorizations are not sufficient — the request must exist in the platform.</p>
+</div>
+
+<!-- REQUEST LIFECYCLE FLOW -->
+<div class="section" style="margin-top:2rem;">
+  <div class="section-title"><span class="section-num">↻</span><span class="section-name">Request Lifecycle Overview</span></div>
+  <p style="font-size:0.9rem;margin-bottom:0.9rem;">Every request moves through the following statuses. The platform tracks these automatically as the engineering team acts on each request.</p>
+  <div class="flow-track">
+    <div class="flow-node">1. Registered (Open)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-open"><span class="badge badge-open">Open</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-sched"><span class="badge badge-scheduled">Scheduled</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-active"><span class="badge badge-active">Active</span></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-closed"><span class="badge badge-closed">Closed</span></div>
+  </div>
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ️</span>
+    <div>The Maintenance Requests dashboard (accessible via the top nav: <strong>Requests</strong>) displays all requests across all statuses with tabs for <strong>All / Open / Scheduled / Active / Closed</strong>. Use <strong>Sort By: Timeline</strong> to prioritize by service window, or <strong>Sort By: Urgency</strong> to triage critical equipment first.</div>
+  </div>
+</div>
+
+<!-- 1. PURPOSE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">01</span><span class="section-name">Purpose</span></div>
+  <p>This SOP establishes the standardized procedure for registering equipment maintenance, repair, installation, training, and commissioning requests in the MEDILab platform. It ensures all client-facing service engagements are formally documented before execution, linked to the correct equipment asset, properly classified by billing status, and visible to the scheduling and engineering teams.</p>
+  <p style="margin-top:0.6rem;">Consistent use of this procedure ensures: complete service audit trails, accurate donor/project attribution, correct billing classification, and no field visits dispatched without a registered and traceable request.</p>
+</div>
+
+<!-- 2. SCOPE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">02</span><span class="section-name">Scope</span></div>
+  <p><strong>Who this applies to:</strong> MEDILab Sales staff, Clinical Engineers, and any team member registering a client service request. Applies to all facilities served by MEDILab across Lebanon and donor-funded projects.</p>
+  <p style="margin-top:0.4rem;"><strong>What is covered:</strong> All service types — Preventive Maintenance, Training, Installation, Repair, and Commissioning — for any registered equipment in the MEDILab asset registry.</p>
+  <p style="margin-top:0.4rem;"><strong>What is NOT covered:</strong> Engineer scheduling and field dispatch (see MED-MAINT-002); equipment registry management and new machine onboarding (see MED-ASSET-001); spare parts procurement workflows.</p>
+</div>
+
+<!-- 3. DEFINITIONS -->
+<div class="section">
+  <div class="section-title"><span class="section-num">03</span><span class="section-name">Definitions &amp; Abbreviations</span></div>
+  <table>
+    <thead><tr><th style="width:22%">Term / Abbreviation</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Maintenance Request</strong></td><td>A formal service engagement record created in the MEDILab platform before any field visit or service delivery. Tracks customer, facility, equipment, service type, billing, and scheduling details.</td></tr>
+      <tr><td><strong>Availability Window</strong></td><td>The date range (Start → End) during which the client facility is available to receive the service. Used by the engineering team for scheduling.</td></tr>
+      <tr><td><strong>Urgency Level</strong></td><td>Priority classification for the request: High (critical equipment failure), Medium (standard service), Low (non-urgent). Affects scheduling priority.</td></tr>
+      <tr><td><strong>Equipment Registry</strong></td><td>The master list of client-owned equipment tracked in the MEDILab platform, identified by Catalogue model and Serial Number (S/N).</td></tr>
+      <tr><td><strong>Billing Status</strong></td><td>Defines how the service will be charged: Under Warranty, Billable, Under Contract, or Free of Charge (FOC).</td></tr>
+      <tr><td><strong>Service Type</strong></td><td>The category of service required. Multiple types may be selected per request: PM, Training, Installation, Repair, Commissioning.</td></tr>
+      <tr><td><strong>Donor / Project</strong></td><td>The funding source or project code if the equipment was supplied under a donor program (e.g. USAID, UNDP, WHO). Required for project-attributed services.</td></tr>
+      <tr><td><strong>S/N</strong></td><td>Serial Number — unique identifier for a specific equipment unit in the registry.</td></tr>
+      <tr><td><strong>PM</strong></td><td>Preventive Maintenance — scheduled routine service to ensure equipment performance and longevity.</td></tr>
+      <tr><td><strong>FOC</strong></td><td>Free of Charge — service provided at no cost to the client (e.g. goodwill visit, donor-covered service).</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 4. ROLES -->
+<div class="section">
+  <div class="section-title"><span class="section-num">04</span><span class="section-name">Roles &amp; Responsibilities</span></div>
+  <table>
+    <thead><tr><th style="width:28%">Role</th><th>Responsibility in this procedure</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Sales / Requestor</strong></td><td>Registers new maintenance requests after receiving a client service call or planned visit. Fills all form sections accurately. Monitors request status in the dashboard.</td></tr>
+      <tr><td><strong>Clinical Engineering Manager</strong></td><td>Reviews open requests and assigns engineers. Escalation point for billing classification disputes or equipment not found in registry.</td></tr>
+      <tr><td><strong>Field Engineer</strong></td><td>Views scheduled requests, executes field visits, and updates request status to Active/Closed upon completion.</td></tr>
+      <tr><td><strong>System (MEDILab Platform)</strong></td><td>Assigns a unique request ID on save. Routes requests to the scheduling queue. Sends status notifications to relevant users.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 5. PREREQUISITES -->
+<div class="section">
+  <div class="section-title"><span class="section-num">05</span><span class="section-name">Prerequisites &amp; Materials</span></div>
+  <p>Before opening the New Request form, confirm all of the following are available:</p>
+  <table>
+    <thead><tr><th style="width:40%">Prerequisite</th><th>Details / Where to Find</th></tr></thead>
+    <tbody>
+      <tr><td>Active MEDILab platform account with "Sales" or higher role</td><td>Contact system administrator if access is missing</td></tr>
+      <tr><td>Client contact details confirmed</td><td>Contact person name and phone number from the client call or CRM</td></tr>
+      <tr><td>Facility name and district known</td><td>Exact name as registered in the platform (e.g. "AUB - OSB")</td></tr>
+      <tr><td>Equipment model identified in the registry</td><td>If the equipment is not in the registry → follow MED-ASSET-001 to register it first</td></tr>
+      <tr><td>Service type agreed with client</td><td>PM / Training / Installation / Repair / Commissioning — confirm before registration</td></tr>
+      <tr><td>Billing status confirmed</td><td>Check warranty status, contract coverage, or donor instruction before selecting billing option</td></tr>
+      <tr><td>Donor/Project code (if applicable)</td><td>From the original supply agreement or project documentation</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 6. PROCEDURE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">06</span><span class="section-name">Procedure</span></div>
+
+  <!-- PHASE A -->
+  <div class="phase"><span class="phase-badge">PHASE A</span>ACCESS THE NEW REQUEST FORM</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    Navigate to the correct form entry point and confirm you are creating a new request, not editing an existing one.
+  </div>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <span class="step-action">Log in to the MEDILab platform and navigate to the Maintenance Requests module.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">From any page, click <strong>Requests</strong> in the top navigation bar. The badge next to "Requests" shows the count of currently open/pending requests assigned to you. The Maintenance Requests dashboard will load showing the full request list with status filter tabs.</div>
+      <div class="screenshot-wrap">
+        <div class="screenshot-label">Screen — Maintenance Requests Dashboard</div>
+        <div class="screenshot-body" style="background:#f8fafc;">
+          <!-- Mockup of dashboard from User7.jpg -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <div>
+              <div style="font-size:1.5rem;font-weight:800;color:var(--navy);">Maintenance Requests</div>
+              <div style="font-size:0.82rem;color:var(--gray-600);">Manage and track facility upkeep tasks.</div>
+            </div>
+            <div style="background:var(--red);color:white;padding:0.5rem 1rem;border-radius:6px;font-weight:700;font-size:0.85rem;display:flex;align-items:center;gap:0.4rem;">
+              <span>+</span> NEW REQUEST
+            </div>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+            <div style="background:var(--red);color:white;padding:0.3rem 0.9rem;border-radius:20px;font-size:0.8rem;font-weight:700;">All</div>
+            <div style="border:1px solid var(--gray-200);padding:0.3rem 0.9rem;border-radius:20px;font-size:0.8rem;color:var(--gray-600);">Open</div>
+            <div style="border:1px solid var(--gray-200);padding:0.3rem 0.9rem;border-radius:20px;font-size:0.8rem;color:var(--gray-600);">Scheduled</div>
+            <div style="border:1px solid var(--gray-200);padding:0.3rem 0.9rem;border-radius:20px;font-size:0.8rem;color:var(--gray-600);">Active</div>
+            <div style="border:1px solid var(--gray-200);padding:0.3rem 0.9rem;border-radius:20px;font-size:0.8rem;color:var(--gray-600);">Closed</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;gap:1.2rem;align-items:center;font-size:0.8rem;color:var(--gray-600);">
+              <span><strong>VIEW:</strong> For Me</span>
+              <span><strong>SORT BY:</strong> Timeline &nbsp;|&nbsp; Urgency</span>
+            </div>
+            <div style="border:1px solid var(--gray-200);border-radius:6px;padding:0.4rem 0.8rem;font-size:0.8rem;color:var(--gray-400);min-width:14rem;">🔍 Search by facility, location...</div>
+          </div>
+        </div>
+        <div class="img-caption">Figure 1 — The Maintenance Requests dashboard. Use the status tabs to filter. The badge on "Requests" in the nav shows 2 active items. Click "+ NEW REQUEST" (top right, red button) to open the registration form.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <span class="step-action">Click the "+ NEW REQUEST" button to open the Register New Request form.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">The button is located at the top-right of the dashboard in red. Clicking it navigates to the "Register New Request" form — a multi-section form (4 sections + Save). A "Back to List" link at the top right allows cancellation without saving.</div>
+      <div class="alert alert-warn">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Do not use the browser back button</strong> once inside the form — your partial data may not be saved. If you need to cancel, use the "Back to List" link at the top right of the form.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE B -->
+  <div class="phase"><span class="phase-badge">PHASE B</span>SECTION 1 — CUSTOMER &amp; FACILITY DETAILS</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    Capture who the client is, where the equipment is located, when the contact was made, and who the technical contact is at the facility. This data drives traceability and client communication.
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <span class="step-action">Enter the Customer Contact Date in the date field.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">This is the date the client contacted MEDILab (or was contacted by MEDILab) to initiate the service request — not today's date unless the request is being registered on the same day as the contact. Use the calendar picker or type in <code>MM/DD/YYYY</code> format.</div>
+      <div class="step-detail"><p><strong>Example:</strong> If the client called on April 22, 2026 but you are registering today, enter <strong>04/22/2026</strong>, not today's date. Accurate contact dates are critical for SLA tracking.</p></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <span class="step-action">Enter the Facility Name exactly as registered in the platform.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Type the full facility name as it appears in MEDILab's client database. This is a free-text field — ensure spelling matches the registered client name to avoid duplicate records and mis-attribution.</div>
+      <div class="step-detail"><p><strong>Example:</strong> <code>AUB - OSB</code> (not "AUB" alone or "American University of Beirut"). When in doubt, check the equipment registry — the facility name used there is the canonical reference.</p></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <span class="step-action">Select the Location (District) from the dropdown.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Choose the Lebanese district where the facility is physically located. This is used by the engineering team for route planning and field dispatch.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <span class="step-action">Enter the Donor / Project code if the equipment was supplied under a funded program.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">If the equipment was procured through a donor project (e.g. USAID, UNDP, WHO), enter the project name or code. Leave blank for standard commercial clients.</div>
+      <div class="step-detail"><p><strong>Example:</strong> Enter <code>USAID</code> if the equipment was procured under a USAID supply contract. This field is critical for donor reporting and cost attribution.</p></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">7</div>
+    <div class="step-body">
+      <span class="step-action">Enter the Contact Person Name and Contact Phone Number.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Record the name and direct phone number of the person at the facility who will coordinate access for the field engineer. Use the format <code>+961 XX XXX XXX</code> for Lebanese numbers.</div>
+      <div class="screenshot-wrap">
+        <div class="screenshot-label">Screen — Section 1: Customer &amp; Facility (completed example)</div>
+        <div class="screenshot-body">
+          <div class="form-section-header">
+            <div class="form-section-num">1</div>
+            <div class="form-section-name">Customer &amp; Facility</div>
+          </div>
+          <div class="field-grid">
+            <div class="field-group">
+              <div class="field-label">Customer Contact Date</div>
+              <div class="field-value">04/22/2026 📅</div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Facility Name</div>
+              <div class="field-value">AUB - OSB</div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Location (District)</div>
+              <div class="field-value dropdown">Beirut</div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Donor / Project (if any)</div>
+              <div class="field-value">USAID</div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Contact Person Name</div>
+              <div class="field-value">Mr. Georges Wassouf</div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Contact Phone Number</div>
+              <div class="field-value">+961 71 111 111</div>
+            </div>
+          </div>
+        </div>
+        <div class="img-caption">Figure 2 — Section 1 fully completed. All six fields are required. The Donor/Project field is optional for non-donor equipment but must be filled for USAID/UNDP/WHO-attributed assets.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE C -->
+  <div class="phase"><span class="phase-badge">PHASE C</span>SECTION 2 — SERVICE WINDOWS &amp; PRIORITY</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    Define when the client is available to receive the service and how urgently it needs to occur. This drives the engineering team's scheduling queue.
+  </div>
+
+  <div class="step">
+    <div class="step-num">8</div>
+    <div class="step-body">
+      <span class="step-action">Set the Availability Start and Availability End dates using the date pickers.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Enter the date range during which the facility and the relevant staff are available to receive the service. These dates come from the client — confirm them during the contact call before registering. The engineering team will schedule the visit within this window.</div>
+      <div class="step-detail">
+        <p><strong>Minimum window:</strong> The availability window should be at least 3 business days to give the engineering team scheduling flexibility. A 1-day window on a high-urgency request may result in conflicts.</p>
+        <p><strong>Example:</strong> Availability Start: <code>04/23/2026</code> &nbsp;|&nbsp; Availability End: <code>04/30/2026</code></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">9</div>
+    <div class="step-body">
+      <span class="step-action">Select the Urgency Level from the dropdown.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Choose the urgency level that matches the clinical or operational impact of the equipment issue. Use the table below as the classification guide:</div>
+      <div class="step-detail">
+        <table style="margin:0;">
+          <thead><tr><th style="width:15%">Level</th><th style="width:50%">When to Use</th><th>Target Response</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-high">High</span></td><td>Equipment is critical and currently non-functional; patient care impact; ICU/OR/emergency equipment</td><td>Within 24 hours</td></tr>
+            <tr><td><span class="badge badge-medium">Medium</span></td><td>Equipment is degraded or needed soon; non-emergency clinical impact; standard PM overdue</td><td>Within 3 business days</td></tr>
+            <tr><td><span class="badge badge-low">Low</span></td><td>Training, planned installation, routine PM, non-urgent commissioning</td><td>Within service window</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="screenshot-wrap" style="margin-top:0.8rem;">
+        <div class="screenshot-label">Screen — Section 2: Service Windows &amp; Priority</div>
+        <div class="screenshot-body">
+          <div class="form-section-header">
+            <div class="form-section-num">2</div>
+            <div class="form-section-name">Service Windows &amp; Priority</div>
+          </div>
+          <div class="field-grid">
+            <div class="field-group">
+              <div class="field-label">Availability Start</div>
+              <div class="field-value">04/23/2026 📅</div>
+            </div>
+            <div class="field-group">
+              <div class="field-label">Availability End</div>
+              <div class="field-value">04/30/2026 📅</div>
+            </div>
+            <div class="field-group full">
+              <div class="field-label">Urgency Level</div>
+              <div class="field-value dropdown">Medium</div>
+            </div>
+          </div>
+        </div>
+        <div class="img-caption">Figure 3 — Section 2 with a 7-day availability window (April 23–30) and Medium urgency. The engineering team will schedule the visit within this window, prioritized by urgency level.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE D -->
+  <div class="phase"><span class="phase-badge">PHASE D</span>SECTION 3 — EQUIPMENT &amp; DETAILS</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    Link the request to a specific registered equipment unit (by catalogue model and serial number) and specify the exact service(s) required. Multiple service types may be selected for a single visit.
+  </div>
+
+  <div class="step">
+    <div class="step-num">10</div>
+    <div class="step-body">
+      <span class="step-action">Click "+ Add Registered Machine" to add an equipment unit to the request.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">This opens a machine selector within the section. Click the dropdown labeled "Select machine from Registry" and scroll or search for the correct equipment. Each entry shows the catalogue model name and serial number (S/N).</div>
+      <div class="alert alert-info">
+        <span class="alert-icon">🔎</span>
+        <div>The registry dropdown only shows equipment that has been pre-registered in the MEDILab asset database for this facility. If the equipment you need is not listed, you must first register it using the <strong>"Register New Machine"</strong> button — which opens the asset registration workflow (MED-ASSET-001). Do not proceed without linking the correct equipment unit.</div>
+      </div>
+      <div class="screenshot-wrap">
+        <div class="screenshot-label">Screen — Section 3: Equipment &amp; Details — Machine Selector</div>
+        <div class="screenshot-body">
+          <div class="form-section-header">
+            <div class="form-section-num">3</div>
+            <div class="form-section-name">Equipment &amp; Details</div>
+          </div>
+          <div style="border:1px dashed var(--gray-300);border-radius:6px;padding:1rem;background:var(--gray-50);margin-bottom:0.8rem;">
+            <div class="field-label" style="margin-bottom:0.4rem;">Select machine from Registry</div>
+            <div class="field-value dropdown" style="border-color:#3b82f6;">Biobase BIO-COA-2336 | S/N: N/A</div>
+            <div style="font-size:0.75rem;color:var(--gray-400);margin-top:0.3rem;">Linked to Catalogue &amp; S/N</div>
+          </div>
+          <div style="display:flex;gap:0.8rem;">
+            <div style="border:1px solid var(--gray-200);border-radius:5px;padding:0.45rem 1rem;font-size:0.82rem;font-weight:600;color:var(--navy);background:white;">+ Add Registered Machine</div>
+            <div style="border:1px solid var(--gray-200);border-radius:5px;padding:0.45rem 1rem;font-size:0.82rem;font-weight:600;color:var(--navy);background:white;">Register New Machine</div>
+          </div>
+        </div>
+        <div class="img-caption">Figure 4 — Machine selected: "Biobase BIO-COA-2336 | S/N: N/A". Each registry entry shows model name and serial number. Use "+ Add Registered Machine" again to attach additional units if the visit covers more than one device.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">11</div>
+    <div class="step-body">
+      <span class="step-action">Select all applicable Service Types using the checkboxes.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Check every service type that will be performed during this visit. Multiple types can be selected. Do not leave this section blank — it is required for engineer preparation and billing calculation.</div>
+      <div class="step-detail">
+        <table style="margin:0;">
+          <thead><tr><th style="width:25%">Service Type</th><th>When to Select</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Preventive Maintenance</strong></td><td>Scheduled routine service per PM calendar; cleaning, calibration, performance checks</td></tr>
+            <tr><td><strong>Training</strong></td><td>End-user or technician training on equipment operation, safety, or maintenance</td></tr>
+            <tr><td><strong>Installation</strong></td><td>Physical installation of new or relocated equipment at the facility</td></tr>
+            <tr><td><strong>Repair</strong></td><td>Troubleshooting and repair of a failed or degraded equipment unit</td></tr>
+            <tr><td><strong>Commissioning</strong></td><td>Functional testing and acceptance verification after installation</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">12</div>
+    <div class="step-body">
+      <span class="step-action">Enter any Additional Request Details in the text field if the service requires specific instructions.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Use this field to communicate specific client requirements, access constraints, or engineer preparation notes. Keep it factual and actionable.</div>
+      <div class="step-detail"><p><strong>Example:</strong> "Training is required with printed handouts" — this tells the engineer to prepare and print documentation before the visit. Other examples: "Access restricted to mornings only", "Bring spare fuse set", "Parking available at facility entrance".</p></div>
+      <div class="screenshot-wrap" style="margin-top:0.8rem;">
+        <div class="screenshot-label">Screen — Section 3: Service Type &amp; Additional Details</div>
+        <div class="screenshot-body">
+          <div class="field-label" style="margin-bottom:0.6rem;">Service Type Required</div>
+          <div class="checkbox-group">
+            <div class="checkbox-item"><div class="cb-box"></div> Preventive Maintenance</div>
+            <div class="checkbox-item checked"><div class="cb-box checked">✓</div> Training</div>
+            <div class="checkbox-item checked"><div class="cb-box checked">✓</div> Installation</div>
+            <div class="checkbox-item"><div class="cb-box"></div> Repair</div>
+            <div class="checkbox-item checked"><div class="cb-box checked">✓</div> Commissioning</div>
+          </div>
+          <div class="field-label" style="margin-top:0.9rem;margin-bottom:0.3rem;">Additional Request Details</div>
+          <div class="textarea-value">Training is required with printed handouts</div>
+        </div>
+        <div class="img-caption">Figure 5 — Three service types selected: Training, Installation, and Commissioning. The additional detail instructs the engineer to prepare printed handouts. Service type selection directly affects engineer preparation and billing scope.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE E -->
+  <div class="phase"><span class="phase-badge">PHASE E</span>SECTION 4 — BILLING &amp; PRICING</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    Define how this service visit will be billed. This classification is final at the point of registration — changes after submission require Clinical Engineering Manager approval. Incorrect billing status creates downstream invoicing errors.
+  </div>
+
+  <div class="step">
+    <div class="step-num">13</div>
+    <div class="step-body">
+      <span class="step-action">Select the correct Billing Status from the dropdown.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Choose the billing classification that applies to this specific service engagement. This is not a guess — it must be confirmed against the warranty record, contract, or donor agreement before selection.</div>
+      <div class="step-detail">
+        <table style="margin:0;">
+          <thead><tr><th style="width:25%">Option</th><th>When to Use</th><th>Action Required Before Selecting</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-warranty">Under Warranty</span></td><td>Equipment is within its manufacturer or MEDILab warranty period</td><td>Verify warranty expiry date in the equipment registry</td></tr>
+            <tr><td><span class="badge badge-billable">Billable</span></td><td>Standard commercial service; client will be invoiced</td><td>Confirm client has no active contract or warranty covering this service</td></tr>
+            <tr><td><span class="badge badge-contract">Under Contract</span></td><td>Client has an active service/maintenance contract with MEDILab</td><td>Verify active contract in CRM/contracts folder</td></tr>
+            <tr><td><span class="badge badge-foc">Free of Charge</span></td><td>Goodwill visit, donor-covered service, or MEDILab discretionary FOC</td><td>Obtain verbal or written approval from Clinical Engineering Manager</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert-crit">
+        <span class="alert-icon">🚫</span>
+        <div><strong>Never select "Billable" for donor-covered or warranty equipment.</strong> Incorrect billing classification creates invoicing disputes and jeopardizes donor reporting compliance. When in doubt, escalate to the Clinical Engineering Manager before saving.</div>
+      </div>
+      <div class="screenshot-wrap" style="margin-top:0.8rem;">
+        <div class="screenshot-label">Screen — Section 4: Billing &amp; Pricing</div>
+        <div class="screenshot-body">
+          <div class="form-section-header">
+            <div class="form-section-num">4</div>
+            <div class="form-section-name">Billing &amp; Pricing</div>
+          </div>
+          <div class="field-group" style="max-width:18rem;">
+            <div class="field-label">Billing Status</div>
+            <div class="field-value dropdown" style="border-color:#3b82f6;"><span class="badge badge-billable" style="margin-right:0.3rem;">Billable</span></div>
+          </div>
+          <div style="margin-top:0.8rem;font-size:0.78rem;color:var(--gray-400);">Options: Under Warranty &nbsp;|&nbsp; <strong>Billable</strong> &nbsp;|&nbsp; Under Contract &nbsp;|&nbsp; Free of Charge</div>
+        </div>
+        <div class="img-caption">Figure 6 — Billing Status set to "Billable". The dropdown shows all four options. Selection here is binding at the time of invoicing — verify before saving.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE F -->
+  <div class="phase"><span class="phase-badge">PHASE F</span>SAVE &amp; CONFIRM SUBMISSION</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    Submit the completed request to the system, confirm it was registered successfully, and verify it appears in the dashboard queue.
+  </div>
+
+  <div class="step">
+    <div class="step-num">14</div>
+    <div class="step-body">
+      <span class="step-action">Review all four sections before clicking "Save Request".</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Before saving, scroll through all sections and confirm: correct contact date, exact facility name, valid availability window, equipment correctly linked, service types selected, billing status verified. The "Save Request" button is located at the bottom-right of the form in red.</div>
+      <div class="alert alert-warn">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Missing required fields:</strong> If any required field is blank, the platform will prevent saving and highlight the empty field in red. Complete all highlighted fields before re-attempting to save.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">15</div>
+    <div class="step-body">
+      <span class="step-action">Click "Save Request" and wait for the system to finish processing.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">After clicking Save, a loading screen will appear with the message "Processing Request… Please do not close this window." Wait for this to complete fully — do not navigate away or close the browser tab while processing is in progress.</div>
+      <div class="screenshot-wrap">
+        <div class="screenshot-label">Screen — Processing State (do not close)</div>
+        <div class="screenshot-body" style="justify-content:center;align-items:center;text-align:center;min-height:8rem;background:#f8fafc;">
+          <div style="color:var(--gray-400);font-size:0.85rem;margin-bottom:0.4rem;">Loading…</div>
+          <div style="font-size:1rem;font-weight:700;color:var(--navy);">Processing Request…</div>
+          <div style="font-size:0.82rem;color:var(--gray-600);margin-top:0.4rem;">Please do not close this window.</div>
+        </div>
+        <div class="img-caption">Figure 7 — The processing overlay appears immediately after clicking "Save Request". This typically takes 2–5 seconds. Closing the tab during this state may result in a duplicate or incomplete record.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">16</div>
+    <div class="step-body">
+      <span class="step-action">Confirm the request appears in the Maintenance Requests dashboard with status <span class="badge badge-open">Open</span>.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">After processing, the platform redirects to the dashboard (or the request detail page). The new request should appear in the <strong>Open</strong> tab with a system-assigned request ID. Verify the facility name, equipment, and service type displayed match what was entered.</div>
+      <div class="decision">
+        <div class="decision-label">⬡ Verification Check</div>
+        <div class="decision-row"><span class="dy">FOUND →</span><span>Request is visible in the "Open" tab with correct details. Procedure complete. Notify the client that the request has been registered.</span></div>
+        <div class="decision-row"><span class="dn">NOT FOUND →</span><span>Check the "All" tab and search by facility name. If still not found, the save may have failed — repeat from Step 14. If the issue persists, contact the system administrator.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">17</div>
+    <div class="step-body">
+      <span class="step-action">Notify the client that their service request has been registered and is pending engineer scheduling.</span>
+      <span class="step-role">Requestor</span>
+      <div class="step-explain">Contact the facility's designated contact person (from Section 1) to confirm registration. Inform them of the expected scheduling timeline based on the urgency level selected. Do not commit to a specific visit date — this is determined by the engineering team after review.</div>
+      <div class="step-detail"><p><strong>Suggested message:</strong> "Your maintenance request has been registered in our system. Our engineering team will review it and schedule a visit within your availability window of [Start Date] to [End Date]. You will be contacted before the visit is confirmed."</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. QUALITY CHECKS -->
+<div class="section">
+  <div class="section-title"><span class="section-num">07</span><span class="section-name">Quality Checks &amp; Verification Points</span></div>
+  <table>
+    <thead><tr><th>What to Check</th><th>Who</th><th>When</th><th>How</th></tr></thead>
+    <tbody>
+      <tr><td>Contact date matches actual client contact, not registration date</td><td>Requestor</td><td>Before saving Section 1</td><td>Confirm with call log or CRM note</td></tr>
+      <tr><td>Facility name matches the registered client name exactly</td><td>Requestor</td><td>Before saving Section 1</td><td>Cross-reference with equipment registry or client master list</td></tr>
+      <tr><td>Equipment is correctly linked from registry (not manually typed)</td><td>Requestor</td><td>Before saving Section 3</td><td>Confirm dropdown selection shows correct model + S/N</td></tr>
+      <tr><td>Service types reflect the agreed scope of the visit</td><td>Requestor</td><td>Before saving Section 3</td><td>Re-read client notes; confirm no type was missed</td></tr>
+      <tr><td>Billing status is confirmed against warranty/contract records</td><td>Requestor</td><td>Before saving Section 4</td><td>Check equipment warranty expiry in registry; verify contract status in CRM</td></tr>
+      <tr><td>Request appears in dashboard with status Open after save</td><td>Requestor</td><td>Immediately after save</td><td>Navigate to Open tab; verify facility name, request ID, and urgency level are correct</td></tr>
+      <tr><td>Open requests reviewed daily and assigned to engineers</td><td>Clinical Engineering Manager</td><td>Start of each business day</td><td>Open tab → sort by Urgency → assign unscheduled High urgency first</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 8. NON-CONFORMANCE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">08</span><span class="section-name">Non-Conformance &amp; Exception Handling</span></div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Equipment Not in Registry:</strong> If the equipment the client requires service for is not listed in the "Select machine from Registry" dropdown, do not proceed with a generic or placeholder entry. Click "Register New Machine" and follow MED-ASSET-001 to add the asset first. Only then return to register the maintenance request.</div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Incorrect Billing Status Saved:</strong> If the wrong billing status was selected and the request has already been saved, do not delete and re-create the request. Contact the Clinical Engineering Manager to correct the billing classification before the request moves to "Scheduled" status. Corrections after scheduling require Operations Manager sign-off.</div>
+  </div>
+
+  <div class="alert alert-crit">
+    <span class="alert-icon">🚫</span>
+    <div><strong>Field Visit Conducted Without a Registered Request:</strong> Any service visit executed without a corresponding Open or Scheduled request in the system is a non-conformance. The requestor or engineer must register a retroactive request immediately upon return and flag it to the Clinical Engineering Manager with a note in the Additional Details field: "RETROACTIVE — visit conducted on [date] due to [reason]."</div>
+  </div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ️</span>
+    <div><strong>Client Requests Emergency Same-Day Service:</strong> Same-day requests are permitted in emergency situations (critical equipment failure with patient care impact). Set Urgency to <span class="badge badge-high">High</span>, set Availability Start to today, and immediately notify the Clinical Engineering Manager by phone after saving — do not rely on dashboard monitoring alone for same-day critical requests.</div>
+  </div>
+</div>
+
+<!-- 9. RECORDS -->
+<div class="section">
+  <div class="section-title"><span class="section-num">09</span><span class="section-name">Records &amp; Documentation</span></div>
+  <table>
+    <thead><tr><th>Record</th><th>Created By</th><th>Storage</th><th>Retention</th></tr></thead>
+    <tbody>
+      <tr><td>Maintenance Request record (all fields)</td><td>System (auto on Save)</td><td>MEDILab Platform — Maintenance Requests module</td><td>Minimum 5 years</td></tr>
+      <tr><td>Request ID and timestamp</td><td>System (auto on Save)</td><td>MEDILab Platform — request audit log</td><td>Minimum 5 years</td></tr>
+      <tr><td>Billing status and service type selection</td><td>System (captured from form)</td><td>MEDILab Platform — linked to invoicing module</td><td>7 years (financial records)</td></tr>
+      <tr><td>Donor/Project attribution (if applicable)</td><td>System (captured from form)</td><td>MEDILab Platform — donor reporting view</td><td>Per donor agreement (minimum 5 years)</td></tr>
+      <tr><td>Field service report (post-visit)</td><td>Field Engineer</td><td>MEDILab Platform — attached to request record</td><td>Minimum 5 years</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 10. REFERENCES -->
+<div class="section">
+  <div class="section-title"><span class="section-num">10</span><span class="section-name">References &amp; Related SOPs</span></div>
+  <table>
+    <thead><tr><th>Document Code</th><th>Title</th><th>Relevance</th></tr></thead>
+    <tbody>
+      <tr><td>MED-MAINT-002</td><td>Engineer Scheduling &amp; Field Dispatch SOP</td><td>How the engineering team reviews open requests, schedules visits, and updates status to Active/Closed</td></tr>
+      <tr><td>MED-ASSET-001</td><td>Equipment Registry &amp; Asset Onboarding SOP</td><td>How to register new equipment units in the MEDILab platform before linking them to maintenance requests</td></tr>
+      <tr><td>MED-LOG-001</td><td>Fleet Trip Request &amp; Driver Scheduling SOP</td><td>For requests requiring field transport — how to register the associated vehicle trip</td></tr>
+      <tr><td>MED-BILLING-001</td><td>Service Billing Classification Policy</td><td>Authoritative reference for determining correct billing status; warranty period definitions; contract coverage rules</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 11. REVISION HISTORY -->
+<div class="section">
+  <div class="section-title"><span class="section-num">11</span><span class="section-name">Revision History</span></div>
+  <table>
+    <thead><tr><th style="width:10%">Version</th><th style="width:18%">Date</th><th style="width:25%">Author (Role)</th><th>Change Summary</th></tr></thead>
+    <tbody>
+      <tr><td>v1.0</td><td>07 May 2026</td><td>Clinical Engineering Manager</td><td>Initial release. Covers full 4-section request registration workflow with equipment registry linking, service type selection, billing classification, and submission confirmation. Aligned with MEDILab platform UI as of May 2026.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /body -->
+
+<div class="sop-footer">
+  <div><strong>MED-MAINT-001</strong> · Maintenance Request Registration · v1.0</div>
+  <div>MEDILab S.A.L. · Internal Use Only · For engineer scheduling see MED-MAINT-002</div>
+  <div>Next review: <strong>07 May 2027</strong></div>
+</div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>

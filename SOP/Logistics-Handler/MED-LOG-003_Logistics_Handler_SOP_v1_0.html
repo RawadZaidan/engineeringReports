@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MED-LOG-003 | Logistics Handler — Request Review & Scheduling SOP</title>
+<style>
+  :root {
+    --navy: #0d1f3c;
+    --navy-mid: #1a3a6b;
+    --red: #c0392b;
+    --red-light: #fdecea;
+    --amber: #e8a020;
+    --amber-light: #fef3c7;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-600: #475569;
+    --text: #1e293b;
+    --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: #eef2f7;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .page-wrap {
+    max-width: 980px;
+    margin: 2rem auto 4rem;
+    background: var(--white);
+    box-shadow: 0 6px 40px rgba(0,0,0,0.10);
+  }
+  .cover {
+    background: linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%);
+    color: white;
+    padding: 3rem 3rem 2.5rem;
+    border-bottom: 5px solid var(--amber);
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    border: 40px solid rgba(232,160,32,0.10);
+    pointer-events: none;
+  }
+  .cover-top { display: flex; align-items: center; gap: 1.4rem; margin-bottom: 2rem; }
+  .org-logo {
+    background: var(--red); color: white;
+    font-size: 1.15rem; font-weight: 900;
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px; font-style: italic; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(192,57,43,0.4);
+  }
+  .org-tag { font-size: 0.72rem; color: rgba(255,255,255,0.5); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 0.25rem; }
+  .doc-title { font-size: 1.85rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
+  .doc-subtitle { font-size: 0.92rem; color: rgba(255,255,255,0.6); margin-top: 0.3rem; }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 0;
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; overflow: hidden;
+  }
+  .meta-cell {
+    padding: 0.8rem 1rem;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .meta-cell:nth-child(4n) { border-right: none; }
+  .meta-cell:nth-last-child(-n+4) { border-bottom: none; }
+  .meta-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); margin-bottom: 0.2rem; }
+  .meta-value { font-size: 0.88rem; font-weight: 600; color: rgba(255,255,255,0.9); }
+
+  .intro-banner {
+    background: linear-gradient(90deg, #0d1f3c, #1a3a6b);
+    color: white; margin: 0; padding: 2rem 3rem;
+    border-bottom: 3px solid var(--amber);
+  }
+  .intro-banner h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 0.6rem; color: var(--amber); letter-spacing: 0.02em; }
+  .intro-banner p { font-size: 0.9rem; color: rgba(255,255,255,0.85); line-height: 1.75; margin: 0.4rem 0; }
+
+  .body { padding: 0 3rem 4rem; }
+
+  .section { margin-top: 2.8rem; }
+  .section-title {
+    display: flex; align-items: center; gap: 0.8rem;
+    margin-bottom: 1.1rem; padding-bottom: 0.65rem;
+    border-bottom: 2px solid var(--gray-200);
+  }
+  .section-num {
+    background: var(--navy); color: white;
+    font-size: 0.72rem; font-weight: 800;
+    padding: 0.22rem 0.6rem; border-radius: 4px;
+    letter-spacing: 0.06em;
+  }
+  .section-name { font-size: 1.08rem; font-weight: 800; color: var(--navy); letter-spacing: -0.2px; }
+
+  .phase {
+    background: var(--navy); color: white;
+    padding: 0.75rem 3rem; margin: 2.2rem -3rem 1.4rem;
+    font-size: 0.78rem; font-weight: 800;
+    letter-spacing: 0.13em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 0.7rem;
+    border-left: 5px solid var(--amber);
+  }
+  .phase-badge {
+    background: var(--amber); color: var(--navy);
+    font-size: 0.68rem; padding: 0.1rem 0.55rem;
+    border-radius: 3px; font-weight: 900;
+  }
+
+  .purpose-box {
+    background: #f0f4ff; border-left: 4px solid var(--navy-mid);
+    padding: 0.9rem 1.2rem; border-radius: 0 6px 6px 0;
+    margin-bottom: 1.4rem; font-size: 0.88rem; color: var(--navy);
+  }
+  .purpose-box strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--navy-mid); margin-bottom: 0.3rem; }
+
+  .step { display: flex; gap: 1.1rem; margin: 1.1rem 0; align-items: flex-start; }
+  .step-num {
+    background: var(--amber); color: var(--navy);
+    font-weight: 900; font-size: 0.8rem;
+    min-width: 2rem; height: 2rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; flex-shrink: 0; margin-top: 0.1rem;
+    box-shadow: 0 2px 6px rgba(232,160,32,0.35);
+  }
+  .step-body { flex: 1; }
+  .step-action { font-weight: 700; color: var(--navy); font-size: 0.95rem; }
+  .step-role {
+    display: inline-block;
+    background: var(--gray-100); border: 1px solid var(--gray-200);
+    color: var(--gray-600); font-size: 0.68rem; font-weight: 700;
+    padding: 0.1rem 0.5rem; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-left: 0.5rem; vertical-align: middle;
+  }
+  .step-explain { font-size: 0.9rem; color: #334155; margin: 0.45rem 0 0.1rem; line-height: 1.7; }
+  .step-detail {
+    background: var(--gray-50); border-left: 3px solid var(--amber);
+    padding: 0.65rem 1rem; margin-top: 0.55rem;
+    font-size: 0.86rem; color: var(--gray-600);
+    border-radius: 0 4px 4px 0;
+  }
+  .step-detail p { margin: 0.25rem 0; }
+  .step-detail p:first-child { margin-top: 0; }
+  .step-detail p:last-child { margin-bottom: 0; }
+  .step-detail ul { padding-left: 1.3rem; }
+  .step-detail li { margin: 0.2rem 0; }
+
+  .decision {
+    background: var(--amber-light); border: 1.5px solid var(--amber);
+    border-radius: 6px; padding: 0.85rem 1.1rem;
+    margin: 0.7rem 0 0.7rem 3.1rem;
+  }
+  .decision-label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; color: #92400e; margin-bottom: 0.45rem; }
+  .decision-row { display: flex; gap: 0.5rem; align-items: flex-start; margin: 0.2rem 0; font-size: 0.88rem; }
+  .dy { color: #15803d; font-weight: 700; min-width: 3.5rem; }
+  .dn { color: #b91c1c; font-weight: 700; min-width: 3.5rem; }
+
+  .badge {
+    display: inline-block; font-size: 0.69rem; font-weight: 700;
+    padding: 0.15rem 0.6rem; border-radius: 4px;
+    letter-spacing: 0.05em; text-transform: uppercase; vertical-align: middle;
+  }
+  .badge-pending  { background: var(--amber-light); color: #92400e; border: 1px solid var(--amber); }
+  .badge-approved { background: var(--green-light);  color: #14532d; border: 1px solid #86efac; }
+  .badge-rejected { background: var(--red-light);    color: #991b1b; border: 1px solid #fca5a5; }
+  .badge-archived { background: var(--gray-100);     color: var(--gray-600); border: 1px solid var(--gray-200); }
+  .badge-completed { background: #eff6ff;             color: #1e40af; border: 1px solid #bfdbfe; }
+  .badge-edited   { background: #faf5ff;             color: #7e22ce; border: 1px solid #d8b4fe; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 0.8rem 0; }
+  thead tr { background: var(--navy); }
+  thead th { color: white; padding: 0.7rem 1rem; text-align: left; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; }
+  tbody tr:nth-child(even) { background: var(--gray-50); }
+  tbody td { padding: 0.65rem 1rem; border-bottom: 1px solid var(--gray-200); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .alert {
+    padding: 0.85rem 1rem 0.85rem 1.2rem; border-radius: 5px; margin: 1rem 0;
+    font-size: 0.88rem; display: flex; gap: 0.8rem; align-items: flex-start;
+  }
+  .alert-icon { font-size: 1.05rem; flex-shrink: 0; margin-top: 0.05rem; }
+  .alert-warn  { background: var(--amber-light); border-left: 4px solid var(--amber); }
+  .alert-info  { background: #eff6ff; border-left: 4px solid #3b82f6; }
+  .alert-crit  { background: var(--red-light); border-left: 4px solid var(--red); }
+  .alert-ok    { background: var(--green-light); border-left: 4px solid var(--green); }
+  .alert strong { display: block; margin-bottom: 0.2rem; color: var(--navy); }
+
+  .flow-track { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin: 1.2rem 0; }
+  .flow-node {
+    background: var(--navy); color: white;
+    font-size: 0.75rem; font-weight: 700;
+    padding: 0.55rem 1rem; border-radius: 4px; text-align: center;
+  }
+  .flow-node.fn-pending  { background: #92400e; }
+  .flow-node.fn-approved { background: var(--green); }
+  .flow-node.fn-rejected { background: var(--red); }
+  .flow-node.fn-edited   { background: #7e22ce; }
+  .flow-node.fn-archived { background: var(--gray-600); }
+  .flow-arrow { color: var(--amber); font-size: 1.2rem; padding: 0 0.35rem; font-weight: 900; line-height: 1; }
+
+  .screenshot-placeholder {
+    margin: 1.2rem 0;
+    border: 1.5px solid var(--gray-200);
+    border-radius: 8px; overflow: hidden;
+    background: var(--gray-50);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+  }
+  .sp-header {
+    background: var(--navy); color: white;
+    padding: 0.45rem 1rem; font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .sp-body { padding: 1rem 1.2rem; font-size: 0.84rem; color: var(--gray-600); }
+
+  .ui-label {
+    display: inline-block; background: var(--navy); color: white;
+    font-size: 0.7rem; font-weight: 700; padding: 0.1rem 0.5rem;
+    border-radius: 3px; letter-spacing: 0.04em; vertical-align: middle;
+  }
+  .ui-btn {
+    display: inline-block; font-size: 0.75rem; font-weight: 700;
+    padding: 0.2rem 0.7rem; border-radius: 4px;
+    vertical-align: middle; letter-spacing: 0.03em;
+  }
+  .btn-approve { background: var(--green-light); color: #15803d; border: 1.5px solid #86efac; }
+  .btn-deny    { background: var(--red-light);   color: #b91c1c; border: 1.5px solid #fca5a5; }
+  .btn-edit    { background: #faf5ff;             color: #7e22ce; border: 1.5px solid #d8b4fe; }
+  .btn-cancel  { background: var(--gray-100);     color: var(--gray-600); border: 1.5px solid var(--gray-200); }
+
+  .notification-box {
+    background: #f0f4ff; border: 1.5px solid #93c5fd;
+    border-radius: 8px; padding: 1rem 1.2rem; margin: 0.8rem 0;
+    font-size: 0.88rem;
+  }
+  .notification-box .nb-title { font-weight: 800; color: var(--navy); font-size: 0.85rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+  .notification-box .nb-body { color: #334155; line-height: 1.75; }
+  .notification-box .nb-field { margin: 0.35rem 0; }
+  .notification-box .nb-key { font-weight: 700; color: var(--navy); }
+
+  .sop-footer {
+    background: var(--gray-50); border-top: 2px solid var(--gray-200);
+    padding: 1.1rem 3rem; display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.74rem; color: var(--gray-400);
+  }
+  .sop-footer strong { color: var(--gray-600); }
+
+  ul { padding-left: 1.5rem; }
+  ul li { margin: 0.35rem 0; }
+  p { margin: 0.5rem 0; }
+
+  @media print {
+    body { background: white; font-size: 12px; }
+    .page-wrap { box-shadow: none; margin: 0; max-width: 100%; }
+    .phase, .cover, thead tr, .intro-banner { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .phase { page-break-before: always; }
+    .screenshot-placeholder { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-top">
+    <div class="org-logo">ML</div>
+    <div>
+      <div class="org-tag">MEDILab S.A.L. — Standard Operating Procedure</div>
+      <div class="doc-title">Logistics Handler — Request Review &amp; Scheduling</div>
+      <div class="doc-subtitle">Operational Logistics Module · Internal Platform · This SOP is for the Logistics Handler role only — for the Requestor SOP see MED-LOG-001</div>
+    </div>
+  </div>
+  <div class="meta-grid">
+    <div class="meta-cell"><div class="meta-label">Document Code</div><div class="meta-value">MED-LOG-003</div></div>
+    <div class="meta-cell"><div class="meta-label">Version</div><div class="meta-value">v1.0</div></div>
+    <div class="meta-cell"><div class="meta-label">Effective Date</div><div class="meta-value">07 May 2026</div></div>
+    <div class="meta-cell"><div class="meta-label">Review Date</div><div class="meta-value">07 May 2027</div></div>
+    <div class="meta-cell"><div class="meta-label">Document Owner</div><div class="meta-value">Logistics Handler</div></div>
+    <div class="meta-cell"><div class="meta-label">Approved By</div><div class="meta-value">General Manager</div></div>
+    <div class="meta-cell"><div class="meta-label">System Module</div><div class="meta-value">Scheduling → Operational Logistics</div></div>
+    <div class="meta-cell"><div class="meta-label">Classification</div><div class="meta-value">Internal Use Only</div></div>
+  </div>
+</div>
+
+<!-- INTRO BANNER -->
+<div class="intro-banner">
+  <h2>About This Document</h2>
+  <p>This SOP defines the end-to-end responsibilities of the <strong>Logistics Handler</strong> — the person accountable for reviewing, approving, editing, or denying trip requests submitted through MEDILab's <strong>Operational Logistics</strong> platform. It covers every action available from the Handler's dashboard and prescribes the exact communication required when a request is modified before approval.</p>
+  <p>Requestor-side instructions (how to submit a trip request) are covered separately in <strong>MED-LOG-001</strong>. Driver-side instructions are in <strong>MED-LOG-002</strong>. This document assumes the Logistics Handler has system access and at least one driver assigned to the fleet.</p>
+  <p>Read this document fully before processing any request. Every action you take in the system has downstream effects on drivers, requestors, and client-facing operations.</p>
+</div>
+
+<div class="body">
+
+<!-- SECTION 1: PURPOSE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">01</span><span class="section-name">Purpose</span></div>
+  <div class="purpose-box">
+    <strong>Purpose Statement</strong>
+    This SOP establishes a standardised process for the Logistics Handler to review incoming trip requests, assess driver and vehicle availability, take the appropriate action (Approve, Edit &amp; Approve, or Deny), and ensure requestors are proactively informed of any changes made to their submissions. The goal is to eliminate scheduling conflicts, prevent uninformed drivers from showing up with wrong instructions, and ensure requestors have a chance to validate trip details before a trip is locked.
+  </div>
+</div>
+
+<!-- SECTION 2: SCOPE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">02</span><span class="section-name">Scope</span></div>
+  <p><strong>Applies to:</strong> Any person assigned the Logistics Handler role in the Operational Logistics platform. This includes HR Managers, Operations Coordinators, or any delegate temporarily performing this function.</p>
+  <p><strong>Covers:</strong> All trip requests submitted through the platform, regardless of department, destination, or vehicle type.</p>
+  <p><strong>Does NOT cover:</strong></p>
+  <ul>
+    <li>How to submit a new trip request (see <strong>MED-LOG-001</strong>)</li>
+    <li>Driver actions on confirmed trips (see <strong>MED-LOG-002</strong>)</li>
+    <li>Emergency verbal scheduling outside the platform — this must still be logged retroactively</li>
+    <li>Vehicle maintenance scheduling — handled under a separate maintenance SOP</li>
+  </ul>
+</div>
+
+<!-- SECTION 3: DEFINITIONS -->
+<div class="section">
+  <div class="section-title"><span class="section-num">03</span><span class="section-name">Definitions &amp; Abbreviations</span></div>
+  <table>
+    <thead><tr><th>Term / Abbreviation</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Logistics Handler</strong></td><td>The role responsible for reviewing, approving, editing, and denying trip requests. May be the HR Manager or a delegated Operations Coordinator.</td></tr>
+      <tr><td><strong>Requestor</strong></td><td>Any MEDILab employee who submitted the trip request through the platform.</td></tr>
+      <tr><td><strong>TR-XXXX</strong></td><td>Unique system-generated reference number assigned to each trip request upon submission (e.g. TR-0057).</td></tr>
+      <tr><td><strong>Pending Review</strong></td><td>Status of a newly submitted request not yet acted upon by the Logistics Handler.</td></tr>
+      <tr><td><strong>Approved / Scheduled</strong></td><td>Status after the Logistics Handler approves a request. Driver is notified and trip appears on the fleet calendar.</td></tr>
+      <tr><td><strong>Denied / Requires Change</strong></td><td>Status when the Logistics Handler rejects a request. Requestor is expected to revise and resubmit.</td></tr>
+      <tr><td><strong>Edited Request</strong></td><td>A request modified by the Logistics Handler (time, driver, vehicle, etc.) before or instead of direct approval. Requestor must be informed manually.</td></tr>
+      <tr><td><strong>Time Window</strong></td><td>The start–end time block that defines the driver's calendar slot for the trip (e.g., 11:00–14:30).</td></tr>
+      <tr><td><strong>Fleet Calendar</strong></td><td>The live calendar view in the platform showing all approved and scheduled trips across all drivers.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 4: ROLES & RESPONSIBILITIES -->
+<div class="section">
+  <div class="section-title"><span class="section-num">04</span><span class="section-name">Roles &amp; Responsibilities</span></div>
+  <table>
+    <thead><tr><th>Role</th><th>Responsibility in This Procedure</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Logistics Handler</strong></td><td>Reviews all pending requests. Checks driver/vehicle availability. Approves, edits, or denies each request. Communicates directly with requestors when edits are made. Monitors the fleet calendar for conflicts. Escalates irresolvable conflicts to the General Manager.</td></tr>
+      <tr><td><strong>Requestor</strong></td><td>Submits trip requests via the platform. Acknowledges edited requests when notified by the Logistics Handler. Confirms or raises objections to edits within the required timeframe.</td></tr>
+      <tr><td><strong>Driver</strong></td><td>Passive in this procedure — receives confirmed trip details on their calendar. No action required during review phase.</td></tr>
+      <tr><td><strong>General Manager</strong></td><td>Receives escalations for unresolvable conflicts or requests that cannot be accommodated within current fleet capacity.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 5: PREREQUISITES -->
+<div class="section">
+  <div class="section-title"><span class="section-num">05</span><span class="section-name">Prerequisites</span></div>
+  <ul>
+    <li>Logistics Handler has active login access to the MEDILab internal platform</li>
+    <li>At least one driver is assigned and active in the system (<span class="ui-label">System Active | 4 Drivers Assigned</span> shown in the Fleet Overview header)</li>
+    <li>The Logistics Handler is familiar with all drivers' availability patterns and vehicle capabilities</li>
+    <li>The Logistics Handler has the requestor's contact information for direct communication when needed</li>
+    <li>Platform notifications are enabled — however, <strong>do not rely solely on notifications</strong>; check the Pending queue at least once per working day</li>
+  </ul>
+</div>
+
+<!-- SECTION 6: PROCEDURE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">06</span><span class="section-name">Procedure</span></div>
+
+  <!-- PHASE A -->
+  <div class="phase"><span class="phase-badge">PHASE A</span>Access the Dashboard &amp; Identify Pending Requests</div>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <span class="step-action">Navigate to the Operational Logistics dashboard.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">Log in to the MEDILab internal platform and go to <strong>Scheduling → Operational Logistics</strong>. The Fleet Overview header will confirm system status and the number of drivers currently assigned.</div>
+      <div class="step-detail">
+        <p>Confirm you see: <span class="ui-label">✓ System Active</span> and the driver count (e.g., <strong>4 Drivers Assigned</strong>). If the system shows inactive or zero drivers, do not process any requests — contact the system administrator.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <span class="step-action">Check the <strong>Pending (Require Approval)</strong> queue for new requests.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">The dashboard opens on the Pending queue by default. Each card in this queue represents a submitted request awaiting your action. Cards display: TR number, destination, client/end user, date, time window, driver assigned by the requestor, department, vehicle type, and distance classification.</div>
+      <div class="step-detail">
+        <p><strong>Status to look for:</strong> <span class="badge badge-pending">Pending Review</span> — this means no action has been taken yet.</p>
+        <p>If the queue is empty, no action is required. You may use the filter dropdown to also check other status views: <span class="badge badge-approved">Approved, Schedule</span> · <span class="badge badge-rejected">Denied / Requires Change</span> · <span class="badge badge-archived">Completed, Archived</span>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <span class="step-action">Cross-reference the request date against the fleet calendar before opening the request.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">The calendar is displayed on the right side of the dashboard. Before clicking into any request, note the requested trip date on the calendar. This gives you immediate visual context for existing commitments on that day before you read the request details.</div>
+      <div class="step-detail">
+        <p>Use the calendar navigation arrows to move to the relevant month/week if the request is not for the current week. Days with existing trips will show dot indicators.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <span class="step-action">Open the trip request by clicking the card to view full Trip Details.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">Clicking the card opens the <strong>Trip Details</strong> modal. Review every field before taking action. Do not approve without reading all fields.</div>
+      <div class="step-detail">
+        <p>Verify the following fields are complete and logical:</p>
+        <ul>
+          <li><strong>Destination</strong> — Is it a known location? Is the trip feasible within the stated time window?</li>
+          <li><strong>Date &amp; Time</strong> — Is the time window realistic given travel distance?</li>
+          <li><strong>Driver Assigned</strong> — Did the requestor pre-select a driver? Is that driver actually available?</li>
+          <li><strong>Vehicle</strong> — Is the stated vehicle appropriate for the trip type?</li>
+          <li><strong>Client / End User &amp; Contact</strong> — Is a contact number provided?</li>
+          <li><strong>Department &amp; Requested By</strong> — Is this a legitimate internal request?</li>
+        </ul>
+        <p>The modal will show four action buttons at the bottom: <span class="ui-btn btn-approve">✓ Approve</span> <span class="ui-btn btn-deny">✗ Deny</span> <span class="ui-btn btn-cancel">⊘ Cancel</span> <span class="ui-btn btn-edit">✎ Edit Request</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE B -->
+  <div class="phase"><span class="phase-badge">PHASE B</span>Assess Feasibility &amp; Make a Decision</div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <span class="step-action">Assess driver availability for the requested time window.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">Check whether the driver named in the request is free for the full time window. A driver with an overlapping approved trip cannot be double-assigned. Use the fleet calendar to verify.</div>
+      <div class="step-detail">
+        <p>If the requestor did not pre-select a driver (field shows blank or "Any"), you must assign one. Select the driver with the lightest load on that day and no time conflicts.</p>
+        <p><strong>Buffer rule:</strong> Allow at least 30 minutes between the end of one trip and the start of the next for the same driver, to account for return travel and handover.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <span class="step-action">Determine which of the three outcomes applies to this request.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">Every request results in exactly one of three outcomes. Do not leave a request in Pending status after reviewing it.</div>
+
+      <div class="decision">
+        <div class="decision-label">🔀 Decision Point — Choose One Outcome</div>
+        <div class="decision-row"><span class="dy">APPROVE →</span> All details are correct, driver is available, no conflicts. Proceed to Phase C (Step 7).</div>
+        <div class="decision-row"><span class="dy">EDIT →</span> Details have a fixable issue (wrong time, different driver needed, vehicle change). Proceed to Phase D (Step 9).</div>
+        <div class="decision-row"><span class="dn">DENY →</span> Request cannot be fulfilled: no drivers available, insufficient lead time, missing critical information that cannot be inferred. Proceed to Phase E (Step 13).</div>
+      </div>
+
+      <div class="alert alert-warn">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Do not use Edit as a workaround for Deny.</strong> If a request fundamentally cannot be fulfilled (e.g., no drivers available all day), deny it with a clear reason. Editing a request implies it will be honoured — the requestor will act on that assumption.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE C -->
+  <div class="phase"><span class="phase-badge">PHASE C</span>Approve a Request</div>
+
+  <div class="step">
+    <div class="step-num">7</div>
+    <div class="step-body">
+      <span class="step-action">Click <span class="ui-btn btn-approve">✓ Approve</span> in the Trip Details modal.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">This action changes the request status from <span class="badge badge-pending">Pending Review</span> to <span class="badge badge-approved">Approved</span> and moves it to the <strong>Approved &amp; Scheduled</strong> view. The driver's calendar is updated immediately. The requestor is notified by the system.</div>
+      <div class="step-detail">
+        <p>After approval, the trip card in the Approved view will display: TR number, destination, client, time window, driver name, vehicle, department, status <span class="badge badge-approved">Approved</span>, and distance type.</p>
+        <p><strong>No further communication is required from the Logistics Handler</strong> for a clean approval — the system notification is sufficient.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">8</div>
+    <div class="step-body">
+      <span class="step-action">Verify the approved trip appears correctly in the Approved &amp; Scheduled view.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">After clicking Approve, close the modal and confirm the card has moved from the Pending queue to the Approved &amp; Scheduled section with status <span class="badge badge-approved">Approved</span>. This is your confirmation the action was saved.</div>
+      <div class="step-detail">
+        <p>If the card remains in Pending after approval, refresh the page and try again. If the issue persists, contact the system administrator — do not attempt to approve the same request twice.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE D -->
+  <div class="phase"><span class="phase-badge">PHASE D</span>Edit a Request Before Approving</div>
+
+  <div class="alert alert-info" style="margin: 1.2rem 0 0.5rem;">
+    <span class="alert-icon">ℹ️</span>
+    <div><strong>When to use Edit:</strong> Use this path when you can fulfil the trip but the submitted details need to change — different time window, different driver, different vehicle, or a corrected destination. Editing obligates you to notify the requestor directly. They must know what changed before the trip is locked.</div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">9</div>
+    <div class="step-body">
+      <span class="step-action">Click <span class="ui-btn btn-edit">✎ Edit Request</span> in the Trip Details modal.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">This opens the editable form for the request. All fields submitted by the requestor are pre-filled. Modify only the fields that require correction.</div>
+      <div class="step-detail">
+        <p><strong>Common edits:</strong></p>
+        <ul>
+          <li>Time window adjustment (e.g., 11:00–14:30 → 13:00–16:30 due to driver conflict)</li>
+          <li>Driver reassignment (e.g., Mohammad Abdallah → another available driver)</li>
+          <li>Vehicle change (e.g., Car → Van for larger cargo)</li>
+        </ul>
+        <p>Do <strong>not</strong> change the destination or client unless you have spoken directly with the requestor first — those are core trip parameters that only the requestor can confirm.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">10</div>
+    <div class="step-body">
+      <span class="step-action">Record the specific changes you are making before saving.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">Before saving the edit, note down (on paper or in your message draft): the original value of each field you changed, and the new value. You will need this for the mandatory notification in Step 11.</div>
+      <div class="step-detail">
+        <p>Example: <em>"Changed driver from Mohammad Abdallah to [Name] due to scheduling conflict. Time window adjusted from 11:00–14:30 to 13:00–16:30."</em></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">11</div>
+    <div class="step-body">
+      <span class="step-action">Save the edited request and then immediately notify the requestor directly.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">After saving the edit and approving the trip, the system status will update — but the system does NOT automatically tell the requestor what changed. You are responsible for this communication. Use WhatsApp, phone call, or internal chat — whichever is standard at MEDILab. Do not skip this step.</div>
+
+      <div class="notification-box">
+        <div class="nb-title">📨 Required Notification — What to Communicate to the Requestor</div>
+        <div class="nb-body">
+          <div class="nb-field"><span class="nb-key">Reference:</span> "Your trip request TR-[XXXX] for [Destination] on [Date] has been reviewed."</div>
+          <div class="nb-field"><span class="nb-key">What changed:</span> State each field that was modified and the new value. Be specific — do not say "some changes were made."</div>
+          <div class="nb-field"><span class="nb-key">Action required:</span> "Please check the updated details in the system and confirm you are okay with these changes. If you have any objections, contact me by [time/date] so I can adjust before the trip is locked."</div>
+          <div class="nb-field"><span class="nb-key">Contact:</span> Provide your name and direct contact so the requestor can respond quickly.</div>
+        </div>
+      </div>
+
+      <div class="alert alert-crit">
+        <span class="alert-icon">🚨</span>
+        <div><strong>This notification is not optional.</strong> A requestor who shows up expecting a specific driver, vehicle, or time window — and finds it changed without warning — reflects directly on logistics handling quality. It may also cause operational failures at the client site.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">12</div>
+    <div class="step-body">
+      <span class="step-action">Wait for requestor acknowledgement within the agreed window; escalate if no response.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">Give the requestor a reasonable response window — at minimum 2 business hours for non-urgent trips, 30 minutes for same-day requests. If the requestor does not respond and the trip date is approaching, proceed with the edited version but log the attempted contact.</div>
+      <div class="step-detail">
+        <p>If the requestor objects to the changes and you cannot accommodate their preference, escalate to the General Manager before the trip date.</p>
+        <p>If the requestor confirms — no further action needed. The trip is locked and the driver proceeds as scheduled.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE E -->
+  <div class="phase"><span class="phase-badge">PHASE E</span>Deny a Request</div>
+
+  <div class="step">
+    <div class="step-num">13</div>
+    <div class="step-body">
+      <span class="step-action">Click <span class="ui-btn btn-deny">✗ Deny</span> in the Trip Details modal.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">Use Deny when the trip cannot be accommodated as submitted and cannot reasonably be edited to a workable state. The system will prompt for a denial reason — this is mandatory.</div>
+      <div class="step-detail">
+        <p><strong>Valid denial reasons:</strong></p>
+        <ul>
+          <li>No drivers available on the requested date/time</li>
+          <li>Requested vehicle is unavailable or under maintenance</li>
+          <li>Insufficient lead time (same-day with no capacity)</li>
+          <li>Missing critical information that the Logistics Handler cannot supply (e.g., no destination specified)</li>
+          <li>Request falls outside business operating hours with no prior arrangement</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">14</div>
+    <div class="step-body">
+      <span class="step-action">Enter a clear, actionable denial reason in the system prompt.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">The denial reason is visible to the requestor in the system. Write it in plain language. Tell them: why the request was denied and what they should do to resubmit successfully.</div>
+      <div class="step-detail">
+        <p><strong>Good denial reason:</strong> <em>"No drivers available on May 27 between 11:00–14:30. Please resubmit for May 28 or later, or select an afternoon window after 15:00 on May 27."</em></p>
+        <p><strong>Poor denial reason:</strong> <em>"Not possible."</em> — This gives the requestor nothing to act on.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">15</div>
+    <div class="step-body">
+      <span class="step-action">Confirm the request status updated to <span class="badge badge-rejected">Denied / Requires Change</span>.</span>
+      <span class="step-role">Logistics Handler</span>
+      <div class="step-explain">After denial, the request moves to the <strong>Denied / Requires Change</strong> filter view. The requestor is notified by the system with your denial reason. For urgent trips, also call or message the requestor directly — do not rely solely on the system notification for time-sensitive situations.</div>
+    </div>
+  </div>
+
+</div><!-- end section 6 -->
+
+<!-- SECTION 7: QUALITY CHECKS -->
+<div class="section">
+  <div class="section-title"><span class="section-num">07</span><span class="section-name">Quality Checks &amp; Verification Points</span></div>
+  <table>
+    <thead><tr><th>Checkpoint</th><th>What to Verify</th><th>Who Verifies</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td>Before any approval</td><td>Driver has no overlapping approved trip within the time window + 30-min buffer</td><td>Logistics Handler</td><td>Step 5, during review</td></tr>
+      <tr><td>Before any approval</td><td>Vehicle is not under maintenance or assigned to another trip</td><td>Logistics Handler</td><td>Step 5, during review</td></tr>
+      <tr><td>After approval</td><td>Approved card appears in Approved &amp; Scheduled view with correct details</td><td>Logistics Handler</td><td>Step 8, immediately post-approval</td></tr>
+      <tr><td>After any edit</td><td>Requestor has been notified of all changed fields with exact values</td><td>Logistics Handler</td><td>Step 11, immediately post-edit</td></tr>
+      <tr><td>After denial</td><td>Denial reason is specific and actionable — not generic</td><td>Logistics Handler</td><td>Step 14, before confirming denial</td></tr>
+      <tr><td>Daily</td><td>No requests remain in Pending status for more than 1 business day without action</td><td>Logistics Handler</td><td>Start of each working day</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 8: NON-CONFORMANCE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">08</span><span class="section-name">Non-Conformance &amp; Exception Handling</span></div>
+
+  <table>
+    <thead><tr><th>Situation</th><th>Action Required</th><th>Escalation Path</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Request submitted with less than 2 hours lead time</td>
+        <td>Assess capacity immediately. If no driver is available, deny with explanation. If available, edit time window and approve — notify requestor verbally.</td>
+        <td>None unless no capacity exists, then escalate to General Manager</td>
+      </tr>
+      <tr>
+        <td>All drivers are unavailable for a requested date</td>
+        <td>Deny the request with alternative date suggestions. Do not edit to a future date without contacting the requestor first.</td>
+        <td>General Manager if the trip is critical and external vehicle hire may be needed</td>
+      </tr>
+      <tr>
+        <td>Requestor objects to edits made by the Logistics Handler</td>
+        <td>Review the objection. If the requestor's preference can be accommodated, edit again and re-notify. If not, explain the operational constraint clearly.</td>
+        <td>General Manager if resolution is not reached within 1 business day</td>
+      </tr>
+      <tr>
+        <td>System is down and requests cannot be accessed</td>
+        <td>Contact the system administrator. Do not process requests via informal channels without logging them retroactively once the system is restored.</td>
+        <td>System Administrator → General Manager</td>
+      </tr>
+      <tr>
+        <td>A trip needs to be cancelled after approval</td>
+        <td>Open the approved trip card and use the <span class="ui-btn btn-cancel">⊘ Cancel</span> button. Notify the driver and the requestor immediately — do not assume the system notification is enough for cancellations.</td>
+        <td>None required unless pattern of late cancellations needs management review</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 9: RECORDS -->
+<div class="section">
+  <div class="section-title"><span class="section-num">09</span><span class="section-name">Records &amp; Documentation</span></div>
+  <table>
+    <thead><tr><th>Record</th><th>Where Stored</th><th>Retention</th></tr></thead>
+    <tbody>
+      <tr><td>All trip requests (Pending, Approved, Denied)</td><td>Operational Logistics platform — Completed, Archived view</td><td>Minimum 2 years</td></tr>
+      <tr><td>Edit history per request (fields changed, timestamp)</td><td>Platform audit log (accessible to system admin)</td><td>Minimum 2 years</td></tr>
+      <tr><td>Logistics Handler communications to requestors re: edits</td><td>Not stored by system — Logistics Handler must keep a personal log or thread in the company messaging platform</td><td>Minimum 6 months</td></tr>
+      <tr><td>Denial reasons</td><td>Stored in the platform on the denied request card</td><td>Minimum 1 year</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SECTION 10: REFERENCES -->
+<div class="section">
+  <div class="section-title"><span class="section-num">10</span><span class="section-name">References</span></div>
+  <ul>
+    <li><strong>MED-LOG-001</strong> — Fleet Trip Request &amp; Driver Scheduling SOP (Requestor &amp; HR Manager)</li>
+    <li><strong>MED-LOG-002</strong> — Driver Scheduling &amp; Trip Execution SOP</li>
+    <li>MEDILab Internal Platform — Operational Logistics Module (Scheduling menu)</li>
+  </ul>
+</div>
+
+<!-- SECTION 11: QUICK REFERENCE FLOW -->
+<div class="section">
+  <div class="section-title"><span class="section-num">REF</span><span class="section-name">Quick Reference — Status Flow</span></div>
+  <p style="font-size:0.88rem;margin-bottom:0.8rem;">Every request follows one of three paths from Pending to resolution:</p>
+  <div class="flow-track">
+    <div class="flow-node fn-pending">Pending Review</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-approved">Approved &amp; Scheduled</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node" style="background:#1d4ed8;">Completed</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node" style="background:#475569;">Archived</div>
+  </div>
+  <div class="flow-track" style="margin-top:0.6rem;">
+    <div class="flow-node fn-pending">Pending Review</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-edited">Edited by Handler</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node" style="background:#7e22ce;">Notify Requestor</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-approved">Approved &amp; Scheduled</div>
+  </div>
+  <div class="flow-track" style="margin-top:0.6rem;">
+    <div class="flow-node fn-pending">Pending Review</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-rejected">Denied / Requires Change</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node" style="background:#92400e; font-size:0.7rem;">Requestor Resubmits</div>
+  </div>
+
+  <div class="alert alert-ok" style="margin-top:1.4rem;">
+    <span class="alert-icon">✅</span>
+    <div><strong>The Edit path is the only one that requires a manual notification from you.</strong> Approvals and Denials are communicated automatically by the system. Edits are not — this is your responsibility every single time.</div>
+  </div>
+</div>
+
+<!-- SECTION 12: REVISION HISTORY -->
+<div class="section">
+  <div class="section-title"><span class="section-num">11</span><span class="section-name">Revision History</span></div>
+  <table>
+    <thead><tr><th>Version</th><th>Date</th><th>Author (Role)</th><th>Change Summary</th></tr></thead>
+    <tbody>
+      <tr><td>v1.0</td><td>07 May 2026</td><td>Logistics Handler / Operations</td><td>Initial release — covers dashboard navigation, approve, edit &amp; notify, and deny workflows</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- end body -->
+
+<div class="sop-footer">
+  <div><strong>MED-LOG-003</strong> · Logistics Handler Request Review &amp; Scheduling SOP · v1.0</div>
+  <div>MEDILab S.A.L. · Internal Use Only · Review due 07 May 2027</div>
+</div>
+
+</div><!-- end page-wrap -->
+</body>
+</html>

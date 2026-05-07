@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MED-MAINT-002 | Maintenance Request & Service Report SOP</title>
+<style>
+  :root {
+    --navy: #0d1f3c;
+    --navy-mid: #1a3a6b;
+    --red: #c0392b;
+    --red-light: #fdecea;
+    --amber: #e8a020;
+    --amber-light: #fef3c7;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-400: #94a3b8;
+    --gray-600: #475569;
+    --text: #1e293b;
+    --white: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: #eef2f7;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .page-wrap {
+    max-width: 980px;
+    margin: 2rem auto 4rem;
+    background: var(--white);
+    box-shadow: 0 6px 40px rgba(0,0,0,0.10);
+  }
+  .cover {
+    background: linear-gradient(135deg, #0d1f3c 0%, #1a3a6b 100%);
+    color: white;
+    padding: 3rem 3rem 2.5rem;
+    border-bottom: 5px solid var(--amber);
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 280px; height: 280px;
+    border-radius: 50%;
+    border: 40px solid rgba(232,160,32,0.10);
+    pointer-events: none;
+  }
+  .cover-top { display: flex; align-items: center; gap: 1.4rem; margin-bottom: 2rem; }
+  .org-logo {
+    background: var(--red); color: white;
+    font-size: 1.15rem; font-weight: 900;
+    width: 60px; height: 60px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px; font-style: italic; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(192,57,43,0.4);
+  }
+  .org-tag { font-size: 0.72rem; color: rgba(255,255,255,0.5); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 0.25rem; }
+  .doc-title { font-size: 1.85rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
+  .doc-subtitle { font-size: 0.92rem; color: rgba(255,255,255,0.6); margin-top: 0.3rem; }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(4,1fr); gap: 0;
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; overflow: hidden;
+  }
+  .meta-cell {
+    padding: 0.8rem 1rem;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .meta-cell:nth-child(4n) { border-right: none; }
+  .meta-cell:nth-last-child(-n+4) { border-bottom: none; }
+  .meta-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); margin-bottom: 0.2rem; }
+  .meta-value { font-size: 0.88rem; font-weight: 600; color: rgba(255,255,255,0.9); }
+
+  .intro-banner {
+    background: linear-gradient(90deg, #0d1f3c, #1a3a6b);
+    color: white; padding: 2rem 3rem;
+    border-bottom: 3px solid var(--amber);
+  }
+  .intro-banner h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 0.6rem; color: var(--amber); letter-spacing: 0.02em; }
+  .intro-banner p { font-size: 0.9rem; color: rgba(255,255,255,0.85); line-height: 1.75; margin: 0.4rem 0; }
+
+  .body { padding: 0 3rem 4rem; }
+  .section { margin-top: 2.8rem; }
+  .section-title {
+    display: flex; align-items: center; gap: 0.8rem;
+    margin-bottom: 1.1rem; padding-bottom: 0.65rem;
+    border-bottom: 2px solid var(--gray-200);
+  }
+  .section-num {
+    background: var(--navy); color: white;
+    font-size: 0.72rem; font-weight: 800;
+    padding: 0.22rem 0.6rem; border-radius: 4px;
+    letter-spacing: 0.06em;
+  }
+  .section-name { font-size: 1.08rem; font-weight: 800; color: var(--navy); letter-spacing: -0.2px; }
+
+  .phase {
+    background: var(--navy); color: white;
+    padding: 0.75rem 3rem; margin: 2.2rem -3rem 1.4rem;
+    font-size: 0.78rem; font-weight: 800;
+    letter-spacing: 0.13em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 0.7rem;
+    border-left: 5px solid var(--amber);
+  }
+  .phase-badge {
+    background: var(--amber); color: var(--navy);
+    font-size: 0.68rem; padding: 0.1rem 0.55rem;
+    border-radius: 3px; font-weight: 900;
+  }
+
+  .purpose-box {
+    background: #f0f4ff; border-left: 4px solid var(--navy-mid);
+    padding: 0.9rem 1.2rem; border-radius: 0 6px 6px 0;
+    margin-bottom: 1.4rem; font-size: 0.88rem; color: var(--navy);
+  }
+  .purpose-box strong { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--navy-mid); margin-bottom: 0.3rem; }
+
+  .step { display: flex; gap: 1.1rem; margin: 1.1rem 0; align-items: flex-start; }
+  .step-num {
+    background: var(--amber); color: var(--navy);
+    font-weight: 900; font-size: 0.8rem;
+    min-width: 2rem; height: 2rem;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%; flex-shrink: 0; margin-top: 0.1rem;
+    box-shadow: 0 2px 6px rgba(232,160,32,0.35);
+  }
+  .step-body { flex: 1; }
+  .step-action { font-weight: 700; color: var(--navy); font-size: 0.95rem; }
+  .step-role {
+    display: inline-block;
+    background: var(--gray-100); border: 1px solid var(--gray-200);
+    color: var(--gray-600); font-size: 0.68rem; font-weight: 700;
+    padding: 0.1rem 0.5rem; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-left: 0.5rem; vertical-align: middle;
+  }
+  .step-role.role-engmgr {
+    background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8;
+  }
+  .step-role.role-eng {
+    background: var(--green-light); border-color: #86efac; color: #15803d;
+  }
+  .step-role.role-system {
+    background: #f3e8ff; border-color: #d8b4fe; color: #7e22ce;
+  }
+  .step-explain { font-size: 0.9rem; color: #334155; margin: 0.45rem 0 0.1rem; line-height: 1.7; }
+  .step-detail {
+    background: var(--gray-50); border-left: 3px solid var(--amber);
+    padding: 0.65rem 1rem; margin-top: 0.55rem;
+    font-size: 0.86rem; color: var(--gray-600);
+    border-radius: 0 4px 4px 0;
+  }
+  .step-detail p { margin: 0.25rem 0; }
+  .step-detail p:first-child { margin-top: 0; }
+  .step-detail p:last-child { margin-bottom: 0; }
+  .step-detail ul { padding-left: 1.3rem; }
+  .step-detail li { margin: 0.2rem 0; }
+
+  .decision {
+    background: var(--amber-light); border: 1.5px solid var(--amber);
+    border-radius: 6px; padding: 0.85rem 1.1rem;
+    margin: 0.7rem 0 0.7rem 3.1rem;
+  }
+  .decision-label { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.09em; color: #92400e; margin-bottom: 0.45rem; }
+  .decision-row { display: flex; gap: 0.5rem; align-items: flex-start; margin: 0.2rem 0; font-size: 0.88rem; }
+  .dy { color: #15803d; font-weight: 700; min-width: 3.5rem; }
+  .dn { color: #b91c1c; font-weight: 700; min-width: 3.5rem; }
+
+  .badge {
+    display: inline-block; font-size: 0.69rem; font-weight: 700;
+    padding: 0.15rem 0.6rem; border-radius: 4px;
+    letter-spacing: 0.05em; text-transform: uppercase; vertical-align: middle;
+  }
+  .badge-open { background: var(--red-light); color: var(--red); border: 1px solid #f5c6c2; }
+  .badge-scheduled { background: var(--amber-light); color: #92400e; border: 1px solid var(--amber); }
+  .badge-active { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+  .badge-closed { background: var(--green-light); color: var(--green); border: 1px solid #86efac; }
+  .badge-billable { background: var(--amber-light); color: #92400e; border: 1px solid var(--amber); }
+  .badge-warranty { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
+  .badge-contract { background: var(--green-light); color: var(--green); border: 1px solid #86efac; }
+
+  .alert {
+    display: flex; gap: 0.9rem; align-items: flex-start;
+    padding: 0.9rem 1.1rem; border-radius: 6px;
+    margin: 1rem 0; font-size: 0.88rem;
+  }
+  .alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
+  .alert-warn { background: var(--amber-light); border: 1.5px solid var(--amber); }
+  .alert-crit { background: var(--red-light); border: 1.5px solid #f5a0a0; }
+  .alert-info { background: #eff6ff; border: 1.5px solid #93c5fd; }
+  .alert-ok   { background: var(--green-light); border: 1.5px solid #86efac; }
+
+  table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.88rem; }
+  thead tr { background: var(--navy); color: white; }
+  thead th { padding: 0.7rem 0.9rem; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
+  tbody td { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--gray-200); vertical-align: top; }
+  tbody tr:nth-child(even) { background: var(--gray-50); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .flow-track {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem;
+    margin: 1.2rem 0; padding: 1rem 1.2rem;
+    background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: 6px;
+  }
+  .flow-node {
+    background: var(--navy-mid); color: white;
+    font-size: 0.76rem; font-weight: 700; padding: 0.35rem 0.8rem;
+    border-radius: 4px; white-space: nowrap;
+  }
+  .flow-node.fn-open { background: var(--red); }
+  .flow-node.fn-scheduled { background: #92400e; }
+  .flow-node.fn-active { background: #1d4ed8; }
+  .flow-node.fn-closed { background: var(--green); }
+  .flow-arrow { color: var(--gray-400); font-weight: 700; font-size: 1.1rem; }
+
+  /* Screenshot containers */
+  .screen-wrap {
+    margin: 1.2rem 0 0.4rem;
+    border: 1px solid var(--gray-200); border-radius: 8px; overflow: hidden;
+  }
+  .screen-label {
+    background: var(--gray-100); border-bottom: 1px solid var(--gray-200);
+    padding: 0.4rem 0.9rem; font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em; color: var(--gray-600);
+  }
+  .screen-inner { padding: 1rem; background: #fff; }
+  .img-caption { font-size: 0.78rem; color: var(--gray-600); font-style: italic; padding: 0.5rem 1rem 0.7rem; background: var(--gray-50); border-top: 1px solid var(--gray-200); }
+
+  .sop-footer {
+    background: var(--navy); color: rgba(255,255,255,0.55);
+    padding: 1rem 3rem; font-size: 0.75rem;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 3px solid var(--amber);
+  }
+
+  /* Mockup UI elements to represent screenshots */
+  .mockup-card {
+    border: 1px solid var(--gray-200); border-radius: 8px; overflow: hidden;
+    margin: 0.5rem 0; font-size: 0.85rem;
+  }
+  .mockup-header {
+    background: var(--gray-50); border-bottom: 1px solid var(--gray-200);
+    padding: 0.6rem 1rem; font-weight: 700; color: var(--navy); font-size: 0.88rem;
+  }
+  .mockup-body { padding: 0.8rem 1rem; }
+  .mockup-row { display: flex; gap: 1.5rem; margin: 0.4rem 0; flex-wrap: wrap; }
+  .mockup-field { flex: 1; min-width: 160px; }
+  .mockup-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-400); margin-bottom: 0.15rem; }
+  .mockup-val { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+  .btn-mock {
+    display: inline-block; padding: 0.4rem 1rem; border-radius: 4px;
+    font-size: 0.8rem; font-weight: 700; cursor: default; margin: 0.2rem 0.3rem 0.2rem 0;
+  }
+  .btn-red { background: var(--red); color: white; }
+  .btn-green { background: var(--green); color: white; }
+  .btn-amber { background: var(--amber); color: var(--navy); }
+  .btn-gray { background: var(--gray-200); color: var(--gray-600); }
+
+  @media print {
+    body { background: white; }
+    .page-wrap { box-shadow: none; margin: 0; }
+    .phase { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .step-num { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sop-footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-top">
+    <div class="org-logo">ML</div>
+    <div>
+      <div class="org-tag">MEDILab S.A.L. — Technical Services Division</div>
+      <div class="doc-title">Maintenance Request &amp; Service Report SOP</div>
+      <div class="doc-subtitle">End-to-end procedure: intake → engineer scheduling → field service → service report creation → billing</div>
+    </div>
+  </div>
+  <div class="meta-grid">
+    <div class="meta-cell"><div class="meta-label">Document Code</div><div class="meta-value">MED-MAINT-002</div></div>
+    <div class="meta-cell"><div class="meta-label">Version</div><div class="meta-value">v1.0</div></div>
+    <div class="meta-cell"><div class="meta-label">Effective Date</div><div class="meta-value">07 May 2026</div></div>
+    <div class="meta-cell"><div class="meta-label">Review Date</div><div class="meta-value">07 May 2027</div></div>
+    <div class="meta-cell"><div class="meta-label">Owner</div><div class="meta-value">Engineering Manager</div></div>
+    <div class="meta-cell"><div class="meta-label">Approved By</div><div class="meta-value">Operations Director</div></div>
+    <div class="meta-cell"><div class="meta-label">Classification</div><div class="meta-value">Internal Use Only</div></div>
+    <div class="meta-cell"><div class="meta-label">Platform</div><div class="meta-value">Asset Management v2.0</div></div>
+  </div>
+</div>
+
+<!-- INTRO BANNER -->
+<div class="intro-banner">
+  <h2>What This SOP Covers</h2>
+  <p>This document defines the complete lifecycle of a maintenance request in the MEDILab Asset Management platform — from the moment a client submits a request, through engineer assignment and scheduling, to on-site service execution and finalisation of a signed service report with billing classification. It applies to all corrective maintenance, preventive maintenance, repair, and installation jobs handled by the MEDILab engineering team.</p>
+  <p>All engineers and the Engineering Manager must follow this procedure for every maintenance request. No service visit may be executed without an assigned, scheduled request in the system. No job is considered closed until a saved and client-signed service report exists in the platform.</p>
+</div>
+
+<div class="body">
+
+<!-- REQUEST LIFECYCLE FLOW -->
+<div class="section">
+  <div class="section-title"><span class="section-num">00</span><span class="section-name">Request Lifecycle Overview</span></div>
+  <p style="font-size:0.9rem;margin-bottom:0.9rem;">Every maintenance request passes through the following statuses. Each status transition requires a specific action. The system does not advance a request automatically — each step must be completed by the responsible role.</p>
+  <div class="flow-track">
+    <div class="flow-node fn-open">1. Open</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-scheduled">2. Scheduled</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-active">3. Active</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node fn-closed">4. Closed</div>
+  </div>
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ️</span>
+    <div><strong>Status definitions:</strong> <span class="badge badge-open">Open</span> — request received, engineer not yet assigned. <span class="badge badge-scheduled">Scheduled</span> — engineer assigned with confirmed visit date/time. <span class="badge badge-active">Active</span> — engineer on site, visit in progress. <span class="badge badge-closed">Closed</span> — service report saved and signed; job complete.</div>
+  </div>
+</div>
+
+<!-- 1. PURPOSE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">01</span><span class="section-name">Purpose</span></div>
+  <p>This SOP establishes the standardised procedure for managing medical equipment maintenance requests from intake to closure at MEDILab S.A.L. It defines the responsibilities of the Engineering Manager and field engineers, the required steps for scheduling service visits, and the mandatory format and content of the service report that must be completed at the end of every job.</p>
+  <p style="margin-top:0.6rem;">Following this procedure consistently ensures accurate job tracking, client accountability (via signed reports), correct billing classification, and a complete audit trail for all equipment serviced under MEDILab's remit.</p>
+</div>
+
+<!-- 2. SCOPE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">02</span><span class="section-name">Scope</span></div>
+  <p><strong>Who this applies to:</strong> All MEDILab field engineers, and the Engineering Manager responsible for assigning and overseeing maintenance requests.</p>
+  <p style="margin-top:0.5rem;"><strong>What is covered:</strong> All maintenance requests submitted via the Asset Management v2.0 platform — including corrective repair, preventive maintenance (PM), installation, commissioning, and training visits.</p>
+  <p style="margin-top:0.5rem;"><strong>What is NOT covered:</strong> Procurement of spare parts (see MED-PROC-001); fleet and transport logistics (see MED-LOG-001); warranty claims management with manufacturers; third-party contractor visits not managed through the MEDILab platform.</p>
+  <div class="alert alert-warn" style="margin-top:1rem;">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Scheduling Window:</strong> The system enforces a valid scheduling range per request. Engineers must be assigned within the displayed valid date window (e.g. "Valid Range: 21 May 2026 – 28 May 2026"). Do not schedule visits outside this window without explicit client confirmation and Engineering Manager approval.</div>
+  </div>
+</div>
+
+<!-- 3. DEFINITIONS -->
+<div class="section">
+  <div class="section-title"><span class="section-num">03</span><span class="section-name">Definitions &amp; Abbreviations</span></div>
+  <table>
+    <thead><tr><th style="width:22%">Term / Abbreviation</th><th>Definition</th></tr></thead>
+    <tbody>
+      <tr><td><strong>MR-XXX</strong></td><td>Maintenance Request number — unique system-generated identifier assigned to each incoming service request (e.g. MR-164).</td></tr>
+      <tr><td><strong>Service Report</strong></td><td>The formal document created by the engineer at the end of a visit, recording what was found, what was done, parts used, equipment status, and client signature. Required to close any request.</td></tr>
+      <tr><td><strong>Engineering Manager</strong></td><td>The MEDILab manager responsible for reviewing open requests, assigning engineers, and overseeing billing classification.</td></tr>
+      <tr><td><strong>Engineer</strong></td><td>MEDILab field engineer who executes the service visit and completes the service report on site.</td></tr>
+      <tr><td><strong>Billable</strong></td><td>A visit charged to the client. Requires the Engineering Manager to update the valuation/quote in the system before invoicing.</td></tr>
+      <tr><td><strong>Contract / Warranty</strong></td><td>Visit covered under an existing service contract or manufacturer warranty — not separately invoiced to the client.</td></tr>
+      <tr><td><strong>PM</strong></td><td>Preventive Maintenance — scheduled periodic service to maintain equipment in working condition before failure.</td></tr>
+      <tr><td><strong>S/N</strong></td><td>Serial Number — unique equipment identifier used to match the physical device to the asset registry.</td></tr>
+      <tr><td><strong>Valid Range</strong></td><td>The date window within which a service visit may be scheduled, as set by the request parameters.</td></tr>
+      <tr><td><strong>Asset Management v2.0</strong></td><td>MEDILab's internal platform used for managing maintenance requests, engineer scheduling, and service report creation.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 4. ROLES -->
+<div class="section">
+  <div class="section-title"><span class="section-num">04</span><span class="section-name">Roles &amp; Responsibilities</span></div>
+  <table>
+    <thead><tr><th style="width:25%">Role</th><th>Responsibility in This Procedure</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Engineering Manager</strong></td><td>Reviews all incoming open requests on the dashboard. Assigns the appropriate engineer and confirms date/time window. Adds notes/instructions for the engineer prior to visit. Reviews billing classification after visit and updates engineer's quote/valuation for billable visits.</td></tr>
+      <tr><td><strong>Engineer</strong></td><td>Executes the scheduled service visit at the client site. Creates, fills, and saves the service report on the platform immediately after the visit. Obtains the client representative's signature on the report. Completes all four service report sections accurately.</td></tr>
+      <tr><td><strong>Client Representative</strong></td><td>Signs the service report to confirm the work was performed and received. Primary contact for logistics at the client site.</td></tr>
+      <tr><td><strong>System (Asset Management v2.0)</strong></td><td>Auto-saves drafts. Links service reports to their parent maintenance requests. Stores all records and audit logs.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 5. PREREQUISITES -->
+<div class="section">
+  <div class="section-title"><span class="section-num">05</span><span class="section-name">Prerequisites</span></div>
+  <ul style="padding-left:1.4rem;font-size:0.9rem;line-height:2;">
+    <li>Engineering Manager has active login to Asset Management v2.0 with admin/manager permissions.</li>
+    <li>Assigned engineer has active login to Asset Management v2.0 and can access the request and service report forms.</li>
+    <li>The maintenance request has been submitted by the client or internal requester and has status <span class="badge badge-open">Open (Requires Scheduling)</span>.</li>
+    <li>The equipment to be serviced exists in the MEDILab asset registry with a valid registry entry (model and S/N).</li>
+    <li>The engineer has been briefed on any special materials or tools required (e.g. calibration solutions, spare parts) — per the Notes/Instructions field.</li>
+    <li>For billable visits: the Engineering Manager has verified the client's billing agreement type (Billable / Contract / Warranty) before the visit.</li>
+  </ul>
+</div>
+
+<!-- 6. PROCEDURE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">06</span><span class="section-name">Procedure Steps</span></div>
+
+  <!-- PHASE A -->
+  <div class="phase"><span class="phase-badge">PHASE A</span>ENGINEERING MANAGER — REQUEST REVIEW &amp; ENGINEER ASSIGNMENT</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    The Engineering Manager monitors the dashboard for new open requests and assigns an available engineer to each one within the valid scheduling window. This phase ends when the request status changes from Open to Scheduled.
+  </div>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <span class="step-action">Open the Maintenance Requests dashboard and review all requests with status Open (Requires Scheduling).</span>
+      <span class="step-role role-engmgr">Engineering Manager</span>
+      <div class="step-explain">Navigate to the <strong>Maintenance Requests</strong> section of Asset Management v2.0. The dashboard displays all requests as cards sorted by timeline or urgency. Focus on cards tagged <span class="badge badge-open">Open (Requires Scheduling)</span>. Check the urgency level (Low / Medium / High) and the due date to prioritise which request to action first.</div>
+      <div class="step-detail">
+        <p><strong>Dashboard layout:</strong> Filter tabs — All / Open / Scheduled / Active / Closed. Use the <em>For Me</em> toggle to narrow to your assigned requests. Use <em>Sort by Urgency</em> to surface critical jobs.</p>
+        <p><strong>Key fields to note on each card:</strong> MR number, facility name, location, requested by, due date, and urgency badge.</p>
+      </div>
+      <div class="mockup-card" style="margin-top:0.7rem;">
+        <div class="mockup-header">📋 Maintenance Requests — Dashboard View</div>
+        <div class="mockup-body">
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;">
+            <span class="btn-mock btn-red" style="font-size:0.72rem;">All</span>
+            <span class="btn-mock btn-gray" style="font-size:0.72rem;">Open</span>
+            <span class="btn-mock btn-gray" style="font-size:0.72rem;">Scheduled</span>
+            <span class="btn-mock btn-gray" style="font-size:0.72rem;">Active</span>
+            <span class="btn-mock btn-gray" style="font-size:0.72rem;">Closed</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.7rem;">
+            <div style="border:1px solid #f5c6c2;border-radius:6px;padding:0.7rem;background:#fff9f9;">
+              <div style="font-size:0.7rem;color:#888;margin-bottom:0.3rem;">#MR-164 · <span class="badge badge-open">Open (Requires Scheduling)</span> · <span class="badge badge-scheduled" style="background:#fef3c7;color:#92400e;">Medium</span></div>
+              <div style="font-weight:700;color:var(--navy);">AUB – OSB</div>
+              <div style="font-size:0.78rem;color:#888;">📍 Beirut</div>
+              <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-size:0.78rem;">
+                <span>By: User</span><span>Due: May 07, 2026</span>
+              </div>
+            </div>
+            <div style="border:1px solid #f5c6c2;border-radius:6px;padding:0.7rem;background:#fff9f9;">
+              <div style="font-size:0.7rem;color:#888;margin-bottom:0.3rem;">#MR-163 · <span class="badge badge-open">Open (Requires Scheduling)</span> · <span class="badge badge-scheduled" style="background:#fef3c7;color:#92400e;">Medium</span></div>
+              <div style="font-weight:700;color:var(--navy);">Aub</div>
+              <div style="font-size:0.78rem;color:#888;">📍 Chouf</div>
+              <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-size:0.78rem;">
+                <span>By: Rawad Zeidan</span><span>Due: Apr 28, 2026</span>
+              </div>
+            </div>
+            <div style="border:1px solid #bfdbfe;border-radius:6px;padding:0.7rem;background:#f0f7ff;">
+              <div style="font-size:0.7rem;color:#888;margin-bottom:0.3rem;">#MR-162 · <span class="badge badge-scheduled">Scheduled</span> · <span class="badge badge-scheduled" style="background:#fef3c7;color:#92400e;">Medium</span></div>
+              <div style="font-weight:700;color:var(--navy);">AUB – OSB</div>
+              <div style="font-size:0.78rem;color:#888;">📍 Beirut</div>
+              <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-size:0.78rem;">
+                <span>By: Sales</span><span>Due: Apr 22, 2026</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <span class="step-action">Open the target request and review all service and logistics details before assigning.</span>
+      <span class="step-role role-engmgr">Engineering Manager</span>
+      <div class="step-explain">Click the relevant MR card to open its detail view. Review: equipment to be serviced (model, S/N), service category, facility name, location, primary client contact and phone number, and the billing &amp; warranty information (Billable / Contract / Warranty). Only proceed to assignment once you have confirmed an engineer is available for the required date range.</div>
+      <div class="step-detail">
+        <p><strong>Actions available on an Open request:</strong> Edit Request, Create Service Report, Print Details, Schedule Request.</p>
+        <p><strong>Billing check:</strong> Before scheduling, verify the Agreement Type in the Billing &amp; Warranty panel. If the visit is Billable and the Engineer's Quote shows $0.00, remind yourself to update the valuation after the visit (Step 10).</p>
+      </div>
+      <div class="mockup-card" style="margin-top:0.7rem;">
+        <div class="mockup-header">Request #MR-164 — Detail View</div>
+        <div class="mockup-body">
+          <div style="display:flex;gap:0.5rem;margin-bottom:0.7rem;flex-wrap:wrap;">
+            <span class="btn-mock btn-red">✎ Edit Request</span>
+            <span class="btn-mock btn-green">+ Create Service Report</span>
+            <span class="btn-mock btn-gray">🖨 Print Details</span>
+            <span class="btn-mock btn-red">📅 Schedule Request</span>
+          </div>
+          <div class="mockup-row">
+            <div class="mockup-field"><div class="mockup-label">Equipment</div><div class="mockup-val">Biowetec CA261 · S/N: N/A · LAB</div></div>
+            <div class="mockup-field"><div class="mockup-label">Facility</div><div class="mockup-val">AUB – OSB, Beirut</div></div>
+            <div class="mockup-field"><div class="mockup-label">Primary Contact</div><div class="mockup-val">Abdel Baset Hammouda · +81818181</div></div>
+          </div>
+          <div class="mockup-row" style="margin-top:0.6rem;">
+            <div class="mockup-field"><div class="mockup-label">Agreement Type</div><div class="mockup-val"><span class="badge badge-billable">Billable</span></div></div>
+            <div class="mockup-field"><div class="mockup-label">Engineer's Quote</div><div class="mockup-val" style="color:var(--red);">$0.00</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <span class="step-action">Click "Schedule Request" to open the engineer assignment form.</span>
+      <span class="step-role role-engmgr">Engineering Manager</span>
+      <div class="step-explain">From the request detail view, click the <strong>Schedule Request</strong> button (top-right, red). This opens the <em>Schedule Engineer</em> form for the specific MR number. The form header displays the valid scheduling date range — do not assign visits outside this window.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <span class="step-action">Complete the engineer assignment form and confirm the assignment.</span>
+      <span class="step-role role-engmgr">Engineering Manager</span>
+      <div class="step-explain">Fill in all required fields in the <em>Schedule Engineer</em> form, then click <strong>Confirm Assignment</strong>.</div>
+      <div class="step-detail">
+        <p><strong>Required fields:</strong></p>
+        <ul>
+          <li><strong>Select Engineer:</strong> Choose from the dropdown. Only assign engineers who are available on the selected date. Avoid double-booking.</li>
+          <li><strong>Date of Assignment:</strong> Must fall within the displayed valid range. Default to the earliest feasible date respecting urgency.</li>
+          <li><strong>Start Time / End Time:</strong> Set a realistic window based on the type of job and travel time. For calibration/repair: minimum 2–3 hours recommended.</li>
+          <li><strong>Notes / Instructions:</strong> Enter any special instructions for the engineer — equipment to bring, access codes, client expectations, safety precautions (e.g. "Make sure to take calibration solutions").</li>
+        </ul>
+      </div>
+      <div class="mockup-card" style="margin-top:0.7rem;">
+        <div class="mockup-header">📅 Schedule Engineer — MR-164 · Valid Range: 21 May – 28 May 2026</div>
+        <div class="mockup-body">
+          <div class="mockup-row">
+            <div class="mockup-field"><div class="mockup-label">Select Engineer</div><div class="mockup-val">Rawad Zeidan ▼</div></div>
+            <div class="mockup-field"><div class="mockup-label">Date of Assignment</div><div class="mockup-val">05 / 26 / 2026</div></div>
+          </div>
+          <div class="mockup-row" style="margin-top:0.6rem;">
+            <div class="mockup-field"><div class="mockup-label">Start Time</div><div class="mockup-val">08:00 AM ▼</div></div>
+            <div class="mockup-field"><div class="mockup-label">End Time</div><div class="mockup-val">11:30 AM ▼</div></div>
+          </div>
+          <div style="margin-top:0.6rem;"><div class="mockup-label">Notes / Instructions</div><div style="background:var(--gray-50);border:1px solid var(--gray-200);padding:0.5rem 0.7rem;border-radius:4px;font-size:0.85rem;font-family:monospace;">Make sure to take calibration solutions</div></div>
+          <div style="margin-top:0.8rem;text-align:right;"><span class="btn-mock btn-red">🚀 Confirm Assignment</span></div>
+        </div>
+      </div>
+      <div class="decision" style="margin-top:0.8rem;">
+        <div class="decision-label">⚡ Decision — After Confirming</div>
+        <div class="decision-row"><span class="dy">SUCCESS →</span><span>Request status updates to <span class="badge badge-scheduled">Scheduled</span>. Engineer is notified. Proceed to Phase B.</span></div>
+        <div class="decision-row"><span class="dn">ERROR →</span><span>If the date falls outside the valid range, the system will reject the assignment. Adjust the date within the valid window and re-confirm.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE B -->
+  <div class="phase"><span class="phase-badge">PHASE B</span>ENGINEER — VISIT EXECUTION &amp; SERVICE REPORT INITIATION</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    The assigned engineer travels to the client site, performs the service, and immediately initiates and saves the service report in the platform upon completion. The service report must be created on the same day as the visit wherever possible.
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <span class="step-action">Review the scheduled request details and Notes/Instructions before departing for the visit.</span>
+      <span class="step-role role-eng">Engineer</span>
+      <div class="step-explain">Log in to Asset Management v2.0 and locate your assigned request (status: <span class="badge badge-scheduled">Scheduled</span>). Read the service information, equipment details, facility location, client contact, and the Engineering Manager's notes. Confirm you have all required tools and materials before departing.</div>
+      <div class="step-detail">
+        <p>Check: correct facility address, client representative name and phone number, equipment model and S/N to expect on site, and any special instructions from the Engineering Manager.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <span class="step-action">Execute the service visit at the client site and note all findings and actions taken.</span>
+      <span class="step-role role-eng">Engineer</span>
+      <div class="step-explain">Perform the required maintenance, repair, calibration, or other service. Document as you go: the issue found, the work performed, any parts used or replaced, and the final equipment status. You will enter this information in the service report in the next step.</div>
+      <div class="alert alert-warn" style="margin-top:0.7rem;">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Parts Used:</strong> Record every part used — part name, quantity, and reference where possible. If no parts were used, enter "N/A". Do not leave this field blank.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">7</div>
+    <div class="step-body">
+      <span class="step-action">Open the request in the platform and click "Create Service Report."</span>
+      <span class="step-role role-eng">Engineer</span>
+      <div class="step-explain">Navigate to the maintenance request (MR-XXX) for this visit. From the request detail view, click the green <strong>Create Service Report</strong> button. This opens the four-section service report form. The system auto-saves periodically — you will see "Last auto-saved: Just now" at the top.</div>
+    </div>
+  </div>
+
+  <!-- PHASE C -->
+  <div class="phase"><span class="phase-badge">PHASE C</span>ENGINEER — SERVICE REPORT COMPLETION (4 SECTIONS)</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    The engineer fills in all four sections of the service report accurately and completely. All sections are mandatory. The report cannot be considered complete unless all four sections are filled and the client signature is captured.
+  </div>
+
+  <div class="step">
+    <div class="step-num">8</div>
+    <div class="step-body">
+      <span class="step-action">Complete Section 1: General Information.</span>
+      <span class="step-role role-eng">Engineer</span>
+      <div class="step-explain">Fill in or verify all fields in Section 1. Most fields are pre-populated from the linked request — review and correct any that are wrong.</div>
+      <div class="step-detail">
+        <p><strong>Fields in Section 1:</strong></p>
+        <ul>
+          <li><strong>Linked Request:</strong> Auto-populated from the parent MR — verify the correct MR number is shown (e.g. MR-164 | AUB-OSB).</li>
+          <li><strong>Client Name:</strong> The facility/organisation name (e.g. AUB-OSB). Verify it matches the actual client.</li>
+          <li><strong>Project Reference:</strong> Enter or confirm the project code (e.g. UIU9998). Obtain from the Engineering Manager if unknown.</li>
+          <li><strong>Location / Department:</strong> City and/or department where the service was performed (e.g. Beirut).</li>
+          <li><strong>Donor (if applicable):</strong> If equipment or project is funded by a donor (e.g. USAID), enter the donor name. Leave blank if not applicable.</li>
+          <li><strong>Date of Service:</strong> Set to the actual date and time the service was performed. Do not use a future date.</li>
+          <li><strong>Client Representative:</strong> Full name of the person who received the service at the facility.</li>
+          <li><strong>Representative Phone Number:</strong> Contact number of the client representative.</li>
+        </ul>
+      </div>
+      <div class="mockup-card" style="margin-top:0.7rem;">
+        <div class="mockup-header">① Section 1: General Information</div>
+        <div class="mockup-body">
+          <div class="mockup-row">
+            <div class="mockup-field"><div class="mockup-label">Linked Request</div><div class="mockup-val">MR-164 | AUB-OSB ▼</div></div>
+            <div class="mockup-field"><div class="mockup-label">Client Name</div><div class="mockup-val">AUB-OSB</div></div>
+            <div class="mockup-field"><div class="mockup-label">Project Reference</div><div class="mockup-val">UIU9998</div></div>
+            <div class="mockup-field"><div class="mockup-label">Location / Department</div><div class="mockup-val">Beirut</div></div>
+          </div>
+          <div class="mockup-row" style="margin-top:0.6rem;">
+            <div class="mockup-field"><div class="mockup-label">Donor (if applicable)</div><div class="mockup-val">USAID</div></div>
+            <div class="mockup-field"><div class="mockup-label">Date of Service</div><div class="mockup-val">05/28/2026 10:28 AM</div></div>
+            <div class="mockup-field"><div class="mockup-label">Client Representative</div><div class="mockup-val">Abdel Baset Hammouda</div></div>
+            <div class="mockup-field"><div class="mockup-label">Representative Phone</div><div class="mockup-val">+81818181</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">9</div>
+    <div class="step-body">
+      <span class="step-action">Complete Section 2: Equipment Selection (Registry).</span>
+      <span class="step-role role-eng">Engineer</span>
+      <div class="step-explain">Confirm the equipment that was serviced is correctly listed. The equipment linked from the parent request is pre-populated. If additional equipment was serviced during the same visit, add it by clicking <em>+ Select machine from Registry</em>.</div>
+      <div class="step-detail">
+        <p><strong>Critical:</strong> Only select equipment that is registered in the MEDILab asset registry. If the equipment is not in the registry, notify the Engineering Manager immediately — do not leave Section 2 empty.</p>
+        <p>If the S/N on the physical device differs from the registry, note the discrepancy in Section 3 (Issue Description) and inform the Engineering Manager.</p>
+      </div>
+      <div class="mockup-card" style="margin-top:0.7rem;">
+        <div class="mockup-header">② Section 2: Equipment Selection (Registry)</div>
+        <div class="mockup-body">
+          <div style="border:1px solid #bfdbfe;background:#eff6ff;border-radius:6px;padding:0.6rem 1rem;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:700;color:var(--navy);">Biowetec CA261 | S/N: N/A</span>
+            <span style="color:var(--red);font-size:0.8rem;cursor:default;">× Remove</span>
+          </div>
+          <div style="margin-top:0.6rem;border:1px dashed var(--gray-400);border-radius:4px;padding:0.5rem 1rem;text-align:center;color:var(--gray-600);font-size:0.85rem;cursor:default;">+ Select machine from Registry</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">10</div>
+    <div class="step-body">
+      <span class="step-action">Complete Section 3: Service Details.</span>
+      <span class="step-role role-eng">Engineer</span>
+      <div class="step-explain">This is the core technical section of the report. Every field must be completed accurately and professionally. Use clear, precise language — the service report is a legal and billing document.</div>
+      <div class="step-detail">
+        <p><strong>Fields in Section 3:</strong></p>
+        <ul>
+          <li><strong>Issue Description:</strong> Describe the problem reported by the client or found on arrival. Be specific (e.g. "Biowetec chemistry analyzer produces out-of-range values during calibration"). Avoid vague terms.</li>
+          <li><strong>Work Performed:</strong> Describe all actions taken during the visit. Include specific procedures, tests, and outcomes (e.g. "Cleaned reagent probe, ran calibration test sequence, verified result consistency across 3 reagent cycles").</li>
+          <li><strong>Parts Used:</strong> List all parts used or replaced. If none: enter "N/A". Never leave blank.</li>
+          <li><strong>Status:</strong> Select the applicable status — <em>Completed</em>, <em>Pending</em>, or <em>Requires Follow-up</em>.</li>
+          <li><strong>Follow-up Required?:</strong> Check this box if the job requires a second visit or further action.</li>
+        </ul>
+        <p><strong>Service Type checkboxes (select all that apply):</strong> Preventive Maintenance, Repair, Training, Installation, Commissioning.</p>
+        <p><strong>Billing/Contract Category (select one):</strong> Paid Service, Contract, Warranty, Other.</p>
+        <p><strong>Final Equipment Status After Service (select one):</strong> Returned to working conditions, Needs Follow Up, Collected for maintenance.</p>
+      </div>
+      <div class="mockup-card" style="margin-top:0.7rem;">
+        <div class="mockup-header">③ Section 3: Service Details</div>
+        <div class="mockup-body">
+          <div style="margin-bottom:0.5rem;"><div class="mockup-label">Issue Description</div><div style="background:var(--gray-50);border:1px solid var(--gray-200);padding:0.5rem 0.7rem;border-radius:4px;font-size:0.85rem;font-family:monospace;">Biowetec chemistry analyzer has weird values when performing calibration</div></div>
+          <div style="margin-bottom:0.5rem;"><div class="mockup-label">Work Performed</div><div style="background:var(--gray-50);border:1px solid var(--gray-200);padding:0.5rem 0.7rem;border-radius:4px;font-size:0.85rem;font-family:monospace;">Cleaned reagent probe and tested machine. Fully functional and tested values are modular.</div></div>
+          <div style="margin-bottom:0.5rem;"><div class="mockup-label">Parts Used</div><div style="background:var(--gray-50);border:1px solid var(--gray-200);padding:0.5rem 0.7rem;border-radius:4px;font-size:0.85rem;font-family:monospace;">N/A</div></div>
+          <div class="mockup-row" style="margin-top:0.5rem;">
+            <div><div class="mockup-label">Status</div><div class="mockup-val">Completed ▼</div></div>
+            <div><div class="mockup-label">Follow-up Required?</div><div style="font-size:0.85rem;">☐ (not checked)</div></div>
+          </div>
+          <div style="display:flex;gap:2rem;margin-top:0.8rem;flex-wrap:wrap;font-size:0.85rem;">
+            <div>
+              <div class="mockup-label" style="margin-bottom:0.3rem;">Service Type</div>
+              <div>☑ Preventive Maintenance</div>
+              <div>☐ Training</div>
+              <div>☐ Installation</div>
+              <div>☑ Repair</div>
+              <div>☐ Commissioning</div>
+            </div>
+            <div>
+              <div class="mockup-label" style="margin-bottom:0.3rem;">Billing / Contract Category</div>
+              <div>☑ Paid Service</div>
+              <div>☐ Contract</div>
+              <div>☐ Warranty</div>
+              <div>☐ Other</div>
+            </div>
+            <div>
+              <div class="mockup-label" style="margin-bottom:0.3rem;">Final Equipment Status</div>
+              <div>☑ Returned to working conditions</div>
+              <div>☐ Needs Follow Up</div>
+              <div>☐ Collected for maintenance</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">11</div>
+    <div class="step-body">
+      <span class="step-action">Complete the Warranty Management section (if applicable).</span>
+      <span class="step-role role-eng">Engineer</span>
+      <div class="step-explain">If the service included installation of a new component or the device is now covered under a new warranty period, check <strong>"Warranty starts today"</strong> and select the appropriate warranty duration from the dropdown. The system will automatically calculate and record the warranty expiry date for all listed equipment.</div>
+      <div class="decision">
+        <div class="decision-label">⚡ Decision — Warranty</div>
+        <div class="decision-row"><span class="dy">YES →</span><span>New warranty applies: check "Warranty starts today" and select duration (e.g. 3 months, 6 months, 1 year).</span></div>
+        <div class="decision-row"><span class="dn">NO →</span><span>No new warranty: leave unchecked. Proceed to Section 4.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">12</div>
+    <div class="step-body">
+      <span class="step-action">Complete Section 4: Validation &amp; Attachments — capture client signature and upload photos.</span>
+      <span class="step-role role-eng">Engineer</span>
+      <div class="step-explain">This section finalises and validates the report. Both the client signature and any relevant photo attachments should be captured before leaving the facility.</div>
+      <div class="step-detail">
+        <p><strong>Client Signature:</strong> Have the client representative sign directly in the signature canvas. Click <strong>Confirm Signature</strong> to lock it in. If the client refuses or is unavailable, note this in the Work Performed field and notify the Engineering Manager.</p>
+        <p><strong>Photo Attachments:</strong> Upload relevant photos — equipment before/after service, replaced parts, error codes on screen, calibration printouts. Use the drag-and-drop area or Choose Files. Photos are stored permanently with the report.</p>
+      </div>
+      <div class="mockup-card" style="margin-top:0.7rem;">
+        <div class="mockup-header">④ Section 4: Validation &amp; Attachments</div>
+        <div class="mockup-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+            <div>
+              <div class="mockup-label">Client Signature</div>
+              <div style="border:1px solid var(--gray-200);border-radius:4px;height:100px;background:#fafafa;display:flex;align-items:center;justify-content:center;color:var(--gray-400);font-style:italic;font-size:0.85rem;">[ Signature captured ]</div>
+              <div style="margin-top:0.4rem;display:flex;gap:0.4rem;">
+                <span class="btn-mock btn-gray" style="font-size:0.75rem;">Clear</span>
+                <span class="btn-mock btn-red" style="font-size:0.75rem;">Confirm Signature</span>
+              </div>
+            </div>
+            <div>
+              <div class="mockup-label">Photo Attachments</div>
+              <div style="border:1.5px dashed var(--gray-400);border-radius:6px;height:100px;background:#fafafa;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.3rem;">
+                <span style="font-size:0.8rem;color:var(--gray-600);">Drag &amp; drop or click to upload</span>
+                <span class="btn-mock btn-gray" style="font-size:0.75rem;">Choose Files</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">13</div>
+    <div class="step-body">
+      <span class="step-action">Click "Save Report" to finalise and submit the service report.</span>
+      <span class="step-role role-eng">Engineer</span>
+      <div class="step-explain">Once all four sections are complete and the client signature is confirmed, click the red <strong>Save Report →</strong> button at the bottom-right of the form. The system saves and locks the report, links it permanently to the parent maintenance request, and updates the request status.</div>
+      <div class="alert alert-ok" style="margin-top:0.7rem;">
+        <span class="alert-icon">✅</span>
+        <div><strong>Auto-save note:</strong> The system auto-saves your progress as you work. However, auto-save does not submit or close the report — you must manually click <strong>Save Report</strong> to finalise it.</div>
+      </div>
+      <div class="decision">
+        <div class="decision-label">⚡ Decision — Report Completeness</div>
+        <div class="decision-row"><span class="dy">ALL COMPLETE →</span><span>Click Save Report. Report is finalised and linked to the MR. Proceed to Phase D (Engineering Manager billing review).</span></div>
+        <div class="decision-row"><span class="dn">MISSING DATA →</span><span>Complete all required fields before saving. A report with empty mandatory fields is not acceptable. If data is genuinely unavailable (e.g. S/N not on device), note "Unknown – to be updated" and notify Engineering Manager.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE D -->
+  <div class="phase"><span class="phase-badge">PHASE D</span>ENGINEERING MANAGER — BILLING REVIEW &amp; CLOSURE</div>
+
+  <div class="purpose-box">
+    <strong>Purpose of this phase</strong>
+    After the engineer saves the service report, the Engineering Manager reviews the billing classification and updates the financial valuation for any billable visits. This phase closes the request and ensures the finance team can proceed with invoicing.
+  </div>
+
+  <div class="step">
+    <div class="step-num">14</div>
+    <div class="step-body">
+      <span class="step-action">Review the completed service report and verify billing classification.</span>
+      <span class="step-role role-engmgr">Engineering Manager</span>
+      <div class="step-explain">Open the relevant maintenance request and review the saved service report. Confirm the service type, billing/contract category, and final equipment status match expectations. Check whether the visit should generate an invoice.</div>
+      <div class="decision">
+        <div class="decision-label">⚡ Decision — Billing Type</div>
+        <div class="decision-row"><span class="dy">BILLABLE →</span><span>Engineer's quote is likely $0.00 (default). Proceed to Step 15 to update valuation.</span></div>
+        <div class="decision-row"><span class="dn">CONTRACT / WARRANTY →</span><span>No invoice required. Verify agreement type is correct in the system. Proceed to Step 16 (closure).</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">15</div>
+    <div class="step-body">
+      <span class="step-action">Click "Update Valuation" and enter the correct billing amount for billable visits.</span>
+      <span class="step-role role-engmgr">Engineering Manager</span>
+      <div class="step-explain">In the <strong>Billing &amp; Warranty</strong> panel of the request, click <strong>Update Valuation</strong>. Enter the correct engineer's quote / service charge based on the work performed, parts used, and applicable pricing. Save the updated valuation. This figure will be used by the finance team for client invoicing.</div>
+      <div class="step-detail">
+        <p>Agreement type will display as <span class="badge badge-billable">Billable</span>. The default $0.00 must be updated before the request is handed to finance. Confirm the final amount with the Operations Director if it exceeds the standard rate card.</p>
+      </div>
+      <div class="mockup-card" style="margin-top:0.7rem;">
+        <div class="mockup-header">💰 Billing &amp; Warranty Panel</div>
+        <div class="mockup-body">
+          <div class="mockup-row">
+            <div class="mockup-field"><div class="mockup-label">Agreement Type</div><div class="mockup-val"><span class="badge badge-billable">Billable</span></div></div>
+            <div class="mockup-field"><div class="mockup-label">Engineer's Quote</div><div class="mockup-val" style="color:var(--red);font-size:1.1rem;font-weight:800;">$0.00</div></div>
+          </div>
+          <div style="margin-top:0.7rem;"><span class="btn-mock btn-amber" style="border:1px solid var(--amber);">📋 Update Valuation</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">16</div>
+    <div class="step-body">
+      <span class="step-action">Close the maintenance request once billing is confirmed and report is finalised.</span>
+      <span class="step-role role-engmgr">Engineering Manager</span>
+      <div class="step-explain">Once the service report is complete, signed, and billing is updated (or confirmed as contract/warranty), update the request status to <span class="badge badge-closed">Closed</span>. The request moves to the Closed tab on the dashboard. The service report remains permanently accessible and linked to the equipment's service history.</div>
+      <div class="alert alert-info" style="margin-top:0.7rem;">
+        <span class="alert-icon">ℹ️</span>
+        <div><strong>Follow-up flag:</strong> If the engineer checked "Follow-up Required?" in the service report, do NOT close this request. Instead, create a new maintenance request for the follow-up visit, linking it to the original MR in the Notes field.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /section 6 -->
+
+<!-- 7. QUALITY CHECKS -->
+<div class="section">
+  <div class="section-title"><span class="section-num">07</span><span class="section-name">Quality Checks &amp; Verification Points</span></div>
+  <table>
+    <thead><tr><th>What to Check</th><th>Who</th><th>When</th><th>How</th></tr></thead>
+    <tbody>
+      <tr><td>No open requests older than 2 business days without engineer assignment</td><td>Engineering Manager</td><td>Start of each working day</td><td>Dashboard → Open tab → sort by due date; any unassigned request approaching due date must be actioned immediately</td></tr>
+      <tr><td>Assigned engineer is available and not double-booked on scheduled date</td><td>Engineering Manager</td><td>Before confirming assignment (Step 4)</td><td>Cross-check engineer's existing scheduled requests for that date</td></tr>
+      <tr><td>Visit date falls within the valid scheduling range</td><td>Engineering Manager</td><td>When completing Schedule Engineer form (Step 4)</td><td>Verify date against "Valid Range" shown in the form header</td></tr>
+      <tr><td>Service report Section 1–4 are all complete before saving</td><td>Engineer</td><td>Before clicking Save Report (Step 13)</td><td>Scroll through all sections; check no mandatory fields are blank</td></tr>
+      <tr><td>Client signature is captured on the report</td><td>Engineer</td><td>Before leaving client site (Step 12)</td><td>Confirm signature canvas shows signature and Confirm Signature was clicked</td></tr>
+      <tr><td>Billable visit has an updated Engineer's Quote (not $0.00)</td><td>Engineering Manager</td><td>After reviewing the service report (Step 15)</td><td>Check Billing &amp; Warranty panel — if Billable and $0.00, Update Valuation must be actioned</td></tr>
+      <tr><td>Follow-up flag is actioned — new MR created if required</td><td>Engineering Manager</td><td>At closure (Step 16)</td><td>Check "Follow-up Required?" checkbox status on service report; if checked, new MR must be open before this one is closed</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 8. NON-CONFORMANCE -->
+<div class="section">
+  <div class="section-title"><span class="section-num">08</span><span class="section-name">Non-Conformance &amp; Exception Handling</span></div>
+
+  <div class="alert alert-crit">
+    <span class="alert-icon">🚫</span>
+    <div><strong>No visit without a scheduled request:</strong> No engineer may perform a service visit at a client site without an existing maintenance request that has been formally scheduled in Asset Management v2.0. Visits performed without a scheduled MR cannot be invoiced and will not be covered by MEDILab liability. Report any such occurrence to the Engineering Manager immediately.</div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Client representative unavailable for signature:</strong> If the client representative is unavailable to sign, the engineer must note this in the Work Performed field with the reason and time. The Engineering Manager must follow up with the client to obtain a signature within 48 hours. Do not leave signature blank without documentation.</div>
+  </div>
+
+  <div class="alert alert-warn">
+    <span class="alert-icon">⚠️</span>
+    <div><strong>Equipment not in registry:</strong> If the equipment to be serviced is not found in the MEDILab asset registry (Section 2), do not create a placeholder entry. Stop, notify the Engineering Manager, and have the asset added to the registry before completing the report.</div>
+  </div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ️</span>
+    <div><strong>Visit cannot be completed (equipment issue):</strong> If the engineer arrives on site and cannot complete the service (e.g. equipment has been moved, access denied, parts unavailable), set the report Status to "Pending" and check "Follow-up Required." Document the reason in the Work Performed field. Notify the Engineering Manager before leaving the site.</div>
+  </div>
+
+  <div class="alert alert-info">
+    <span class="alert-icon">ℹ️</span>
+    <div><strong>Platform offline / cannot save report:</strong> If the platform is unavailable when the engineer needs to create the report, complete the service details on a paper template (or screenshot form fields on mobile). Submit the paper report to the Engineering Manager and create the digital report in the platform on the same day once connectivity is restored.</div>
+  </div>
+</div>
+
+<!-- 9. RECORDS -->
+<div class="section">
+  <div class="section-title"><span class="section-num">09</span><span class="section-name">Records &amp; Documentation</span></div>
+  <table>
+    <thead><tr><th>Record</th><th>Created By</th><th>Storage</th><th>Retention</th></tr></thead>
+    <tbody>
+      <tr><td>Maintenance Request (MR-XXX) — all fields</td><td>System (auto on submission)</td><td>Asset Management v2.0 — Closed tab after closure</td><td>Minimum 5 years</td></tr>
+      <tr><td>Engineer assignment record — engineer name, date, time window, notes</td><td>Engineering Manager (on confirmation)</td><td>Asset Management v2.0 — linked to MR record</td><td>Minimum 5 years</td></tr>
+      <tr><td>Service Report — all 4 sections, client signature, photos</td><td>Engineer</td><td>Asset Management v2.0 — linked to MR and equipment asset record</td><td>Minimum 5 years; 10 years for donor-funded equipment</td></tr>
+      <tr><td>Billing valuation / engineer's quote</td><td>Engineering Manager</td><td>Asset Management v2.0 — Billing &amp; Warranty panel</td><td>Minimum 5 years</td></tr>
+      <tr><td>Photo attachments</td><td>Engineer</td><td>Asset Management v2.0 — attached to service report</td><td>Same as service report</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 10. REFERENCES -->
+<div class="section">
+  <div class="section-title"><span class="section-num">10</span><span class="section-name">References &amp; Related SOPs</span></div>
+  <table>
+    <thead><tr><th>Document Code</th><th>Title</th><th>Relevance</th></tr></thead>
+    <tbody>
+      <tr><td>MED-LOG-001</td><td>Fleet Trip Request &amp; Driver Scheduling SOP</td><td>Used when the engineer requires a company vehicle to travel to the client site</td></tr>
+      <tr><td>MED-PROC-001</td><td>Spare Parts Procurement SOP</td><td>For ordering parts identified as needed during a maintenance visit</td></tr>
+      <tr><td>MED-ASSET-001</td><td>Asset Registry Management SOP</td><td>For adding new equipment to the registry when not found in Section 2</td></tr>
+      <tr><td>MED-FIN-002</td><td>Client Invoicing Procedure</td><td>Finance team uses the engineer's quote from billable service reports to raise invoices</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 11. REVISION HISTORY -->
+<div class="section">
+  <div class="section-title"><span class="section-num">11</span><span class="section-name">Revision History</span></div>
+  <table>
+    <thead><tr><th style="width:10%">Version</th><th style="width:18%">Date</th><th style="width:22%">Author</th><th>Change Summary</th></tr></thead>
+    <tbody>
+      <tr><td>v1.0</td><td>07 May 2026</td><td>Engineering Manager</td><td>Initial release. Covers full lifecycle: dashboard review, engineer assignment, service report (4 sections), billing review, and closure. Derived from Asset Management v2.0 platform workflows.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /body -->
+
+<div class="sop-footer">
+  <div><strong>MED-MAINT-002</strong> · Maintenance Request &amp; Service Report · v1.0</div>
+  <div>MEDILab S.A.L. — Technical Services Division · Internal Use Only</div>
+  <div>Next review: <strong>07 May 2027</strong></div>
+</div>
+
+</div><!-- /page-wrap -->
+</body>
+</html>
