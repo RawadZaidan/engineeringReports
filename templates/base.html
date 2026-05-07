@@ -61,6 +61,9 @@
                 {% if user.is_superuser %}
                 <a href="{% url 'docai:home' %}" class="nav-link"><i class="fas fa-robot nav-icon"></i> DocAi</a>
                 {% endif %}
+                {% if user.is_staff %}
+                <a href="{% url 'engineer_scheduling' %}" class="nav-link"><i class="fas fa-hard-hat nav-icon"></i> Eng. Trips</a>
+                {% endif %}
                 {% endif %}
                 <a href="{% url 'driver_scheduling' %}" class="nav-link">
                     <i class="fas fa-truck-loading nav-icon"></i> {% if is_driver %}Logistics{% else %}Scheduling{% endif %}
@@ -123,6 +126,12 @@
         <a href="{% url 'docai:home' %}" class="bottom-nav-link {% if 'docai' in request.path %}active{% endif %}">
             <i class="fas fa-robot bottom-nav-icon"></i>
             <span class="bottom-nav-label">DocAi</span>
+        </a>
+        {% endif %}
+        {% if user.is_staff %}
+        <a href="{% url 'engineer_scheduling' %}" class="bottom-nav-link {% if 'engineering' in request.path %}active{% endif %}">
+            <i class="fas fa-hard-hat bottom-nav-icon"></i>
+            <span class="bottom-nav-label">Eng. Trips</span>
         </a>
         {% endif %}
         {% endif %}
