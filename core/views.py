@@ -24,7 +24,22 @@ from .forms import (
 
 from django.views.generic import TemplateView
 
-class DashboardView(LoginRequiredMixin, TemplateView):
+
+class DriverRedirectMixin:
+    """Redirect users in the Driver group away from all non-logistics pages."""
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            is_drv = request.session.get('is_driver')
+            if is_drv is None:
+                is_drv = request.user.groups.filter(name='Driver').exists()
+                request.session['is_driver'] = is_drv
+            if is_drv:
+                return redirect('driver_scheduling')
+        return super().dispatch(request, *args, **kwargs)
+
+
+class DashboardView(DriverRedirectMixin, LoginRequiredMixin, TemplateView):
     template_name = 'core/dashboard.html'
     
     def get_context_data(self, **kwargs):
@@ -196,12 +211,12 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
 # --- PRODUCT CATALOGUE & EQUIPMENT REGISTRY ---
 
-class ProductListView(LoginRequiredMixin, ListView):
+class ProductListView(DriverRedirectMixin, LoginRequiredMixin, ListView):
     model = Product
     template_name = 'core/product_list.html'
     context_object_name = 'products'
 
-class ProductCreateView(LoginRequiredMixin, CreateView):
+class ProductCreateView(DriverRedirectMixin, LoginRequiredMixin, CreateView):
     model = Product
     form_class = ProductForm
     template_name = 'core/product_form.html'
@@ -289,7 +304,7 @@ def product_get_or_create_ajax(request):
     )
     return JsonResponse({'success': True, 'id': product.id, 'name': str(product), 'created': created})
 
-class EquipmentListView(LoginRequiredMixin, ListView):
+class EquipmentListView(DriverRedirectMixin, LoginRequiredMixin, ListView):
     model = Equipment
     template_name = 'core/equipment_list.html'
     context_object_name = 'equipments'
@@ -350,7 +365,7 @@ def equipment_create_ajax(request):
 
 # --- SERVICE REPORTS ---
 
-class ServiceReportCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+class ServiceReportCreateView(DriverRedirectMixin, LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = ServiceReport
     form_class = ServiceReportForm
     template_name = 'core/report_form.html'
@@ -443,7 +458,7 @@ class ServiceReportCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateVie
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form))
 
-class ServiceReportUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class ServiceReportUpdateView(DriverRedirectMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = ServiceReport
     form_class = ServiceReportForm
     template_name = 'core/report_form.html'
@@ -506,7 +521,7 @@ class ServiceReportUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateVie
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form))
 
-class ServiceReportDetailView(LoginRequiredMixin, DetailView):
+class ServiceReportDetailView(DriverRedirectMixin, LoginRequiredMixin, DetailView):
     model = ServiceReport
     template_name = 'core/report_detail.html'
     context_object_name = 'report'
@@ -520,7 +535,7 @@ class ServiceReportDetailView(LoginRequiredMixin, DetailView):
             'images'
         )
 
-class ServiceReportListView(LoginRequiredMixin, ListView):
+class ServiceReportListView(DriverRedirectMixin, LoginRequiredMixin, ListView):
     model = ServiceReport
     template_name = 'core/report_list.html'
     context_object_name = 'reports'
@@ -572,7 +587,7 @@ class ServiceReportListView(LoginRequiredMixin, ListView):
 
 # --- MAINTENANCE REQUESTS ---
 
-class MaintenanceRequestListView(LoginRequiredMixin, ListView):
+class MaintenanceRequestListView(DriverRedirectMixin, LoginRequiredMixin, ListView):
     model = MaintenanceRequest
     template_name = 'core/request_list.html'
     context_object_name = 'requests'
@@ -639,7 +654,7 @@ class MaintenanceRequestListView(LoginRequiredMixin, ListView):
         
         return self.render_to_response(self.get_context_data())
 
-class MaintenanceRequestCreateView(LoginRequiredMixin, CreateView):
+class MaintenanceRequestCreateView(DriverRedirectMixin, LoginRequiredMixin, CreateView):
     model = MaintenanceRequest
     form_class = MaintenanceRequestForm
     template_name = 'core/request_form.html'
@@ -684,7 +699,7 @@ class MaintenanceRequestCreateView(LoginRequiredMixin, CreateView):
             return redirect(self.success_url)
         return self.render_to_response(self.get_context_data(form=form))
 
-class MaintenanceRequestDetailView(LoginRequiredMixin, DetailView):
+class MaintenanceRequestDetailView(DriverRedirectMixin, LoginRequiredMixin, DetailView):
     model = MaintenanceRequest
     template_name = 'core/request_detail.html'
     context_object_name = 'request'
@@ -703,7 +718,7 @@ class MaintenanceRequestDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
-class MaintenanceRequestUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class MaintenanceRequestUpdateView(DriverRedirectMixin, LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = MaintenanceRequest
     form_class = MaintenanceRequestForm
     template_name = 'core/request_form.html'
@@ -795,18 +810,47 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
     template_name = 'core/driver_scheduling.html'
     context_object_name = 'requests'
 
+    def _linked_driver(self):
+        """
+        Returns the Driver profile linked to the current user if they are in
+        the Driver group, or None if they are not a driver user.
+        Returns False if they are a driver user but have no linked Driver profile.
+        """
+        is_drv = self.request.session.get('is_driver')
+        if is_drv is None:
+            is_drv = self.request.user.groups.filter(name='Driver').exists()
+            self.request.session['is_driver'] = is_drv
+        if not is_drv:
+            return None  # not a driver-role user
+        try:
+            return self.request.user.driver_profile
+        except Driver.DoesNotExist:
+            return False  # driver-role user but no linked profile
+
+    def _apply_driver_scope(self, queryset):
+        """Narrow queryset to the driver's own assignments when the user is a driver."""
+        linked = self._linked_driver()
+        if linked is None:
+            return queryset  # non-driver user: no restriction
+        if linked is False:
+            return DriverRequest.objects.none()  # driver user with no profile
+        return queryset.filter(driver=linked)
+
     def get_queryset(self):
         today = timezone.now().date()
-        
+
         # Auto-complete past approved requests
         DriverRequest.objects.filter(
-            status='Approved', 
+            status='Approved',
             date__lt=today
         ).update(status='Completed')
 
         # OPTIMIZATION: Prevent N+1 queries when rendering driver and requester names
         queryset = super().get_queryset().select_related('driver', 'requester')
-        
+
+        # Scope to driver's own assignments if applicable
+        queryset = self._apply_driver_scope(queryset)
+
         # Date Filter (Specific Day)
         selected_date = self.request.GET.get('date')
         if selected_date:
@@ -819,7 +863,7 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
         # Status/Time Filters
         filter_type = self.request.GET.get('filter', 'approved') # Default to 'approved' (Active/Schedule)
         today = timezone.now().date()
-        
+
         if filter_type == 'pending':
             queryset = queryset.filter(status__in=['Pending', 'Edit Requested'])
         elif filter_type == 'approved': # "Approved, Schedule"
@@ -830,21 +874,21 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(status='Denied')
         else: # Fallback or 'active' -> Approved
             queryset = queryset.filter(status='Approved', date__gte=today)
-            
+
         return queryset.order_by('date', 'start_time')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         import calendar
         from datetime import date, timedelta
-        
+
         today = date.today()
         year = int(self.request.GET.get('year', today.year))
         month = int(self.request.GET.get('month', today.month))
-        
+
         cal = calendar.Calendar(firstweekday=0)
         month_days_raw = cal.monthdayscalendar(year, month)
-        
+
         # Build structured calendar data with ISO dates
         calendar_weeks = []
         for week in month_days_raw:
@@ -860,24 +904,23 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
                         'is_today': today.year == year and today.month == month and today.day == day
                     })
             calendar_weeks.append(week_data)
-        
-        # --- NEW: Fetch and serialize ALL requests for the month for Full Calendar ---
+
+        # Fetch requests for the month, scoped to driver's own assignments when applicable
         month_requests_qs = DriverRequest.objects.filter(
             date__year=year,
             date__month=month
         ).select_related('driver', 'requester')
-        
-        # --- PHASE 2 OPTIMIZATION ---
-        # Instead of asking the database for distinct days (which takes a 250ms round trip), 
-        # compute it instantly in Python from the requests already fetched for the month loop.
+        month_requests_qs = self._apply_driver_scope(month_requests_qs)
+
+        # Compute days-with-shifts in Python to avoid an extra DB round-trip
         shift_days = set(req.date.day for req in month_requests_qs)
-        
+
         serialized_requests = []
         for req in month_requests_qs:
             # Combine date and time for start/end
             start_dt = datetime.datetime.combine(req.date, req.start_time)
             end_dt = datetime.datetime.combine(req.date, req.end_time)
-            
+
             serialized_requests.append({
                 'id': req.id,
                 'title': f"{req.get_location_display()} ({req.client_name or 'General'})",
@@ -900,14 +943,18 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
                 'day': req.date.day,
                 'requester_id': req.requester.id,
             })
-        
+
         # Fetch all active drivers for the calendar's dynamic filter/color system
         active_drivers_qs = list(Driver.objects.filter(is_active=True).values('id', 'name').order_by('name'))
         active_driver_count = len(active_drivers_qs)
 
+        linked = self._linked_driver()
+        is_driver_user = linked is not None  # True for Driver-group users
+
         context.update({
             'active_driver_count': active_driver_count,
-            'is_admin': self.request.user.is_staff,
+            'is_admin': self.request.user.is_staff and not is_driver_user,
+            'is_driver_user': is_driver_user,
             'calendar_weeks': calendar_weeks,
             'shift_days': list(shift_days),
             'current_month': month,
@@ -930,7 +977,7 @@ class DriverSchedulingView(LoginRequiredMixin, ListView):
             
         return self.render_to_response(self.get_context_data())
 
-class DriverRequestCreateView(LoginRequiredMixin, CreateView):
+class DriverRequestCreateView(DriverRedirectMixin, LoginRequiredMixin, CreateView):
     model = DriverRequest
     form_class = DriverRequestForm
     template_name = 'core/driver_request_form.html'
@@ -940,7 +987,7 @@ class DriverRequestCreateView(LoginRequiredMixin, CreateView):
         form.instance.requester = self.request.user
         return super().form_valid(form)
 
-class DriverRequestUpdateView(LoginRequiredMixin, UpdateView):
+class DriverRequestUpdateView(DriverRedirectMixin, LoginRequiredMixin, UpdateView):
     model = DriverRequest
     form_class = DriverRequestForm
     template_name = 'core/driver_request_form.html'
@@ -954,7 +1001,7 @@ class DriverRequestUpdateView(LoginRequiredMixin, UpdateView):
 
 # --- ENGINEER SCHEDULING ---
 
-class EngineerSchedulingView(LoginRequiredMixin, ListView):
+class EngineerSchedulingView(DriverRedirectMixin, LoginRequiredMixin, ListView):
     model = MaintenanceAssignment
     template_name = 'core/engineer_scheduling.html'
     context_object_name = 'assignments'
@@ -1042,7 +1089,7 @@ class EngineerSchedulingView(LoginRequiredMixin, ListView):
             self.template_name = 'core/partials/engineer_scheduling_partial.html'
         return self.render_to_response(self.get_context_data())
 
-class MaintenanceAssignmentCreateView(LoginRequiredMixin, CreateView):
+class MaintenanceAssignmentCreateView(DriverRedirectMixin, LoginRequiredMixin, CreateView):
     model = MaintenanceAssignment
     form_class = MaintenanceAssignmentForm
     template_name = 'core/maintenance_assignment_form.html'
@@ -1071,7 +1118,7 @@ class MaintenanceAssignmentCreateView(LoginRequiredMixin, CreateView):
             mr.save()
         return response
 
-class MaintenanceAssignmentUpdateView(LoginRequiredMixin, UpdateView):
+class MaintenanceAssignmentUpdateView(DriverRedirectMixin, LoginRequiredMixin, UpdateView):
     model = MaintenanceAssignment
     form_class = MaintenanceAssignmentForm
     template_name = 'core/maintenance_assignment_form.html'

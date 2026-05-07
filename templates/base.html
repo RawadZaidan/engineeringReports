@@ -43,6 +43,7 @@
                 <span class="bar"></span>
             </button>
             <nav class="main-nav">
+                {% if not is_driver %}
                 <a href="{% url 'dashboard' %}" class="nav-link"><i class="fas fa-th-large nav-icon"></i> Dashboard</a>
                 {% if is_engineer %}
                 <a href="{% url 'report_create' %}" class="nav-link"><i class="fas fa-plus-circle nav-icon"></i> New Report</a>
@@ -60,8 +61,9 @@
                 {% if user.is_superuser %}
                 <a href="{% url 'docai:home' %}" class="nav-link"><i class="fas fa-robot nav-icon"></i> DocAi</a>
                 {% endif %}
+                {% endif %}
                 <a href="{% url 'driver_scheduling' %}" class="nav-link">
-                    <i class="fas fa-truck-loading nav-icon"></i> Scheduling
+                    <i class="fas fa-truck-loading nav-icon"></i> {% if is_driver %}Logistics{% else %}Scheduling{% endif %}
                     {% if open_driver_request_count > 0 %}
                     <span class="nav-badge">{{ open_driver_request_count }}</span>
                     {% endif %}
@@ -105,6 +107,7 @@
 
     <!-- Mobile Bottom Navigation -->
     <nav class="mobile-bottom-nav mobile-only">
+        {% if not is_driver %}
         <a href="{% url 'dashboard' %}" class="bottom-nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
             <i class="fas fa-home bottom-nav-icon"></i>
             <span class="bottom-nav-label">Home</span>
@@ -121,6 +124,7 @@
             <i class="fas fa-robot bottom-nav-icon"></i>
             <span class="bottom-nav-label">DocAi</span>
         </a>
+        {% endif %}
         {% endif %}
         <a href="{% url 'driver_scheduling' %}" class="bottom-nav-link {% if 'scheduling' in request.path %}active{% endif %}">
             <i class="fas fa-calendar-alt bottom-nav-icon"></i>

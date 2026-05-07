@@ -83,7 +83,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'core.context_processors.is_engineer',
+                'core.context_processors.user_roles',
                 'core.context_processors.notification_counts',
             ],
         },

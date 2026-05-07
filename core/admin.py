@@ -49,7 +49,9 @@ class SavedFilterAdmin(admin.ModelAdmin):
 
 @admin.register(Driver)
 class DriverAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_active')
+    list_display = ('name', 'user', 'is_active')
+    search_fields = ('name', 'user__username')
+    raw_id_fields = ('user',)
 
 @admin.register(DriverRequest)
 class DriverRequestAdmin(admin.ModelAdmin):

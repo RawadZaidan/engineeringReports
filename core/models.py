@@ -262,6 +262,7 @@ class SavedFilter(models.Model):
         unique_together = [['user', 'name', 'filter_type']]
     
 class Driver(models.Model):
+    user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='driver_profile')
     name = models.CharField(max_length=100)
     photo = models.ImageField(upload_to='drivers/', blank=True, null=True)
     license_info = models.CharField(max_length=255, blank=True, null=True, help_text="e.g., Class A CDL Holder", default="Class A CDL Holder")
